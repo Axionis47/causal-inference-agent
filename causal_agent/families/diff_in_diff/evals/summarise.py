@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 def summarise(result: dict) -> dict:
-    d = result.get("design") or {}
+    d = result.get("designs", {}).get(result.get("lead_design_id"), {})
     shape = result.get("shape") or {}
     checks = result.get("checks") or []
     est = [e for e in result.get("estimates") or [] if e.get("error") is None and e.get("method") == d.get("estimator")]
@@ -15,13 +15,11 @@ def summarise(result: dict) -> dict:
         "shape": shape.get("kind"),
         "periods_pre": shape.get("periods_pre"),
         "estimator": d.get("estimator"),
-        "controls": (result.get("controls") or {}).get("included"),
-        "controls_excluded": sorted(
-            {x["column"] for x in ((result.get("controls") or {}).get("excluded") or []) + ((result.get("controls") or {}).get("dropped_fixed") or [])}
-        ),
+        "controls": d.get("controls", []),
+        "controls_excluded": [],
         "effect": est[0]["value"] if est else None,
         "flags": sorted({c["name"] for c in checks if c["level"] != "pass"}),
         "hard_flags": sorted({c["name"] for c in checks if c["level"] == "hard"}),
-        "placebos": sorted({r["refuter"] for r in result.get("refutations") or []}),
+        "placebos": sorted({r["refuter"] for r in result.get("falsifications") or []}),
         "run_dir": result.get("run_dir"),
     }

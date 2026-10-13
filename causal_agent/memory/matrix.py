@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts.endpoints import ContextAdmission
 from causal_agent.memory import ops
 from causal_agent.memory.catalogue import Catalogue, FamilyNeeds
 from causal_agent.memory.claims import ProbeResult
@@ -35,6 +36,8 @@ class CellChange(BaseModel):
 
 
 class Matrix(BaseModel):
+    endpoint_admissions: dict[str, ContextAdmission] = Field(default_factory=dict)
+    selected_family: str | None = None
     memory_version: int = -1
     cells: dict[str, dict[str, Cell]] = Field(default_factory=dict, description="family -> kind -> cell")
     struck: dict[str, str] = Field(default_factory=dict, description="family -> why it is out: a cell that does not fit, or a failed probe")
@@ -51,9 +54,14 @@ class Matrix(BaseModel):
         needs: Mapping[str, FamilyNeeds],
         columns: list[str] | None = None,
         cat: Catalogue | None = None,
+        *,
+        target: str = "average",
+        outcome: str | None = None,
+        selected_family: str | None = None,
+        modifiers: list[str] | None = None,
     ) -> Matrix:
         """The matrix as the memory now stands. A cell whose value did not change keeps the version it was set at."""
-        status = ops.fit(memory, probes, needs, columns=columns, cat=cat)
+        status = ops.fit(memory, probes, needs, columns=columns, cat=cat, target=target, outcome=outcome, selected_family=selected_family, modifiers=modifiers)
         at = f"v{memory.version}"
         cells: dict[str, dict[str, Cell]] = {}
         for family, row in status.table.items():
@@ -62,7 +70,15 @@ class Matrix(BaseModel):
                 old = self.cell(family, kind)
                 set_by = status.set_by.get(family, {}).get(kind)
                 cells[family][kind] = Cell(value=value, set_by=set_by, at=old.at if old is not None and old.value == value else at)
-        return Matrix(memory_version=memory.version, cells=cells, struck=dict(status.struck), surviving=list(status.surviving), ready=status.ready)
+        return Matrix(
+            memory_version=memory.version,
+            cells=cells,
+            struck=dict(status.struck),
+            surviving=list(status.surviving),
+            ready=status.ready,
+            endpoint_admissions=status.endpoint_admissions,
+            selected_family=status.selected_family,
+        )
 
     def diff(self, prev: Matrix) -> list[CellChange]:
         """The cells whose value differs from `prev`. A cell absent on one side and not needed on the other did not change."""
@@ -86,6 +102,13 @@ class Matrix(BaseModel):
                 if c.value == "not_needed":
                     continue
                 lines.append(f"[matrix:{family}.{kind}] {c.value}" + (f" · set by {c.set_by}" if c.set_by else "") + (f" · {c.at}" if c.at else ""))
+        for family, admission in self.endpoint_admissions.items():
+            for endpoint in admission.endpoints:
+                lines.append(f"[matrix:{family}.endpoint.{endpoint.endpoint_id}] {endpoint.status}: {endpoint.reason}")
+                for obligation in endpoint.obligations:
+                    lines.append(
+                        f"[matrix:{family}.endpoint.{endpoint.endpoint_id}.{obligation.id}] {obligation.status}: {obligation.address}, {obligation.reason}"
+                    )
         for family, why in self.struck.items():
             lines.append(f"[matrix:{family}.struck] {why}")
         lines.append(f"[matrix] {'ready' if self.ready else 'not ready'} · in play: {', '.join(self.surviving) or 'none'} · v{self.memory_version}")

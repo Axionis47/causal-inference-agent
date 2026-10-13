@@ -1,88 +1,76 @@
-# families/adjustment: the DoWhy lane
+# Adjustment: fixed context to causal designs
 
-Effect of a change on an outcome when the things that drove the change are measured in the data. The desk hands the lane a pack;
-the lane turns it into a frozen design, runs it on DoWhy, and writes a report or an honest stop.
+The desk assembles and admits context through the shared matrix and this family's endpoint declarations. The lane reads that fixed handoff, builds a separate evidence ledger, identifies and checks rival analysis designs, freezes each valid design, and executes it with DoWhy or the installed statsmodels IV adapter. A lane never interviews the person or writes their durable memory.
 
+```text
+Desk: material + human clarification + matrix admission + explicit run authorization
+  |
+  +-- immutable handoff (context identity, dataset-byte digest, admitted requirements)
+        |
+        +-- load -> case -> pair -> seed
+        +-- mechanism -> relate -> bounded probe
+        +-- rival graphs -> identification endpoints -> support checks
+        +-- eligible estimator selection -> integrity-sealed designs
+        +-- execution for each frozen design and contrast
+        +-- falsifications + separate sensitivities + post-freeze graph diagnostics
+        +-- target-aware interpretation -> figures -> canonical result
+
+Any missing context, unidentified target, unsupported method, inadequate support,
+exhausted reasoning or execution failure is recorded with its specific reason.
+The desk owns the conversation and any subsequent authorization.
 ```
-load ─ case ─ pair ─ mechanism ─ time ─ roles ─ post_roles ─ merge_graph ─ verify_graph ─ road ─ heterogeneity ─ threats
-     ─ check_design ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─(analyse × C)─ after_analyse
-     ─(interpret × C)─ figures ─ assemble
-any typed stop, or a question back to the desk ─────────────────▶ feasibility ─ figures ─ assemble
-```
 
-C is the contrasts; it does not appear in the graph. `pair`, `mechanism`, `time`, `roles`, `post_roles`, `road`, `heterogeneity`
-and `threats` are the rungs of the ladder (`lane/contracts.py`, `Ladder`): the pair, how the treatment was set, every column's
-place in time, the pre-treatment columns placed together, the post-treatment columns placed together, the road taken among those
-open, where the effect could differ and for whom it is wanted, and the risks of the design. A rung is code where the pack settles
-it and a bounded episode where it does not, with the data tools and the budgets `knowledge/checks.yaml` declares. A rung never
-asks the person: what it would not guess is a flag, and a flag on a claim the interview could have settled is a decline that
-names the line `family.yaml` should gain. The stages are walked in
-[docs/lanes.md](../../../docs/lanes.md); the judgements and their gates are in [docs/gates.md](../../../docs/gates.md).
+## One declaration source
 
-## The roads
+`lane/knowledge/endpoints.yaml` defines twelve executable semantic endpoints and one identification-only diagnostic, including their target, context requirements, assumptions, trajectory, checks, estimators and stop reasons. There is no universal set of exactly ten DAGs. The endpoint catalogue supplies the desk's decisions and the lane's admission checks. `rungs.yaml` defines the actual ladder; `space.yaml` describes its dimensions; `rivals.yaml` defines enumeration limits and identification methods, including default, minimal, maximal and efficient adjustment policies with road/set deduplication. [motifs.yaml](lane/knowledge/motifs.yaml) retains the ten requested reusable graph examples, natural mediation and modifier variants, and blocked adjustment traps. These are illustrative graphs with explicit evidence and assumptions, not extra endpoint eligibility rules. The independent former decision checklist and belief/refuter shapes are removed.
 
-`road` reads every road DoWhy finds on the graph: the back door, the front door, an instrument. The graph carries what the pack
-settled as facts: a column the offer looked at and fixed before the change is a parent of both; the instrument the person named
-points at the treatment alone; the mediator the person named carries the whole effect, so the direct edge goes; and when the person
-says something outside the file drove both, a hidden node says so, which closes the back door. The estimator pick then chooses among
-the taken road's estimators, and the frozen design carries that road. With no road open the lane asks the desk one
-question, the mediator, then the instrument, and stops with status `ask`; the desk asks it like any other and runs again. When the
-person has said there is neither, the lane takes the back door with the hidden factor left in as a sensitivity range, and the
-reading says the effect holds only if that factor is no stronger than the simulated ones.
+The executable classes are unadjusted ATE, backdoor ATE/ATT/ATC, general-adjustment ATE, binary Wald complier LATE, scalar homogeneous IV, multiple-instrument homogeneous IV, conditional homogeneous IV, linear front-door total effect, linear natural indirect effect, linear natural direct effect, linear baseline-modifier effects, and positively supported structural zero. See [the scope and validation guide](evals/README.md) for each class's conditions and limitations.
 
-## The rule every node follows
+## Evidence and freeze
 
-- **Facts** are computed by code from declared inputs: `load`, `case`, `time`, `merge_graph`, `verify_graph`, `threats`,
-  `check_design`, `freeze_design`, `analyse`, `figures`, `assemble`. A missing input or a failed assumption is a typed `Feasibility`
-  stop, never a guess.
-- **Judgements** are bounded episodes, cite addresses, and pass a gate: `pair`, `mechanism`, `roles`, `post_roles`, `road`,
-  `heterogeneity` (each only for what the pack leaves open, with the data tools), `assess`, `pick_estimator`, `interpret` (no tools).
-  Every try is kept: what the model was shown, what it answered, what the gate said. A rung cites the pack, a fact it asked the
-  data for, or a rung below it; no tool joins the outcome with the treatment before the design is frozen.
-- **The pack is weighed first.** `case` turns the pack into facts, drafts, open and contested fields, and the person's beliefs into
-  flags by `knowledge/beliefs.yaml`; `decide_by_code` may stop or ask before any judgement. A column the pack settles never reaches
-  the model.
-- **Declarations live in `knowledge/`.** Thresholds in `checks.yaml`; the estimator catalogue in `estimators.yaml`, filtered by code
-  before the model sees it, with parameters the model never sets; every refuter in `refuters.yaml` whose conditions match runs.
-- **Design freeze.** `freeze_design` writes the design before any estimate exists. Loops happen only on failure facts: a rejected
-  answer inside an episode, a flagged check, a fit error. Nothing loops after an estimate.
-- **The model never touches DoWhy.** `lane/adapter.py` is the only file that imports it and it reads the design.
+Handoff context stays read-only. The lane ledger records literal supplied relationships and timing, causal hypotheses, their source addresses, status and accepted revision history. A drafted model statement or a covariance does not become a confirmed causal fact. Hidden common causes remain in the graph. No unspecified edge can establish structural zero; that endpoint requires a positively supplied absence of every treatment-outcome causal path.
+
+Before freeze, outcome access is restricted to univariate scale/shape description. Outcome associations, redundancies, cells and other relational diagnostics are refused, including outcome-covariate pairs. The lane can investigate unresolved non-outcome relationships within its declared budget. At most four unsettled structural entries yield sixteen rival graphs; at most eight executable designs may survive. Every admitted identification road for the requested target becomes a distinct candidate. Excess uncertainty is an explicit refusal.
+
+Support checks and estimator eligibility happen before outcome fitting. Singleton eligible estimators are selected by code; other picks use exact offered names and design identities. Freeze seals the graph, certificate, target, context and ledger revision, complete-case row identities and data fingerprints, weight recipe, estimation parameters, inference and predeclared fallback. Execution cannot change them. Every fit checks integrity, and percentile bootstrap refits the complete estimator on resampled raw rows.
+
+## Results and conversation
+
+The result preserves all designs and candidates, accepted ledger history, candidate transitions and obligations, episode visits and rejected tries, execution attempts, estimates, falsifications, sensitivity grids, comparisons and terminal outcomes. Source context facts, admission and dataset-byte identity travel with the result. Every estimate and diagnostic is design-qualified; failed attempts remain visible even when a frozen fallback succeeds. A failed lead design is not replaced silently by a successful rival.
+
+For a conditional target, freeze names every requested contrast, modifier and subgroup in `target.primary_summaries`. The overall effect is a secondary reference in `target.reference_summaries`. Completion requires every requested subgroup, including its inference, to succeed. A missing or unsupported subgroup remains an explicit failure and the overall mean cannot replace it.
+
+Comparisons require identical complete target definitions, contrasts, scales and frozen analysis populations. Different complete-case populations or subgroup targets cannot receive an agreement score. Post-freeze independence diagnostics and falsifications can expose concerns but do not select another causal graph. Sensitivity returns ranges and simulated strength points, with no pass verdict. The desk can discuss these artifacts, clarify the pre-analysis context, and authorize a fresh run.
 
 ## Files
 
-```
-family.yaml     what it answers, needs, assumes; the decisions the Designer fills; needs_claims for the matrix
-design.py       AdjustmentDesign, the family block in the pack
-handoff.py      design_block(BlockInputs): how the desk fills the block, by code
-probes.py       the arms and overlap probes; overlap.py the cell counts they use
-postviz.py      the figures the lane draws from its own artifacts: the graph, the balance per contrast
-lane/           graph.py, nodes.py, prompts.py, contracts.py (Relation, Graph, Estimand, Design, ...), state.py, adapter.py, checks.py
-lane/knowledge  estimators.yaml, refuters.yaml, checks.yaml, beliefs.yaml
-evals/          cases.yaml, handoffs/, the summariser, the evaluators, one EvalSpec
-tests/          the lane's suite: a fake model, real DoWhy on the fixture files
+```text
+family.yaml             family-level scope and matrix claim kinds
+endpoints.yaml          authoritative reasoning endpoint declarations (under lane/knowledge)
+design.py, handoff.py    advisory family block and fixed handoff construction
+probes.py, overlap.py    desk-facing data support probes
+postviz.py              design-qualified graph and comparable-estimate figures
+lane/contracts.py       graph/certificate/candidate/frozen-design and judgement records
+lane/reason.py          admission, ledger reasoning, rival identification and freeze
+lane/support.py         pure row fingerprints and numerical comparison identities
+lane/engine/            graph identification and frozen numerical adapters
+lane/execute.py         fits, declared fallback, attempt records and diagnostics
+lane/artifacts.py       interpretation, canonical result and reviewable report
+lane/knowledge/         endpoints, motifs, rungs, space, estimators, checks, rivals,
+                        falsifications and sensitivity declarations
+evals/                  protocol fixtures, endpoint evaluators and real-run evidence
+tests/                  pure policy invariants and actual numerical engines
 ```
 
-A run leaves `table.csv`, `design.json`, `design.md`, `artifacts.json`, `figures.json` and `report.md` under `.artifacts/runs/<dataset>-dowhy-<id>/`.
+A run leaves `table.csv`, `result.json`, `artifacts.json`, `figures.json` and `report.md` under `.artifacts/runs/<dataset>-dowhy-<id>/`. Frozen designs are held in the result's `designs` map.
 
-## Run it
+## Validation
 
 ```bash
-uv run python -m causal_agent.evals.lane adjustment students "Did completing the prep course raise math scores?"
+LANGSMITH_TRACING=false uv run pytest causal_agent/families/adjustment/tests -q
+LANGSMITH_TRACING=false uv run python -m causal_agent.families.adjustment.evals.scenarios backdoor
+GRPC_DNS_RESOLVER=native uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/backdoor_protocol.json
+uv run python -m causal_agent.evals.trace --trace <trace-id> --thoughts
 ```
 
-```bash
-uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/gov_transfers_forced.json
-```
-
-```bash
-uv run pytest causal_agent/families/adjustment -q
-```
-
-## Known limits
-
-- Treatments are compared level against level. A dose with many numeric values stops at `load`.
-- Targets: average, on the treated, on the untreated. Conditional and counterfactual stop at `load`.
-- Refuter draws are seeded once per run by the adapter, not through DoWhy's `random_state`, which reseeds every simulation
-  identically and turns the subset test into a guaranteed failure.
-- Edges between covariates are not drawn. Back-door identification on the star graph is valid without them.
-- Rows with a null in any relevant column are dropped at `load` and counted.
+The protocol fixtures disclose structure and assumptions while withholding generating effect magnitudes from Gemini. The evaluation knows those values. Real runs and their readbacks, including typed refusals and a full API conversation, are the acceptance bar.

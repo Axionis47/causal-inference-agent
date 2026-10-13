@@ -11,6 +11,7 @@ text the model was shown, the answer it gave, and what the gate said, so a watch
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from typing import Any, Protocol, TypeVar
 
@@ -57,6 +58,7 @@ class Fact(BaseModel):
     """One thing the model asked code for, with the address it may cite."""
 
     node: str
+    visit: str = "manual"
     n: int
     tool: str
     args: dict[str, Any] = Field(default_factory=dict)
@@ -65,7 +67,7 @@ class Fact(BaseModel):
 
     @property
     def address(self) -> str:
-        return f"probe:{self.node}.{self.n}"
+        return f"probe:{self.node}.{self.visit}.{self.n}"
 
     def render(self) -> str:
         return f"[{self.address}] {self.tool}({_args(self.args)}): {self.text}"
@@ -91,7 +93,10 @@ class EpisodeLog(BaseModel):
     and every try with what the model was shown, what it answered, and what the gate said."""
 
     node: str
+    visit: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    notes: str = ""
     system: str = ""
+    commit_system: str = ""
     facts: list[Fact] = Field(default_factory=list)
     refusals: list[Refusal] = Field(default_factory=list)
     calls: int = 0
@@ -132,7 +137,7 @@ def _run(tools: ToolSet, name: str, args: dict[str, Any], budget: int, log: Epis
             s.end(outputs={"refused": str(e)})
             return str(e)
         brief = getattr(tools, "brief_args", None)  # a tool set may say its arguments shorter than they are (a script by its length)
-        f = Fact(node=log.node, n=len(log.facts) + 1, tool=name, args=brief(name, args) if brief else args, text=r.text, value=r.value)
+        f = Fact(node=log.node, visit=log.visit, n=len(log.facts) + 1, tool=name, args=brief(name, args) if brief else args, text=r.text, value=r.value)
         log.facts.append(f)
         s.end(outputs={"address": f.address, "text": f.text, "value": f.value})
         return f.render()
@@ -159,7 +164,7 @@ def _look_in(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLo
         return _look_by_record(system, user, tools, step_schema(), budget, log, errors)
     bound = LLM.current().bind_tools(tools.schemas())
     messages: list[Any] = [
-        SystemMessage(content=system + "\n\n" + TOOL_RULE.format(budget=budget, node=log.node)),
+        SystemMessage(content=system + "\n\n" + TOOL_RULE.format(budget=budget, node=f"{log.node}.{log.visit}")),
         HumanMessage(content=_material(user, log, errors)),
     ]
     thoughts: list[Thought] = []
@@ -170,6 +175,7 @@ def _look_in(system: str, user: str, tools: ToolSet, budget: int, log: EpisodeLo
             thoughts.append(Thought(node=f"{log.node}:look", text=text, thinking_tokens=tt, output_tokens=ot))
         calls = list(getattr(ai, "tool_calls", None) or [])
         if not calls:
+            log.notes = text
             break
         messages.append(ai)
         for i, call in enumerate(calls):
@@ -205,22 +211,47 @@ def run_episode(
     gate: Callable[[T, EpisodeLog], list[str]],
     node: str,
     tries: int = MAX_TRIES,
+    notes: bool = False,
+    commit_system: str | None = None,
 ) -> tuple[T | None, EpisodeLog, list[Thought], list[str]]:
     """Run one episode. Returns the record the gate accepted (or None after `tries` refusals), the log, the thoughts, and the
     errors of the last refusal. The episode is one span, each try a span under it, each tool call and gate a span under that."""
-    log = EpisodeLog(node=node, system=system)
+    log = EpisodeLog(node=node, system=system, commit_system=commit_system or system)
     thoughts: list[Thought] = []
     errors: list[str] = []
     with trace.span(
         f"episode:{node}",
-        inputs={"schema": schema, "system": system, "user": user, "budget": budget, "tools": list(tools.names()) if tools else [], "tries": tries},
+        inputs={
+            "schema": schema,
+            "system": system,
+            "commit_system": log.commit_system,
+            "user": user,
+            "budget": budget,
+            "tools": list(tools.names()) if tools else [],
+            "tries": tries,
+        },
     ) as ep:
         for n in range(1, tries + 1):
             with trace.span(f"try {n}", inputs={"errors": list(errors)}) as t:
                 if tools is not None and log.calls < budget:
-                    thoughts += _look(system, user, tools, budget, log, errors)
+                    try:
+                        thoughts += _look(system, user, tools, budget, log, errors)
+                    except ValueError as exc:
+                        errors = trace.gate([f"structured tool step could not be parsed: {exc}"], name="gate", attempt=n)
+                        shown = _material(user, log, errors)
+                        log.tries.append(Try(n=n, user=shown, answer={"parsing_error": str(exc)}, errors=list(errors)))
+                        t.end(outputs={"errors": list(errors), "parsing_error": str(exc)})
+                        continue
                 shown = _material(user, log, errors)
-                record, th = LLM.structured(schema, system, shown, node=node)
+                if notes and log.notes:
+                    shown += "\n\nWORKING NOTES (proposals, not evidence)\n" + log.notes
+                try:
+                    record, th = LLM.structured(schema, log.commit_system, shown, node=node)
+                except ValueError as exc:
+                    errors = trace.gate([f"structured record could not be parsed: {exc}"], name="gate", attempt=n)
+                    log.tries.append(Try(n=n, user=shown, answer={"parsing_error": str(exc)}, errors=list(errors)))
+                    t.end(outputs={"errors": list(errors), "parsing_error": str(exc)})
+                    continue
                 thoughts.append(th)
                 answer = record.model_dump(mode="json")  # as the model gave it, before a gate may normalise a field
                 errors = trace.gate(gate(record, log))

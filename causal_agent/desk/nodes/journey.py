@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from causal_agent.desk.nodes.interview import after_design, ask, check, convince, explain, explore, infer, listen, probe_fit, transform
 from causal_agent.desk.nodes.question import ask_question, load, read_question
-from causal_agent.desk.nodes.run import after_run, ask_back, gate, handoff, run
+from causal_agent.desk.nodes.run import after_run, context_deficiency, gate, handoff, run
 from causal_agent.desk.nodes.shared import CAT, QUIT_WORDS, kinds_text
 
 __all__ = [
@@ -14,7 +14,7 @@ __all__ = [
     "after_design",
     "after_run",
     "ask",
-    "ask_back",
+    "context_deficiency",
     "ask_question",
     "check",
     "convince",

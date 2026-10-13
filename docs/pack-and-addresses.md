@@ -1,96 +1,33 @@
-# The pack and the addresses
+# The authorized context and its evidence addresses
 
-A lane sees one thing: the `Handoff`, projected from the memory at hand-off time and written to `designs/<n>/handoff.json`. Every
-claim a judgement makes cites an address the pack resolves. Addresses are the spine of the whole system: the chat, the lanes and the
-figures all speak in them, and code checks each one.
+The desk builds one `Handoff` for the chosen family from the question, target, dataset memory and deterministic profile. Its `context_id` hashes the complete admitted snapshot, including the dataset SHA256, dataset/memory versions, source statements, evidence statuses, endpoint admissions and accepted uncertainty. The run instruction authorizes the preview exactly as shown. The lane reads that handoff and its declared CSV only.
 
-## The pack
+Initial documents and model readings are drafts. Relevant human confirmations and applicable data checks produce confirmed fields. An unknown or contradiction can enter only under its endpoint's explicit policy. The lane keeps its own assumption/evidence ledger; it cannot silently rewrite the person's account or remove a hidden cause.
 
-`Handoff` ([common/contracts/pack.py:314](../causal_agent/common/contracts/pack.py)) carries:
+Population restrictions use an executable grammar: column comparisons or membership, joined by `and`. Time windows use explicit bounds. Unsupported, missing or unparseable restrictions stop execution. No supported endpoint silently substitutes the whole dataset for a requested population. Outcome, treatment and post-treatment population selection are unsupported in this finite catalogue.
 
-| part | what |
+## Address grammar
+
+| Address | Meaning |
 |---|---|
-| the decision | family, specialist, outcome, treatment, scope, the assumption bet on, why this family over the others |
-| the question | the text, the intent, the design id, the memory version it was projected from |
-| the story | the person's account as they gave it, or the note they attached, whole |
-| the data | the CSV path, the dataset facts, grain, sampling, missing |
-| the columns | one `ColumnBrief` per column that matters: its note, when it was set, what set it, whether it fed the treatment, moves the outcome, was moved by the change, measures the outcome, each with provenance |
-| how the change happened | `change` and `assignment` as the person settled them |
-| what the person believes | the `Belief`s, the addresses left unknown, the contradictions kept |
-| the words | every sentence, as `Said`, with the turn it came from |
-| the evidence | the family probes with their verdicts, the data facts (`probe:data.*`) with their numbers, the claim snapshot |
-| the family block | one `Design` subclass, filled by code from the memory: for adjustment the candidates to adjust for, the forbidden columns, the named instrument or mediator, the hidden confounding the person declared |
-| the brief | the Designer's `DesignBrief`: the road, the target, one decision per decision the family lists, the threats, the sentence it bets on |
+| `col:<key>.<field>` | Sourced column meaning, timing or relationship |
+| `col:<key>.profile.<facet>` | Deterministic profile fact |
+| `claim:<kind>.<field>` | Sourced study condition or accepted human belief |
+| `claim:story.text`, `user:turn:<n>` | Original study account and human statements |
+| `context.id`, `context.admission.*`, `context.fields.*` | Authorized identity and recorded admission |
+| `matrix:<family>.endpoint.<id>` | Endpoint readiness and obligations |
+| `rel:<id>`, `ledger:revision.<n>` | Lane evidence entries and preserved revisions |
+| `probe:<episode>.<visit>.<n>` | Unique read-only episode observation |
+| `design:<id>.*` | One frozen specification, target and certificate |
+| `check:<design>.<contrast>.<name>` | Diagnostic for its design and contrast |
+| `estimate:<design>.<contrast>.*` | Point, interval, inference, target or confidence set |
+| `falsification:<design>.<contrast>.<name>` | A distinct falsification record |
+| `sensitivity:<design>.<contrast>.<method>` | A distinct sensitivity record |
+| `figure:<id>`, `artifact:<id>.*` | Figures, exploration products and their facts |
+| `version:<id>`, `step:<n>` | Dataset versions and conversation provenance |
 
-`render_context` ([pack.py](../causal_agent/common/contracts/pack.py)) turns that into the text every lane judgement reads
-first, in the order the reasoning reads it: the story; the pair (the outcome, the treatment, which level means treated, the
-target); the mechanism; time (every column before, at, after the change); the columns, one line each with their relations;
-the rows; the hidden factors; heterogeneity; the threats; then the family block, the design brief and the person's words.
-The same order is read back to the person at the ready moment, before the design is named. From the checked-in run:
+A numeric comparison requires matching target, population, contrast, scale, support and aggregation weights. Otherwise results are explained side by side. Disconnected confidence regions and unresolved search tails remain explicit rather than becoming one fabricated interval. The selected lead is recorded before target-effect inspection and remains selected if execution fails.
 
-```
-[change:1.note] a six-week test preparation course the school ran. It reached any enrolled student ... The decision or the offer depended on lunch, parental level of education.
-[claim:unobserved] nothing outside the file drove both who got the change and the outcome. The offer rule only looked at lunch and parental level of education ... [user:turn:9]
-[col:lunch.when] fixed before the change · confirmed · user:turn:3 · said "the district sets it from household income before the exam"
-```
+Every model judgement cites only addresses in its displayed view or its own episode facts. An unresolved cite triggers a visible gate refusal and bounded retry. Post-run chat material projects all designs, source context, revisions, attempts, checks, falsifications, sensitivities and artifacts. Numeric statements must match their cited material within one percent. Figure `draws_on` addresses are checked before publication.
 
-The memory wins over the frame wherever both speak. A note is read once, by `mine`, into drafts marked `doc:<name>`; the lanes never
-read a note. Where a lane cannot apply something the pack says, it records a `Decline` and goes on: in the checked-in run the scope's
-population filter was not in a form the code can apply, so every row was kept and the brief says so.
-
-## The address grammar
-
-| prefix | names | example |
-|---|---|---|
-| `col:<key>.<field>` | one column's field in the memory or the pack | `col:lunch.when` |
-| `col:<key>.profile.<facet>` | a profiler fact | `col:math_score.profile.numeric` |
-| `claim:<kind>.<field>` | a claim about the world | `claim:assignment.depends_on` |
-| `claim:story.text` | the person's account, verbatim | `claim:story.text` |
-| `pair.<part>`, `time.<when>` | the pair as the pack states it; the columns by time | `pair.levels`, `time.before` |
-| `change:1.note`, `dataset.note` | the change and the dataset as the pack renders them | `change:1.note` |
-| `said:<turn>` | one sentence the person said | `said:5` |
-| `user:turn:<n>` | the turn a field came from | `user:turn:3` |
-| `probe:<family>.<name>` | a probe's result | `probe:diff_in_diff.treated_units` |
-| `probe:data.<name>` | a data fact computed before the run, with a number and no verdict | `probe:data.by_arm.lunch` |
-| `probe:<rung>.<n>` | a fact a lane's episode asked the data for, in the order it asked | `probe:roles.1` |
-| `ladder:<rung>.<field>` | one line of the lane's ladder: the pair, the mechanism, time, a column's role; an evidence rung's facts (`ladder:density.test`, `ladder:balance.<column>`, `ladder:trends.leads`, `ladder:trends.composition`), a judgement's record (`ladder:mechanism.chosen_on`, `ladder:window.selector`) | `ladder:roles.lunch` |
-| `matrix:<family>.<kind>` | one cell of the matrix | `matrix:instrument.exclusion` |
-| `step:<n>` | one step of the conversation's journal | `step:10` |
-| `design.<...>`, `design.brief.<...>` | the frozen design and the brief | `design.estimand.adjustment_set` |
-| `check:<contrast>.<name>` | a design check with its number | `check:completed_vs_none.balance.lunch` |
-| `estimate:<contrast>.value`, `.ci`, `.n`, `.p` | an estimate; `.p` carries the p-value and names how it was computed | `estimate:completed_vs_none.ci` |
-| `estimate:<contrast>.by.<modifier>.<level>.value`, `.ci`, `.n` | the effect within one level of a modifier | `estimate:completed_vs_none.by.gender.female.value` |
-| `refute:<contrast>.<name>.<field>` or `placebo:` | a falsification or a sensitivity; `.passed` is a verdict for a falsification and `None` for a sensitivity, which reports a range | `placebo:yes_vs_no.leave_one_out.passed` |
-| `decline:<stage>.<about>` | where the lane disagreed with the pack | `decline:load.scope_population_filter` |
-| `figure:<id>`, `figure:<id>.<series>.<i>` | a run figure and one of its marks | `figure:balance_completed_vs_none` |
-| `artifact:<id>`, `artifact:<id>.<fact>` | a drawn picture and one of its numbers | `artifact:3f9a1c2e.mean_completed` |
-| `interpretation:<contrast>.answer`, `.caveat:<i>` | what the lane wrote | `interpretation:completed_vs_none.caveat:1` |
-
-The one column `key()` and the normalisation live in [common/addresses.py](../causal_agent/common/addresses.py). Every package that
-names a column goes through it.
-
-## How a cite is checked
-
-- **In a lane**, `Handoff.resolve` ([pack.py:482](../causal_agent/common/contracts/pack.py)) answers yes only for an address in
-  `Handoff.addresses()`: the dataset facets, every column's fields and profile facets, every claim and its fields, every belief's
-  fields, the probes, the sentences, the brief's lines. A cite outside that set is an error the judgement is re-prompted with. A
-  lane's own artifacts (`check:`, `estimate:`, `refute:`) are added as the run makes them.
-- **In the chat after a run**, the material ([desk/material.py:103](../causal_agent/desk/material.py)) is a list of addressed lines
-  built from the run record, the memory, the journal and the pictures. The Explainer may cite only what is in it, and every number
-  it states must match its address within one percent or appear in that line's text.
-- **In a figure**, every `draws_on` address must resolve in the run ([lane/figures.py](../causal_agent/lane/figures.py)); a spec that
-  fails becomes a `Decline`.
-- **In the routing**, a decision's cites must resolve in the memory or the probes ([desk/nodes/decide.py:179](../causal_agent/desk/nodes/decide.py)).
-
-An address is therefore a promise: whoever states it, code can find the thing and, when it is a number, read it back.
-
-## Building a pack without a conversation
-
-`desk/handoff.py` builds the pack at run time from the memory, the frame and the decision. `forced(...)` builds one with neither, for
-tests and evals, and the command line writes it to disk:
-
-```bash
-uv run python -m causal_agent.desk.handoff students --family adjustment --outcome "math score" --treatment "test preparation course" --columns "lunch,parental level of education" --question "Did completing the prep course raise math scores?" -o handoff.json
-```
-
-The stored packs under `families/<name>/evals/handoffs/` freeze this contract for the evals.
+Stored eval handoffs under `families/<name>/evals/handoffs/` use this same contract. They are explicit study fixtures, not compatibility records. `desk/handoff.py::forced` constructs them from fixture memory; the ordinary API requires the conversation and authorization.

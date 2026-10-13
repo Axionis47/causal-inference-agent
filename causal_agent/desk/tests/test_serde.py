@@ -42,8 +42,6 @@ def test_the_records_the_desk_checkpoints_come_back_as_themselves():
     back = roundtrip(h)
     assert isinstance(back, Handoff) and back.design is not None and back.design.kind == "adjustment"
     assert isinstance(roundtrip(store.migrate("students3", write=False)), Memory)
-    b = DesignBrief(
-        family="adjustment", road="backdoor", decisions=[DecisionMade(name="road", choice="c", rests_on=["change:1.note"], reason="r")], bets_on="b"
-    )
+    b = DesignBrief(family="adjustment", decisions=[DecisionMade(name="total.backdoor", choice="c", rests_on=["change:1.note"], reason="r")], bets_on="b")
     back = roundtrip(b)
-    assert isinstance(back, DesignBrief) and isinstance(back.decisions[0], DecisionMade) and back.road == "backdoor"
+    assert isinstance(back, DesignBrief) and isinstance(back.decisions[0], DecisionMade)

@@ -48,6 +48,8 @@ def load(state: DeskState) -> dict:
         "infer_errors": [],
         "infer_attempts": 0,
         "run_intent": False,
+        "context_family": None,
+        "deficiency_addresses": [],
         "ready": False,
         "runs": list(state.get("runs") or []),
         "prefilter_votes": [],
@@ -84,12 +86,27 @@ def ask_question(state: DeskState) -> Command[Literal["mine", "__end__"]]:
         return Command(goto="__end__")
     turn = int(state.get("turn") or 0) + 1
     _remember(memory, turn, "question", answer)
-    return Command(goto="mine", update={"question": answer, "message": answer, "turn": turn, "invalid": None, "prefilter_votes": [], **F.saved(memory)})
+    return Command(goto="mine", update={"question": answer, "message": answer, "turn": turn, "invalid": None, "prefilter_votes": [], **F.saved(memory, state)})
 
 
 def validate(frame: QuestionFrame, memory: Memory) -> list[str]:
     """Whether the question, as read, is one this file can answer. Code over the frame and the file's facts."""
     out: list[str] = []
+    from causal_agent.lane.intake import blank, parse_filter, parse_window
+
+    if not blank(frame.scope.population_filter):
+        clauses = parse_filter(frame.scope.population_filter or "")
+        if clauses is None:
+            out.append("the population restriction needs a named column, comparison and value")
+        else:
+            for name, _, _ in clauses:
+                column = memory.column(name)
+                if column is None:
+                    out.append(f"the population restriction names unknown column {name!r}")
+                elif column.name in {frame.outcome, frame.cause}:
+                    out.append("the available endpoints cannot identify a population selected by treatment or outcome")
+    if not blank(frame.scope.window) and parse_window(frame.scope.window or "") is None:
+        out.append("the time restriction needs explicit bounds, such as from A to B")
     if frame.intent != "effect_of_change":
         out.append(
             {
@@ -156,7 +173,7 @@ def read_question(state: DeskState) -> Command[Literal["ask_question", "check"]]
             ],
             CAT,
         )
-    mirror = F.saved(memory)
+    mirror = F.saved(memory, state)
     cols = [f"col:{memory.column(c).key}" for c in (fr.outcome, fr.cause) if c and memory.column(c) is not None]
     record(
         state,

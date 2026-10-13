@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -71,13 +72,33 @@ def create_request(prof: dict, name: str = "students_web") -> dict:
 def canned_run(path, n, dataset, question, decision=None, decision_record="", effect: float = 5.618, thread_id=None) -> RunRecord:
     sr = {
         "status": "done",
-        "design": {
-            "estimator": "linear_regression",
-            "contrast": {"treated": "completed", "control": "none"},
-            "checks": {"results": [{"contrast": "completed_vs_none", "name": "overlap", "level": "pass", "value": 0.9, "threshold": 0.1, "detail": "fine"}]},
+        "designs": {
+            "d1": {
+                "id": "d1",
+                "endpoint_id": "total.backdoor",
+                "target": {"estimand": "ate", "population": "all"},
+                "estimator": "linear_regression",
+                "contrast": {"treated": "completed", "control": "none"},
+                "checks": {
+                    "results": [
+                        {
+                            "design_id": "d1",
+                            "contrast": "completed_vs_none",
+                            "name": "overlap",
+                            "level": "pass",
+                            "value": 0.9,
+                            "threshold": 0.1,
+                            "detail": "fine",
+                        }
+                    ]
+                },
+            }
         },
+        "lead_design_id": "d1",
+        "ledger": {"revision": 0, "entries": {}, "history": []},
         "estimates": [
             {
+                "design_id": "d1",
                 "contrast": "completed_vs_none",
                 "method": "linear_regression",
                 "value": effect,
@@ -87,10 +108,14 @@ def canned_run(path, n, dataset, question, decision=None, decision_record="", ef
                 "error": None,
             }
         ],
-        "refutations": [],
+        "falsifications": [],
         "interpretations": [],
         "feasibility": None,
     }
+    sr["checks"] = sr["designs"]["d1"]["checks"]["results"]
+    pack = json.loads(Path(path).read_text()) if Path(path).is_file() else {}
+    sr["context_id"] = pack.get("context_id", "")
+    sr["designs"]["d1"]["context_id"] = sr["context_id"]
     return RunRecord(
         index=n,
         dataset=dataset,

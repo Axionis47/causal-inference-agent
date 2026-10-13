@@ -1,5 +1,5 @@
 """What a lane writes back: the comparison, the checks, the estimates, the falsifications, the interpretation, the honest stop,
-the declines, the ask, and the record the desk keeps of a run."""
+the declines, the context deficiency, and the record the desk keeps of a run."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ class Contrast(Cited):
 
 
 class CheckResult(BaseModel):
+    design_id: str = ""
     contrast: str = Field(description="contrast key, or 'all' when the check does not depend on the contrast")
     name: str
     level: Literal["pass", "soft", "hard"]
@@ -34,7 +35,7 @@ class CheckResult(BaseModel):
 
     @property
     def address(self) -> str:
-        return f"check:{self.contrast}.{self.name}"
+        return f"check:{self.design_id + '.' if self.design_id else ''}{self.contrast}.{self.name}"
 
 
 class Checks(BaseModel):
@@ -49,7 +50,19 @@ class Checks(BaseModel):
         return [r for r in self.results if r.level == "hard"]
 
 
+class ConfidenceSet(BaseModel):
+    status: Literal["bounded", "disconnected", "unresolved_tail", "empty", "computational_failure"]
+    regions: list[list[float]] = Field(default_factory=list)
+    searched_range: list[float] = Field(default_factory=list)
+    resolution: float | None = None
+    detail: str = ""
+
+
 class Estimate(BaseModel):
+    design_id: str = ""
+    endpoint_id: str = ""
+    target: dict = Field(default_factory=dict)
+    confidence_set: ConfidenceSet | None = None
     contrast: str
     method: str
     value: float | None = None
@@ -71,23 +84,42 @@ class Estimate(BaseModel):
     @property
     def tag(self) -> str:
         """The address stem: estimate:<contrast>, .<method> for a secondary, .by.<modifier>.<level> for a level of a modifier."""
-        base = f"estimate:{self.contrast}" + (f".{self.method}" if self.secondary else "")
+        base = f"estimate:{self.design_id + '.' if self.design_id else ''}{self.contrast}" + (f".{self.method}" if self.secondary else "")
         return base + (f".by.{_slug(self.modifier)}.{_slug(self.level or '')}" if self.modifier is not None else "")
 
 
-class Refutation(BaseModel):
+class Falsification(BaseModel):
+    design_id: str = ""
     contrast: str
     refuter: str
-    kind: Literal["falsification", "sensitivity"]
     new_effect: float | None = None
+    p_value: float | None = None
+    passed: bool | None = None
+    detail: str = ""
+
+    @property
+    def address(self) -> str:
+        return f"falsification:{self.design_id}.{self.contrast}.{self.refuter}"
+
+
+class Sensitivity(BaseModel):
+    design_id: str = ""
+    contrast: str
+    method: str
     range_low: float | None = None
     range_high: float | None = None
-    p_value: float | None = None
-    passed: bool | None = Field(default=None, description="None for sensitivity; it reports a range, not a verdict")
+    points: list[dict] = Field(default_factory=list)
     detail: str = ""
+    error: str | None = None
+    target: dict = Field(default_factory=dict)
+
+    @property
+    def address(self) -> str:
+        return f"sensitivity:{self.design_id}.{self.contrast}.{self.method}"
 
 
 class Interpretation(BaseModel):
+    design_id: str = ""
     contrast: str
     answer: str = Field(description="the answer to the question for this contrast, two or three sentences, in the outcome's units")
     effect_stated: float = Field(description="the effect size you are reporting, copied from the estimate")
@@ -98,6 +130,7 @@ class Interpretation(BaseModel):
 class Feasibility(BaseModel):
     """An honest stop. Which stage, why, the facts, and what would make the analysis possible."""
 
+    terminal_kind: Literal["context_deficiency", "unidentified_effect", "unsupported_method", "inadequate_support", "exhausted_reasoning", "execution_failure"]
     stage: str
     reason: str
     facts: list[str] = Field(default_factory=list)
@@ -129,18 +162,6 @@ class Decline(BaseModel):
         return f"[{self.address}] {self.kind}: {self.about}{pack}{took} · {self.reason} ({self.check})"
 
 
-class LaneAsk(BaseModel):
-    """One question back to the desk, keyed to a memory address the desk can settle. The desk asks it as it asks
-    everything else, and the lane runs again on the memory as it then stands."""
-
-    address: str
-    question: str
-    options: list[str] = Field(default_factory=list)
-    because: str = Field(default="", description="the check or belief that opened the question, in words")
-    evidence: list[str] = Field(default_factory=list, description="check addresses shown beside the question")
-    stage: str = ""
-
-
 class RunRecord(BaseModel):
     """What one run left behind, as the desk keeps it in state and the server shows it."""
 
@@ -159,6 +180,7 @@ class RunRecord(BaseModel):
     ci_low: float | None = None
     ci_high: float | None = None
     estimator: str | None = None
+    lead_design_id: str | None = None
     decision_record: str = ""
     decision: dict = Field(default_factory=dict)  # chosen, chosen_assumption, why, over: {family: reason}
     specialist_result: dict = Field(default_factory=dict)

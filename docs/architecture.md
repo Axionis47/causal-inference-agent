@@ -1,128 +1,86 @@
-# How the code is laid out
+# Context preparation and analysis lanes
 
-One CSV and one question in; one run of one analysis family out, with a conversation before and after. The code is
-organised by component: each family is one package, and the core packages beneath them know families only through a
-registry. `import-linter` holds the layers and the rule that the core names no family; CI runs it on every push.
+One dataset and one causal question enter the desk. The desk prepares and admits a fixed context snapshot with the person. One chosen family reasons over that snapshot and executes its frozen designs. The conversation continues over the resulting artifacts, and corrections require another admitted snapshot and another authorized run.
 
-## Components and what each owns
-
-One responsibility per component, one contract in and one out, its own tests.
-
-| component | owns | in | out |
-|---|---|---|---|
-| the desk (`desk/graph.py`, `desk/nodes/`) | the conversation: receive, classify, dispatch, gate, write, ask the next thing | a message | the next prompt, a journal step |
-| the reader (`desk/nodes/frame.py` mine, `interview.py` infer) | words into claims with reasons; never a confirmation | a sentence or a note, the open fields | `ops.Update`s, drafted |
-| the memory (`memory/`) | what is known: fields with status, source, sentence, reason; the one write gate; the checks; the matrix | updates | a field map, findings, the fit |
-| the routing (`desk/nodes/decide.py`, `desk/route.py`) | which family stands, by code; a judgement only among several | the memory, the probes | a decision and its record |
-| the pack builder (`desk/handoff.py`) | the one projection of the memory a lane sees | the memory, the frame, the decision | a `Handoff` |
-| a lane (`families/<name>/lane/`) | the engine and its judgements on the pack alone, in its own process | `handoff.json` | `result.json`, the run folder |
-| the exploration agent (`explore/`) | a look at the data on request, from any turn: scripts in a sandbox one step at a time, one gated record, in its own process over A2A; the table it is sent has the outcome or the treatment held back before the freeze | an ask, what is known, the columns | an `Artifact` on the shelf or a `Decline` |
-| the material and the brief (`desk/material.py`) | every artifact as a line with an address; the opening message after a run | a run record, the memory, the journal | citable lines |
-| the chat after (`desk/nodes/after.py`) | one routed reply per message: answer, revise, what-if, requestion, draw, done | the material, the message | a gated reply |
-| the server (`server/`) | the wire: sessions over the desk, the views, the files and pictures | HTTP | `SessionView` and files |
-| the page (`web/`) | showing, never deciding | the wire | the screen |
-| the trace (`common/trace.py`) | the span tree that mirrors the graph: a span per judgement, episode, try, tool call, gate and file; the parent handed to the lane's process | a call at a chokepoint | a LangSmith run under the node that made it |
-
-## The layers
-
-Bottom to top. A package imports only what is below it.
-
-| package | holds | may import |
-|---|---|---|
-| `common` | the contracts (the pack, the artifacts, the frame, the `Design` base), the address grammar, the model wrapper and its retry policy, the trace helpers, the one config reading of the environment, the cite rule | nothing internal |
-| `profile` | the deterministic profile of a CSV, the dataset index, the csv path rule | common |
-| `memory` | what is known about a dataset: the field map, the store on disk, the gated write path, the checks, the shared probe helpers, the fit grid, the text views | common, profile |
-| `viz` | pictures: `FigureSpec`, the figures a lane draws from its own artifacts (`postviz`) | common, profile, memory |
-| `explore` | the exploration agent: the one tool over the sandbox (`sandbox`), the gates, the projection, the agent over the episode, the A2A server and client | common, profile, memory, viz, lane |
-| `lane` | the harness every lane is built on: intake, case, verify, asks, records, figures, words, the episode and its tools, the ladder's shape, the shared nodes, graph compile, task types, prompts, knowledge loader | common, profile, memory, viz |
-| `families` | one package per family (below), the declared families, the registry | everything above |
-| `desk` | the conversation graph, the routing, the pack builder, the material and the brief, the chat after a run | everything above |
-| `server` | the FastAPI shell: datasets, sessions, the transcript, the projection into view models | everything above |
-| `evals` | the eval runner and the command-line runs; outside the layers | anything |
-
-The contract in `pyproject.toml` under `[tool.importlinter]` is the executable form of this table. `causal_agent/families/tests/test_core_names_no_family.py`
-greps the five core packages for any family or engine name.
-
-## The trace
-
-The LangSmith trace is the graph as it ran, and it stays that way when the graph changes because the tracing lives in the
-chokepoints a new piece passes through anyway:
-
-| anything new that | goes through | and shows as |
-|---|---|---|
-| calls the model | `common/llm.py::structured` or `lane/episode.py::run_episode` | a span named for the judgement: prompt in, record and thoughts out; under an episode, a `try n`, a `look`, one tool span per call, a `gate` |
-| compiles a graph | `.compile(name=...)`, via `desk/graph.py` or `lane/graph.py` | a named root (`desk`, `lane:<family>`); the server names each turn `<dataset> <analysis> turn <n> <phase>` |
-| starts a process | `common/trace.py::child_env` and `trace.parent()` in the child (`desk/pipeline.py`) | the lane's graph under the desk's `run` node, on the same thread |
-| writes under a design, a run or an artifact folder | `common/trace.py::write` | an `artifact:<file>` tool span with the file attached |
-| refuses a model answer | `common/trace.py::gate` | a `gate` tool span with the errors |
-| appends a journal step or saves the memory | `Journal.append`, `store.save` | a `journal` or `memory.save` tool span |
-
-`causal_agent/common/tests/test_trace_policy.py` greps for a bypass. `make trace` prints the newest trace as a tree.
-
-## A family package
-
-```
-families/<name>/
-  family.yaml     what it answers, what it needs, what it assumes, and under needs_claims the claims the fit grid checks
-  design.py       the family block: a Design subclass, registered by kind so a pack read from JSON comes back as it
-  handoff.py      design_block(BlockInputs) -> Design: how the desk fills the block, by code, never as a constraint
-  probes.py       probes(df, table, thresholds) -> list[ProbeResult]: what strikes the family out, computed once assignment is settled
-  postviz.py      the figures the lane draws from its own artifacts
-  lane/           the engine and its judgements: nodes, graph, state, prompts, contracts, adapter, checks, shape, knowledge/*.yaml
-  evals/          cases.yaml, the stored hand-offs, the summariser, the family's own evaluators, one EvalSpec
-  tests/          the lane's suite and the postviz tests
-  __init__.py     FAMILY = FamilyDef(...): the one object the registry lists
+```text
+Project
+├── Intake and profile
+│   ├── CSV upload and deterministic column facts
+│   └── Initial study material, read as sourced drafts
+├── Desk
+│   ├── Question, target, restrictions and family selection
+│   ├── Human interview and confirmation of relevant drafts
+│   ├── Endpoint readiness matrix
+│   ├── Context snapshot and human run authorization
+│   └── Discussion before and after analysis
+├── Dataset memory
+│   ├── Field values, status, source statements and reasons
+│   ├── Data checks and contradictions
+│   ├── Explicit human updates to causal beliefs
+│   └── Artifact shelf and dataset versions
+├── Endpoint catalogue
+│   ├── endpoints.yaml: configurations and proof obligations
+│   ├── space.yaml: dimensions and numerical support limits
+│   └── rungs.yaml: decisions, transitions and bounded revisits
+├── Analysis lanes
+│   ├── Adjustment: observed adjustment, IV, frontdoor, restricted mediation and modifiers
+│   ├── Difference in differences: paired, projection, imputation, cohort cells and clean projections
+│   └── Discontinuity: sharp, fuzzy or eligibility targets under continuity or local randomisation
+│       Each lane owns:
+│       ├── reason: evidence ledger and candidates
+│       ├── engine: library adapters and deterministic checks
+│       ├── execute: frozen specifications and attempts
+│       └── artifacts: results, interpretations and figures
+├── Exploration agent
+│   ├── Restricted scripts in a separate sandbox
+│   ├── Addressed facts and requested artifacts
+│   └── New table versions on the person's word
+├── API
+│   └── Sessions, typed projections, artifacts and generated OpenAPI
+└── Frontend
+    └── Conversation, context admission, designs, history and result inspectors
 ```
 
-`families/registry.py` lists the built families and the declared ones in the order the routing shows them. A declared
-family (`families/declared/`) has a yaml, perhaps a probe, and the stub lane that says it is not supported yet. The desk
-reaches a lane, a block or a probe only through `REGISTRY`; `memory.ops.probe` and `fit` take the families as an argument.
+## Ownership
 
-Adding a family means adding one package and one line in the registry. Nothing in the core changes.
+| Component | Owns | Must not decide |
+|---|---|---|
+| Intake/profile | File parsing, deterministic facts, initial material | Causal validity |
+| Desk | Necessary context, relevant confirmations, target restrictions, snapshot admission and authorization | Effect-driven specification selection |
+| Memory | Durable sourced knowledge and its gated writes | Confirmation from a model proposal |
+| Lane reasoning | Structural/assignment assumptions, certificates, support and frozen design | Human interview or post-effect redesign |
+| Engine/execution | Exact frozen estimators, inference and declared fallback | Unrecorded target, clustering, horizon or population changes |
+| Artifacts/chat | Cited explanations, separate falsifications and sensitivities | Invented evidence or silent lead promotion |
+| Frontend | Showing the API's records | Readiness, identification or method selection |
 
-## What the lanes share
+## Context sufficiency
 
-`causal_agent/lane/` is the harness. A lane's own judgements stay in its package; what every lane copies is here once:
-the pack weighed by code (`case`), the honest stop and the ask-back, the recorded declines, the figure tail, the node
-plumbing (`nodes`), the bounded episode a judgement may run as (`episode`) and the read-only data tools it may be offered
-(`tools`), the shape every lane's ladder shares and the threats and flags every design carries (`ladder`), how a graph is
-compiled (`graph`), the state keys and task types (`state`), the pick and interpret prompts and the plain-words rule
-(`prompts`), and the knowledge loader (`knowledge`). See
-[lanes.md](lanes.md) for the harness in use.
+Good context is sufficient for the requested endpoint obligations. There is no universal context score. The authoritative requirements identify missing, failed, satisfied and permitted-unknown obligations. Statistical diagnostics cannot establish every causal assumption. Optional configurations activate only when their relevant study account or question is supplied. A discriminating missing structural fact returns a desk question. A discontinuity question also fixes whether the requested target is at the cutoff or inside a score window, and whether it concerns receipt or eligibility. The lane cannot infer those choices from a method preference. A difference-in-differences question similarly admits its averaging policy, so treated-cell averages and native projection targets remain distinct.
 
-## The six stores at run time
+The existing family-by-claim matrix remains useful for routing. It also contains endpoint admissions within each surviving family. Every relevant activated endpoint must be admitted, explicitly excluded, or unavailable with a reason. The desk gathers evidence from initial material, profiles, memory and conversation, confirms relevant drafts together, and asks unresolved requirements. A model draft cannot make context ready.
 
-| store | where | written by | read by |
-|---|---|---|---|
-| the memory | `data/memory/<name>/` (`meta.yaml`, `columns.yaml`, `fields.yaml`, `said.jsonl`): what is known about the file; every field carries its status, its source, the sentence it rests on, and the reason | `memory.store.save`, through `memory.ops.apply` only | the desk, the pack builder, the exploration agent's context, the server's view |
-| the designs | `data/memory/<name>/designs/<n>/`, one folder per design run: the memory snapshot, the pack, the frame, the decision, then the lane's result, the figures and the run record | `memory.store.snapshot` and `desk.nodes.run` for the design, the lane's process for `result.json`, `desk.pipeline.save_record` for the record | the lane, the brief, the server's runs list |
-| the journal | `data/memory/<name>/analyses/<id>/journal.jsonl`: one conversation's steps, each with its address `step:<n>`, what it read, what it left, and the design run it belongs to | `memory.journal`, from the desk nodes as they run | the after-run chat and explain (citable lines), the server's Journal tab |
-| the checkpoints | `.artifacts/web/checkpoints.sqlite`: where each thread's conversation is | the desk graph through `SqliteSaver`; `desk/graph.py` `_CONTRACTS` lists the classes a checkpoint may hold | the server's session manager |
-| the run artifacts | `.artifacts/runs/<dataset>-<tag>-<id>/` (table, design, estimates, report, figures.json) | a lane, through `lane.records` | the desk's brief and the server's file routes |
-| the artifacts | `data/memory/<name>/artifacts/<id>/`: `artifact.json`, `facts.json`, `code.py`, `thoughts.json`, `request.json`, `figure.png` when it drew, the table when it wrote one, the `step_<n>/` folders; tagged with the design it is about, or none | the exploration agent's client, on receipt | the material before and after a run, the server's artifact routes |
-| the versions | `data/memory/<name>/versions/<v>/`: `table.csv`, `code.py`, `version.json`, `request.json`, `thoughts.json` | the data agent, through `explore/client.py::transform` | the desk, when the person switches to it; the hand-off names the version's table |
+The handoff contains its content identity, family contract fingerprint, dataset SHA256 and dataset/memory versions, facts with source/status/sentence/reason, scope and restrictions, and endpoint admissions. The person's run word authorizes this snapshot. The lane re-evaluates the admission and verifies its identity at entry. An essential unexpected omission becomes a `ContextDeficiency`; the desk clears readiness and requires a new authorization after correction.
 
-The memory is what is known, the journal is what was done, the checkpoint is where the conversation is. A conversation can be
-thrown away and the knowledge survives; the knowledge can be revised and every design still shows what it was made from.
+## Lane reasoning and freeze
 
-The transcript the page shows is `data/web/<name>/transcript.jsonl`; `meta.json` beside it holds the thread and the
-last prompt. `common.config` reads every path and knob from the environment in one place.
+The ledger is separate from dataset memory. Each accepted revision retains the previous and new entry, stage and reason. Evidence distinguishes study accounts, data facts, measurement timing, associations, assumptions and diagnostics. Causal support requires a sourced study account; justified measurement timing can support the absence of an edge. A diagnostic alone cannot certify a causal edge or erase a supplied hidden cause. Data checks can confirm noncausal facts. Model proposals remain proposals or conditional assumptions. Each episode visit has a unique address, and every gate attempt survives.
 
-## The wire
+Structural specifications are sealed before target-effect inspection. DiD diagnostics use only the declared pre-treatment outcome support. Adjustment outcome-involving graph diagnostics annotate results after freeze. RD fixes its selector policy before deterministic bandwidth computation. A frozen design carries endpoint/context identity, ledger revision, identification certificate, target, support, weights, estimator, inference and parameters. Its integrity seal covers nested fields and is checked by execution.
 
-The server declares every response shape once in `server/models.py`; `FigureSpec` is the viz model itself. `make schema`
-dumps the OpenAPI schema to `web/openapi.json`; `npm run types` generates `web/src/generated/schema.ts` from it;
-`web/src/types.ts` is a page of aliases over that. CI regenerates both and fails on a diff, so a field the server renames
-breaks the build, not the page.
+The bounds are three gate attempts, one declared pre-freeze revisit and at most eight executable specifications. Adjustment admits at most sixteen combinations from four uncertain structural choices. An essential bound overflow is an explicit limitation. Execution never returns to effect-informed redesign. Only an equivalent-target fallback declared before freeze can be attempted.
 
-## The checks
+## Results and comparison
 
-`make check` runs what CI runs: ruff (lint and format), the import contracts, mypy, pytest, eslint, prettier, tsc,
-vitest, the web build, and the schema freshness. mypy is `check_untyped_defs` on `common`, `lane`, `explore`, `viz`, `memory`,
-`profile`, `server` and the family packages outside their lanes; the desk and the lanes are still `ignore_errors`, the
-one typing gap left.
+A result contains `designs`, `lead_design_id`, `lead_selection`, candidate decisions, the ledger with history, all episode visits, checks, estimates, falsifications, sensitivities, comparisons and execution attempts. Addresses include design identity. The recorded lead ranking uses target alignment, assumption and support evidence, catalogue rank and stable identity before fitting. If the requested target is unidentified, successful companion estimates remain a partial result without a replacement lead. If the lead fails, that failure stays visible.
 
-## The mechanisms, one page each
+Numerical comparison requires matching targets, populations, contrasts, scales and aggregation/support definitions. Different designs can be explained side by side without claiming equivalence. Confidence sets retain disconnected regions, unresolved search tails, empty results and computational failure. A receipt-effect failure does not erase a separately valid eligibility effect.
 
-[desk.md](desk.md), [memory-and-matrix.md](memory-and-matrix.md), [gates.md](gates.md), [pack-and-addresses.md](pack-and-addresses.md),
-[lanes.md](lanes.md), [exploration.md](exploration.md), [testing.md](testing.md), [page.md](page.md); the index is [README.md](README.md).
+## Layers, tracing and storage
+
+Import order is common → profile → memory → viz → lane → explore → families → desk → server. The registry is the only entry to family implementations. Import contracts forbid reasoning from effect-fitting modules and execution from reopening reasoning.
+
+Model calls use `common/llm.py` or `lane/episode.py`; named graph nodes, gate reasons, tool calls and written files appear in the trace. A lane subprocess receives its parent's trace and thread. Analysis writers use `trace.write`.
+
+Dataset memory lives under `data/memory/<name>/`. Authorized design runs live under its `designs/<n>/`, conversation journals under `analyses/<id>/`, runtime folders and checkpoints under `.artifacts/`, and frontend transcripts under `data/web/`. Memory outlives conversations. Graph state is a mirror rather than the durable knowledge store. Superseded analyses and checkpoint shapes are deleted, never migrated. Unrestricted exploration always withholds the outcome before a matching design freezes; deterministic profile summaries remain available.
+
+See the generated [endpoint ladders](ladders/) for exact requirements, trajectories, estimator capabilities and stopping states.

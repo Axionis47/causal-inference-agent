@@ -1,112 +1,23 @@
-# The gates
+# Judgements and code gates
 
-Every model call in the system, what it is given, the shape it must return, what code checks, and what happens when the check
-fails. This is the page that proves the thesis: the model answers closed questions, code decides.
+Every model call goes through `common.llm.structured`, `common.llm.decide`, or `lane.episode.run_episode`. The trace retains its prompt, returned record, model summary, tool calls, each gate attempt and its errors. Files written under a design/run directory go through `trace.write`.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/judgement-relate-dark.svg">
-  <img alt="One column of the roles rung opened up: the prompt, the structured answer, and the gate's checks" src="diagrams/judgement-relate-light.svg">
-</picture>
+| Call | Evidence | Output | Code authority |
+|---|---|---|---|
+| Desk reader | Initial material or human words, catalogue, unresolved fields | Sourced draft or explicit human update | `memory.ops.apply` controls status and beliefs |
+| Frame | Question, column notes and profile | Target, scope, relevant columns | Names and addresses must resolve |
+| Family selection | Surviving structural families and requirements | Chosen family with reasons | Only offered families can be selected |
+| Context readiness | Endpoint catalogue and source/status fields | Endpoint admissions | Pure code, no model-generated eligibility rules |
+| Advisory design brief/judge | Prepared context and its admitted requirements | Explanation and caveats | Cannot grant missing admission |
+| Lane episode | A scoped view and permitted read-only facts | Typed proposal or assumption | Source, citation, transition and bounded retry gates |
+| Identification/support | Structural graph or assignment account and permitted diagnostics | Certificates, support, candidate decisions | Registered family predicates and engines |
+| Freeze | Pre-effect candidate decisions, target, rows, weights, estimator and inference | Sealed designs and fixed lead | Integrity checked before every fit |
+| Interpretation/chat | Design-qualified estimates, checks, ledgers and artifacts | Cited explanation | Every citation resolves and stated numbers match |
 
-The picture is one column of the roles rung, from the checked-in run under `docs/demo/run/`: the prompt rendered again from the
-stored pack by the lane's own helpers, the answer as the frozen graph records it, and the gate's checks run again on that answer.
+The model gets three gate attempts. Every refusal has a trace gate with its reason. A declared pre-freeze revisit is bounded to one; its episode and evidence addresses are unique. Exceeding essential structural/specification bounds produces a visible limitation. A lane never invents a new endpoint or changes the target after an effect is seen.
 
-## How every judgement is made
+A diagnostic cannot prove a causal assumption, erase a supplied hidden cause, or turn a draft into a confirmed account. Unknowns and contradictions are admitted only under explicit endpoint policies. Hard diagnostic failures stay hard under human reassertion.
 
-One helper, `structured` ([common/llm.py:79](../causal_agent/common/llm.py)): a system prompt, a user prompt, and a Pydantic
-schema the model must fill. It returns the parsed object and the model's thought summary. The model is Gemini 2.5 Flash on
-Vertex AI at temperature zero; the wrapper is the only file that names it. Tests swap it with `set_llm`.
+Unexpected essential missing context returns a typed deficiency. The desk takes the human clarification through memory gates, prepares a new snapshot and waits for another run authorization. It does not silently resume an already authorized lane on changed context.
 
-Around every call: a loop of at most three tries, a gate written in code, and the gate's errors appended to the next prompt under
-"PREVIOUS ANSWER WAS REJECTED". After three failures the node takes an honest fallback or stops with a typed record, never a guess.
-
-A cite is read as an address before it is checked: brackets copied around it are stripped, a quoted sentence's tag (`said:3`) is
-read without the words after it, and a column's spelling compares as its key. A flag the case renders carries its address in
-brackets, and a rung may cite it. The assessment and the estimator pick may cite the run's checks, the pack, the ladder's lines,
-the facts an episode asked for and, at the pick, an estimator entry as `estimator:<name>`; a heading of the pick's own material
-is dropped from its cites rather than refused.
-
-## The desk
-
-| node | given | returns | the gate checks | on failure |
-|---|---|---|---|---|
-| `read_question` | the question, the dataset digest, the column index | `QuestionFrame`: intent, outcome, cause, scope, relevant columns | `validate` ([desk/nodes/question.py:91](../causal_agent/desk/nodes/question.py)): the intent is an effect of a change, the outcome is a column that varies, the cause is a column that varies and is not the outcome | the question is refused with the test it failed and asked again |
-| `infer` (the decision model, before the Reader) | the message, what the desk asked, whether the design was just shown, the last reply's first line | `Decisions`: the kind of turn as a choice and whether the message is about the data as a yes/no, each with a calibrated confidence; no words | code: a message about the data is update; below the confidence `desk/decider.yaml` declares the answer is dropped and the Reader decides the kind; a confident explore, ask or run never reaches the Reader | the Reader (Gemini) decides, as before the decision model existed |
-| `mine`, `infer` (the Reader) | the note or the message, the open fields with their frames | `Reading`: the kind of turn (update, explore, ask, run), field updates each with the words it rests on, confirms, unknowns, focus, a question, what to explore | the kind gate: only update carries writes, explore and ask carry what they are about, a note is always update; then `ops.apply`: a source on every update, a model may only draft, a belief only from the person, the story only from the desk and verbatim, values fit the field; a refused reading is re-prompted | after three tries the kind stands, the surviving updates land and the rest are dropped |
-| `prefilter` (wide tables only) | the question, the change, one column card | `PrefilterVote` | a vote per column, code keeps the relevant ones | a column with no vote stays in |
-| `explain`, `turn` (the Explainer) | the material as addressed lines, the message | `AfterReply`: kind, text, cites, every number with its address, updates, question, draw, figure | `explainer.gate` ([desk/explainer.py:121](../causal_agent/desk/explainer.py)): the kind is legal in this phase; every cite is in the material; at least one cite; every number sits at its address within one percent, or appears in that line's text; no number in the text without an address; a figure named is a figure address; revise and what_if carry updates; requestion carries the question; draw carries the ask | three tries, then the honest fallback reply |
-| `decide` (only when more than one family stands) | the families' knowledge, the fit, the probes | `FamilyDecision`: admissible, chosen, rejected with reasons, cites | `decide.gate` ([desk/nodes/decide.py:179](../causal_agent/desk/nodes/decide.py)): every cite resolves; the chosen family is admissible; admissible agrees with the fit; every registered family is accounted for; the outcome and cause are columns in the relevant set | three tries, then the design and the hand-off record the failed gate |
-| `judge` (the Judge, at the ready moment) | the pack the design would run on, rendered in the order the analysis reads it, the fit's verdict, the addresses it may name | `Readiness`: ready, risky or not_ready, one sentence, and the fields it would not trust as they stand, each with a cite | `judge.check` ([desk/judge.py](../causal_agent/desk/judge.py)): ready carries no gap and the other verdicts at least one; every gap names a field the pack carries and cites an address that resolves; no number the pack does not hold | three tries, then no verdict: the ready moment goes on without one; it never blocks the word |
-| `run_code` for a table (the data agent) | the table in play with a row id first, one of the pair held back before the freeze, the ask, the columns to keep | `Exploration` naming the step whose `table.csv` is the new version | `new_table_errors` ([explore/gates.py](../causal_agent/explore/gates.py)): every row carries the row id it was given, once, none invented; the pair kept; not empty; plus every check a look passes | re-prompted up to the tries declared; then a decline and no version |
-| `design` (the Designer) | the memory, the matrix, the family's decisions | `DesignBrief`: road, target, one `DecisionMade` per decision the family lists, threats with cites, checks, the sentence it bets on | `designer.check` ([desk/designer.py:28](../causal_agent/desk/designer.py)): the right family; every listed decision filled once; every cite resolves; a road only where the family has one | three tries, then `fallback`: every decision undecided, resting on the change card, betting on the family's stated assumption |
-| `explore`, `explore_after` (the exploration agent, in its own process over A2A) | the ask, what is known, the columns of the table it is sent (the outcome or the treatment held back before the freeze) | `RunCodeStep` per step (the next script, or done), then `Exploration`: summary, the step whose files are the answer, the facts, the picture, the table | a script parses and does not name the held-back column; the record names a step that ran, facts that are in its facts.json, a picture that exists, a table that parses, at least one product, nothing relating the outcome to the treatment before the freeze, no number the facts or the context do not hold | re-prompted with the reason; three tries, then a `Decline` and no artifact |
-
-## The adjustment lane
-
-| node | given | returns | the gate checks | on failure |
-|---|---|---|---|---|
-| `pair` (rung 0; only if the pack does not name the treated level) | the question, the scope, the treatment card, the observed levels; may describe the treatment | `Contrasts`: control and treated pairs | every level is observed; control differs from treated; no duplicate pair | three tries inside the episode, then a Feasibility stop |
-| `mechanism` (rung 1; only when the pack names no drivers) | the case, the treatment card, the column index; may describe, tabulate cells, or ask a candidate's association with the treatment | `Mechanism`: drivers, an offer and an uptake column or null, whether units could move themselves, cites | every driver is a column in play; an offer or uptake named is a column; the two differ; no self-selection under a lottery; cites resolve in the pack, the facts asked for, or the rungs below | three tries, then a stop |
-| `roles` (rung 3; one episode over every pre-treatment column the pack leaves open) | the case with the ladder so far, the pair's cards, one block per column with what the pack settled and the last reading; may look by arm, at associations, redundancy, cells | `Roles`: one `Role` per column, the four claims with a cited reason each, what it stands for, `redundant_with`, `nested_in`, a modifier candidate, links, departures | `roles` gate ([families/adjustment/lane/nodes.py](../causal_agent/families/adjustment/lane/nodes.py)): every listed column once and nothing else; the settled claims copied; a claim marked true rests on at least one cited reason (a reason from silence may stand uncited); every cite resolves; not both feeding and fed by the treatment; no contradiction with a pack fact; a departure from the last reading names a `Departure` with a cite; a redundancy or nesting names another column in play and rests on a redundancy fact; the outcome by arm is refused before the answer is asked | the errors go back with the log kept, three tries, then a stop |
-| `post_roles` (rung 4; one episode over every at-or-after column the pack leaves open) | as `roles`; may describe or ask a column's association with the treatment, never with the outcome | `PostRoles`: one `PostRole` per column with its kind and a cited reason | every listed column once; a cite per column; cites resolve; the settled claims copied; no contradiction; no unexplained departure | three tries, then a stop |
-| `verify_graph` (code, no model) | the merged graph | | acyclic; every node a table column; a role for every column | an honest stop |
-| `road` (rung 6; only when the graph opens more than one road) | the case with the ladder so far, the graph, the roads open with what each runs through | `Road`: the road taken, why, cites | the road taken is open; a reason is given; cites resolve | three tries, then a stop |
-| `heterogeneity` (rung 7; only when there are candidates) | the case, the candidate columns with what marked each; may describe or look by arm, never at the outcome | `Heterogeneity`: at most three modifiers, each a candidate and cited, why | every modifier is a candidate, once; the count holds; a cite per modifier; cites resolve | three tries, then a stop |
-| `threats` (rung 8; code, no model) | the pack's sampling, the outcome's timing, the mechanism, the gaps | `Threats`: one line per risk with its level and cites | | |
-| `assess` (an episode with no tools, only when a check flagged) | the frame, the graph, the adjustment set, the flagged checks with numbers | `DesignAssessment`: proceed, revise or stop, revisions, cites | proceed is refused while a hard flag stands; a revision must name a flagged column; every cite is a check, pack or ladder address | three tries, every one kept in the episode, then a stop; revise loops to `merge_graph`, three revisions at most; stop is honest |
-| `pick_estimator` (an episode with no tools) | the design facts, the estimators that apply with what each assumes, the ranked preferences | `EstimatorPick`: one name, why, cites | the name is in the filtered list; cites are check, pack, ladder or estimator addresses; a heading copied as a cite is dropped | three tries, every one kept, then a stop; a failed fit later excludes the pick and asks once more |
-| `interpret` (an episode with no tools, one per contrast) | the material as addressed lines, the addresses it may cite, the ones it must | `Interpretation`: the answer, the caveats, the effect stated, cites | every cite is allowed; every required address is cited, the flagged checks and the interval among them; the effect stated matches the estimate within one percent | three tries, every one kept; after the third the last answer stands in the report, marked as having failed its gate |
-
-Two rules that are code, not judgement: the checks' thresholds are declared in
-[checks.yaml](../causal_agent/families/adjustment/lane/knowledge/checks.yaml), and every refuter whose conditions in
-[refuters.yaml](../causal_agent/families/adjustment/lane/knowledge/refuters.yaml) match the design runs. The model never picks
-the tests its own design faces.
-
-## The diff-in-diff lane
-
-| node | given | returns | the gate checks | on failure |
-|---|---|---|---|---|
-| `groups` (rung 0; the pack's block first, a judgement when it fails) | the question, the case, the dataset and change cards, the treatment card, the observed levels; may describe a column | `Groups`: the column, the treated level, cites | the column is in the table; the level is observed; more than one level; cites resolve | three tries, then a stop |
-| `periods` (rung 1; the pack's block first) | the change, the dataset card, the outcome card, the cards that could carry time | `Periods`: long (a time column, the first post period) or wide (a before and an after column), cites | the columns are in the table; long has a first period; cites resolve | three tries; a time column with no first period asks the person back, else a stop |
-| `mechanism` (rung 3; the pack first, a judgement when it leaves the choice open) | the case with the ladder so far, the columns in play, the kind, the level and the drivers as the pack states them; may look by group and period before the change | `Mechanism`: chosen on levels, trends or neither; an anticipation window when the story states one; drivers when open; cites | a trend or a level choice cites a pack line; a window is a whole number of periods inside the pre period and within the declared cap, cited; drivers are columns in play; cites resolve | three tries, then a stop |
-| `trends` (evidence; code) | the canonical panel | `TrendFacts`: the pre-period paths by group, the gap's drift, the joint leads test and each lead, the composition, as ladder lines | none: facts | |
-| `comparison` (rung 4) | the case with the ladder so far including the mechanism and trends lines, the groups and the shape; may look at a column by group and period (the outcome before the change only), by group, at associations, the composition, the timing | `Comparison`: fair or not, why, the reading of the leads test, why fair despite a divergence, why leavers do not matter, the risks each named from a fixed list and cited | a reason; `ladder:trends.leads` cited; the reading matches the rung; fair over a soft or hard test needs `why_despite` with a pack citation; units entering or leaving need the composition risk or `composition_read`; a trend-chosen group and a stated lead must be named; an unfair comparison names a risk unless the leads test itself says the paths diverged; every risk cites; cites resolve | three tries, then a stop |
-| `controls` (rung 4; one episode over every candidate the pack leaves open) | the case, one block per column with what the pack settled; may look by group, at associations, redundancy, the timing | `ControlRoles`: one relation per column, changed by the treatment or usable as a control, a modifier candidate, cited | every listed column once; a claim marked true has a cited reason; not both changed and a control; cites resolve; the settled claims copied | three tries, then a stop |
-| `heterogeneity` (rung 5; only when there are candidates) | the case, the unit traits marked as candidates; may describe or look by group, never at the outcome | `Heterogeneity`: at most three modifiers, each a candidate and cited | every modifier is a candidate, once; the count holds; cites resolve | three tries, then a stop |
-| `assess`, `pick_estimator`, `interpret` | as the adjustment lane's, over this lane's checks, estimators and artifacts | | | |
-
-## The discontinuity lane
-
-| node | given | returns | the gate checks | on failure |
-|---|---|---|---|---|
-| `score` (rung 0; the pack's block first, a judgement when it fails) | the question, the case, the dataset and change cards, the treatment card, every column card; may describe a column | `Score`: the column, the cutoff, the treated side, the cutoff-value rule, the take-up column and level or null | the column is numeric and varies; the cutoff sits inside its range with rows on both sides; a take-up column and level are observed; a named treatment column is the rule or the take-up; the treated side carries the higher take-up; cites resolve | three tries; a rule the notes state but leave incomplete asks the person back, else a stop |
-| `density` (evidence; code) | the recentred scores | `DensityFacts`: the test, the binomial windows, the histogram, the mass points, as ladder lines | none: facts | |
-| `line` (rung 2) | the case with the ladder so far including the density lines, the score card, the shape; may describe, look by side within a band, at the score's histogram, the timing, never at the outcome | `Line`: clean or not, why, the risks each named from a fixed list and cited | a reason; a line judged not clean names a risk; a clean verdict over bunching cites `ladder:density.test`; bunching with the person's word that the score could be moved names `manipulation`; every risk cites; cites resolve | three tries, then a stop |
-| `balance` (evidence; code) | the canonical table, every candidate | `BalanceFacts`: each candidate's jump or share difference at the line, as ladder lines | none: facts | |
-| `covariates` (rung 3; one episode over every candidate the pack leaves open) | the case with the balance lines, one block per column with what the pack settled; may look by side within a band, at associations, redundancy, the timing | `CovariateRoles`: one relation per column, fixed before the line, changed by the treatment or an outcome measure, a modifier candidate, cited | every listed column once; a claim marked true has a cited reason; not both fixed before and changed by; a column called fixed before that differs at the line cites `ladder:balance.<column>`; cites resolve; the settled claims copied | three tries, then a stop |
-| `heterogeneity` (rung 4; only when there are candidates) | the case, the predetermined characteristics marked as candidates; may describe or look by side, never at the outcome | `Heterogeneity`: at most three modifiers, each a candidate and cited | every modifier is a candidate, once; the count holds; cites resolve | three tries, then a stop |
-| `window` (rung 6; after the estimator is picked) | the case with the ladder so far, the estimator, the table of every width selector with the width on each side and the rows inside, the default named; may look by side within a band or at the score's histogram | `WindowPick`: one selector by name, why, cites | the selector is on offer; it leaves at least the hard floor of rows on each side; a width other than the default cites a ladder or pack line; cites resolve | three tries, then the default stands with an `unsure.window` flag |
-| `assess`, `pick_estimator`, `interpret` | as before, over this lane's checks, estimators and artifacts; the interpretation's numbers are compared one by one with the design and the estimate | | | |
-
-See [lanes.md](lanes.md) for the rungs in order.
-
-## What an episode is
-
-A rung that needs a judgement runs as a bounded episode ([lane/episode.py](../causal_agent/lane/episode.py)). The model first
-reads its material with the data tools bound and may call them, at most the budget `checks.yaml` declares for that rung (two for
-the pair, four for the mechanism, eight for the roles, four for the post-treatment roles). Each result comes back as a tool message
-with an address, `probe:<rung>.<n>`, and is logged. Then the facts it gathered are rendered under FACTS YOU ASKED FOR and the record
-is asked for with the same structured call as every other judgement. The gate's errors go back with the log kept, and the model may
-look again while budget remains; three refusals return no record and the rung stops. The tools are describe, by arm, association,
-redundancy, cells and timing on any table, a column by group and period and the panel's composition on a panel, and a column by
-side within a band and the score's histogram on a recentred score ([lane/tools.py](../causal_agent/lane/tools.py)), each offered
-only when the table has the shape. A call that would join the outcome with the treatment is refused by code with a reason the
-model reads, and the refusal is logged too; a lane whose design has rows on which the outcome is evidence and not the effect (a
-panel's rows before the change) names them, and such a call runs on those rows only and says so. The report lists every
-episode's calls, facts and refusals.
-
-## Why this shape
-
-Code computes every fact, the model judges, the
-harness gates. The cost is that no single call holds the whole story; each is asked a bounded question and checked hard. The
-gain is that every answer can be refused, re-asked, and cited, and that a test can script every one of them.
+See [architecture](architecture.md) and [generated ladders](ladders/) for responsibilities and exact declarations.

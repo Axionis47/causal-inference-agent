@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Belief, ColumnBrief, Design, Handoff, Probe, Scope
+from causal_agent.common.contracts.endpoints import EndpointCatalogue, load_endpoints
 from causal_agent.memory.catalogue import FamilyNeeds
 from causal_agent.memory.claims import ClaimTable, ProbeResult
 
@@ -86,6 +87,7 @@ class BlockInputs:
 
 
 ProbeFn = Callable[[pd.DataFrame, ClaimTable, dict], list[ProbeResult]]
+ContextFactsFn = Callable[[pd.DataFrame, ClaimTable, dict], dict[str, Any]]
 LaneFactory = Callable[[], Any]
 
 
@@ -97,8 +99,9 @@ class FamilyDef:
     design_cls: type[Design] | None = None
     design_block: Callable[[BlockInputs], Design] | None = None
     probes: ProbeFn | None = None
+    context_facts: ContextFactsFn | None = None
     lane: LaneFactory | None = None
-    refutation_prefix: str = "placebo"  # how the lane addresses its falsifications: refute:<c>.<name> or placebo:<c>.<name>
+    endpoints: EndpointCatalogue | None = None
 
     @property
     def specialist(self) -> str:
@@ -119,17 +122,20 @@ def load_family_yaml(path: Path, name: str | None = None) -> tuple[Family, Famil
     fam = Family(name=name, **raw)
     if not needs:
         return fam, None
-    # what the family asks: every field address a decision rests on; the probes and the notes are not fields
-    asks = [p for d in fam.decisions for p in d.rests_on if p.startswith(("claim:", "col:")) and "." in p and not p.endswith(".note")]
-    # what the family requires: the kinds its decisions rest on, less the ones the lane settles with its own question. A declared
-    # family, with no decisions yet, spells its list by hand until it is built.
-    lane_settles = list(needs.pop("lane_settles", None) or [])
-    if fam.decisions:
-        if "requires" in needs:
-            raise ValueError(f"{name}: `requires` is derived from the decisions; delete it from needs_claims")
-        kinds = [p[6:].split(".")[0] if p.startswith("claim:") else "measured" for d in fam.decisions for p in d.rests_on if p.startswith(("claim:", "col:"))]
-        needs["requires"] = [k for k in dict.fromkeys(kinds) if k not in lane_settles]
-    return fam, FamilyNeeds(name=name, lane_settles=lane_settles, asks=list(dict.fromkeys(asks)), **needs)
+    endpoint_path = path.parent / "lane" / "knowledge" / "endpoints.yaml"
+    endpoints = load_endpoints(endpoint_path) if endpoint_path.exists() else None
+    if endpoints:
+        fam.decisions = [Decision(name=e.id, asks=e.title, rests_on=list(dict.fromkeys(r.address for r in e.requirements))) for e in endpoints.endpoints]
+        addresses = [r.address for e in endpoints.endpoints for r in e.requirements]
+        asks = list(dict.fromkeys(addresses))
+        needs["requires"] = list(
+            dict.fromkeys("measured" if a.startswith("col:") else a[6:].split(".")[0] for a in addresses if a.startswith(("claim:", "col:")))
+        )
+    else:
+        asks = [p for d in fam.decisions for p in d.rests_on if p.startswith(("claim:", "col:")) and "." in p]
+        if fam.decisions:
+            needs["requires"] = list(dict.fromkeys(p[6:].split(".")[0] if p.startswith("claim:") else "measured" for p in asks))
+    return fam, FamilyNeeds(name=name, asks=asks, endpoints=endpoints, **needs)
 
 
 # ------------------------------------------------------------------ the stub lane for a declared family

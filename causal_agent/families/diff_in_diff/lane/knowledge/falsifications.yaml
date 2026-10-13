@@ -1,0 +1,8 @@
+placebo_timing:
+  in_words: fake change in globally pre-treatment periods
+  applies_when:
+    periods_pre_min: 3
+    engine:
+    - feols
+  params:
+    cut: middle

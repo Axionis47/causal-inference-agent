@@ -1,21 +1,17 @@
-"""Discontinuity lane contracts. What each node writes, and the rungs of the ladder the design is climbed on; the records every
-ladder shares (the threats, heterogeneity, what a rung would not guess) come from the harness.
-
-Lane-invariant artifacts (Contrast, Checks, Estimate, Refutation, Interpretation, Feasibility) live in
-causal_agent.common.contracts. These are the ones only this lane needs.
-"""
+"""RD evidence, reasoning and immutable execution contracts."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from causal_agent.common.contracts import Checks, Cited, Contrast, Departure, Interpretation
-from causal_agent.lane.ladder import Heterogeneity, LadderBase, Threats, Unsure
+from causal_agent.common.contracts import Checks, Cited, Contrast, Departure, FrozenDesign
+from causal_agent.lane.ladder import LadderBase, Unsure
 
-Estimand = Literal["effect_at_cutoff", "complier_effect_at_cutoff", "itt_at_cutoff", "effect_in_window"]
+Estimand = Literal["effect_at_cutoff", "complier_effect_at_cutoff", "itt_at_cutoff", "effect_in_window", "complier_effect_in_window", "itt_in_window"]
+LineRisk = Literal["manipulation", "other_change_at_line", "score_set_after", "cutoff_known_in_advance"]
 
 
 class Score(BaseModel):
@@ -148,9 +144,6 @@ class DensityFacts(BaseModel):
         return out
 
 
-LineRisk = Literal["manipulation", "other_change_at_line", "score_set_after", "cutoff_known_in_advance"]
-
-
 class Risk(Cited):
     """One thing that could break the comparison at the line, named from the story: units moving their own score (manipulation),
     something else switching at the same line (other_change_at_line), a score set after the change was decided (score_set_after),
@@ -170,7 +163,6 @@ class Line(BaseModel):
     risks: list[Risk] = Field(default_factory=list, description="every risk the story raises, each cited; none when it raises none")
     cites: list[str] = Field(default_factory=list)
     unsure: list[Unsure] = Field(default_factory=list)
-    by: Literal["judgement"] = "judgement"
 
     def lines(self) -> list[tuple[str, str]]:
         return [("ladder:line.clean", "yes" if self.clean else "no"), ("ladder:line.why", self.why)] + [
@@ -201,7 +193,7 @@ class BalanceItem(BaseModel):
     def line(self, threshold: float) -> str:
         if self.how == "untested":
             return f"could not be tested ({self.error})"
-        verdict = "; differs at the line" if self.flagged(threshold) else "; alike at the line"
+        verdict = "; differs at the line" if self.flagged(threshold) else "; no detected difference at the line"
         if self.how == "share":
             return f"share of {self.level!r} differs by {self.jump:+.2f} between the sides within {self.width:.3g} of the line (p = {self.p:.2g}, {self.n_left}/{self.n_right} rows){verdict}"
         return f"jump {self.jump:.3g} at the line (robust p = {self.p:.3g}, {self.n_left}/{self.n_right} rows within {self.width:.3g}){verdict}"
@@ -209,7 +201,7 @@ class BalanceItem(BaseModel):
 
 class BalanceFacts(BaseModel):
     """Rung 3's evidence, by code before the covariates are placed: every candidate's standing at the line. A column fixed before
-    the line should not differ across it; one that does is either not fixed before or a sign the line was gamed."""
+    the line should not differ across it; a detected discontinuity contests continuity, not known measurement timing."""
 
     items: list[BalanceItem] = Field(default_factory=list)
     threshold: float = 0.05
@@ -228,7 +220,7 @@ class CovariateRelation(BaseModel):
 
     column: str
     predetermined: bool = Field(
-        description="the column's value was fixed before the score was set and the change decided, so it must be continuous at the cutoff"
+        description="the column's value was fixed before the score was set and the change decided, so continuity is an identifying assumption to assess"
     )
     affected_by_treatment: bool = Field(
         description="the column's value could have been changed by the treatment; adjusting for it would remove part of the effect"
@@ -263,55 +255,12 @@ class CovariateRoles(BaseModel):
         return [(f"ladder:covariates.{r.column}", r.word()) for r in self.items]
 
 
-class WindowPick(BaseModel):
-    """The window rung's judgement: which of the offered selectors sets how far from the line the fit reaches, and why."""
-
-    selector: str = Field(description="one of the selectors offered, by name; the default when nothing in the ladder argues for another")
-    why: str = Field(description="one or two sentences: what in the density, the balance or the sides argues for this width")
-    cites: list[str] = Field(default_factory=list)
-    unsure: list[Unsure] = Field(default_factory=list)
-
-
-class Window(BaseModel):
-    """Rung 6: how far from the line the fit reaches on each side. Code builds the table of every selector the library offers with
-    the rows each leaves inside; a judgement picks one, or code does when the rule leaves no choice (few distinct scores, or a
-    local randomisation window)."""
-
-    selector: str
-    rule: Literal["mse", "cer", "support_points", "local_randomisation"]
-    h_left: float
-    h_right: float
-    b_left: float
-    b_right: float
-    n_left: int
-    n_right: int
-    why: str
-    cites: list[str] = Field(default_factory=list)
-    unsure: list[Unsure] = Field(default_factory=list)
-    by: Literal["code", "judgement"] = "code"
-
-    def two_sided(self) -> bool:
-        return abs(self.h_left - self.h_right) > 1e-12
-
-    def lines(self) -> list[tuple[str, str]]:
-        width = (
-            f"h = {self.h_left:.4g} in the score's units on both sides"
-            if not self.two_sided()
-            else f"h = {self.h_left:.4g} on the control side, {self.h_right:.4g} on the treated side, in the score's units"
-        )
-        return [
-            ("ladder:window.selector", f"{self.selector} ({self.rule}; set by the {self.by})"),
-            ("ladder:window.h", f"{width}; {self.n_left}/{self.n_right} rows inside"),
-            ("ladder:window.why", self.why),
-        ]
-
-
 class Ladder(LadderBase):
     """The rungs climbed so far: the score and the line, the shape, the density at the line, whether the line is clean, every
     candidate's standing at the line, the covariates, where the effect could differ, the threats, the window. A rung reads the
     rungs below it; every line has an address."""
 
-    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "balance", "covariates", "heterogeneity", "threats", "window")
+    ORDER: ClassVar[tuple[str, ...]] = ("score", "shape", "density", "line", "balance", "covariates")
 
     score: Score | None = None
     shape: ShapeFacts | None = None
@@ -319,9 +268,6 @@ class Ladder(LadderBase):
     line: Line | None = None
     balance: BalanceFacts | None = None
     covariates: CovariateRoles | None = None
-    heterogeneity: Heterogeneity | None = None
-    threats: Threats | None = None
-    window: Window | None = None
 
 
 class Excluded(BaseModel):
@@ -338,20 +284,6 @@ class Covariates(BaseModel):
         lines = [f"balance-tested: {', '.join(self.balance_tested) or 'none'}", f"adjusted: {', '.join(self.adjusted) or 'none'}"]
         lines += [f"  excluded {x.column}: {x.why}" for x in self.excluded]
         return "\n".join(lines)
-
-
-class DesignAssessment(BaseModel):
-    action: Literal["proceed", "stop"]
-    reason: str = Field(
-        description="one or two sentences citing the flag numbers and, for density or covariate flags, the note that argues for or against them"
-    )
-    cites: list[str] = Field(default_factory=list, description="every flagged check address, plus the pack addresses the argument rests on")
-
-
-class EstimatorPick(BaseModel):
-    name: str = Field(description="one of the names offered")
-    reason: str
-    cites: list[str] = Field(default_factory=list)
 
 
 class Bandwidths(BaseModel):
@@ -382,9 +314,42 @@ class Bandwidths(BaseModel):
         return [self.b_left, self.b_right]
 
 
-class Design(BaseModel):
-    """The frozen design. Everything after this is deterministic execution."""
+class AssumptionDecision(BaseModel):
+    endpoint_id: str
+    admissible: bool
+    reason: str
+    cites: list[str]
+    assumptions: list[str]
 
+
+class AssumptionDecisions(BaseModel):
+    items: list[AssumptionDecision]
+
+
+class Candidate(BaseModel):
+    id: str
+    endpoint_id: str
+    status: Literal["proposed", "surviving", "blocked", "failed"] = "proposed"
+    reason: str
+    cites: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    adjusted: bool = False
+    estimator: str
+    check_results: list[dict] = Field(default_factory=list)
+    terminal_kind: (
+        Literal["context_deficiency", "unidentified_effect", "unsupported_method", "inadequate_support", "exhausted_reasoning", "execution_failure"] | None
+    ) = None
+
+
+class Design(FrozenDesign):
+    """One immutable, standalone RD execution plan."""
+
+    model_config = ConfigDict(frozen=True)
+    id: str
+    endpoint_id: str
+    context_id: str
+    ledger_revision: int
+    target: dict[str, Any]
     contrast: Contrast
     score: Score
     shape: ShapeFacts
@@ -392,64 +357,36 @@ class Design(BaseModel):
     checks: Checks
     estimator: str
     estimand: Estimand
-    spec: dict
-    also_run: list[str] = Field(default_factory=list)
+    spec: dict[str, Any]
     inference: str
     vce: str
     cluster: str | None = None
     bandwidths: Bandwidths
-    sharp_bandwidth_used: bool = False
-    placebos: list[str]
-    target_units: str
-    modifiers: list[str] = Field(
-        default_factory=list, description="the predetermined characteristics the effect at the cutoff is also estimated within, level by level"
-    )
+    fuzzy: bool = False
+    assumptions: list[str] = Field(default_factory=list)
+    falsifications: list[str] = Field(default_factory=list)
+    sensitivities: list[str] = Field(default_factory=list)
+    modifiers: list[str] = Field(default_factory=list)
+    rows: list[int] = Field(default_factory=list)
+    table_fingerprint: str
+    identification_certificate: dict[str, Any]
+    support: dict[str, Any]
+    weights_policy: dict[str, Any]
+    selector_policy: dict[str, Any]
     frozen_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def render(self) -> str:
-        s, f = self.score, self.shape
-        rule = f"{'at or ' if s.cutoff_value_treated else ''}{s.treated_side} {s.cutoff:g}"
-        lines = [
-            "DESIGN",
-            f"  score        {s.column} treated when {rule}"
-            + (f"; take-up {s.takeup_column} = {s.takeup_level!r}" if s.takeup_column else "; treatment is the cutoff rule itself")
-            + f" ({s.reason})",
-            f"  shape        {f.kind}; {f.rows_primary} rows ({f.n_left} control side, {f.n_right} treated side); {f.distinct_scores} distinct scores; "
-            f"duplicates {f.duplicate_share_left:.0%}/{f.duplicate_share_right:.0%}; {f.rows_at_cutoff} at the cutoff"
-            + (f", effective cutoff moved by {f.cutoff_shift:g}" if f.cutoff_shift else ""),
-        ]
-        if f.takeup_left is not None:
-            lines.append(f"  take-up      {f.takeup_left:.2f} on the control side, {f.takeup_right:.2f} on the treated side")
-        lines += ["  " + ln for ln in self.covariates.render().splitlines()]
-        for r in self.checks.results:
-            lines.append(f"  check        {r.level:4} {r.address}  {r.detail}")
-        lines.append(f"  estimator    {self.estimator} ({self.estimand}): {self.spec}" + (f"   also {', '.join(self.also_run)}" if self.also_run else ""))
-        lines.append(f"  inference    {self.inference}  vce {self.vce}" + (f"  cluster {self.cluster}" if self.cluster else ""))
-        bw = self.bandwidths
-        lines.append(
-            f"  window       {bw.selector} ({bw.rule}): h {bw.h_left:.4g}/{bw.h_right:.4g}  b {bw.b_left:.4g}/{bw.b_right:.4g}"
-            + (f"  h_cer {bw.h_cer_left:.4g}/{bw.h_cer_right:.4g}" if bw.h_cer_left is not None and bw.h_cer_right is not None else "")
-            + f"  effective rows {bw.n_h_left}/{bw.n_h_right}"
-            + ("  (sharp bandwidth used: take-up does not vary on one side)" if self.sharp_bandwidth_used else "")
-        )
-        lines.append(f"  placebos     {', '.join(self.placebos) or 'none'}")
-        lines.append(f"  target       {self.target_units}")
-        lines.append(f"  modifiers    {', '.join(self.modifiers) or 'none'}")
-        lines.append(f"  frozen at    {self.frozen_at}")
-        return "\n".join(lines)
+        return self.model_dump_json(indent=2)
 
 
-class RDInterpretation(Interpretation):
-    """The interpretation, with the fields the gate compares against the Design and the primary estimate."""
-
-    estimand: Estimand = Field(
-        description="which quantity the estimate is: effect_at_cutoff (sharp), complier_effect_at_cutoff (fuzzy), itt_at_cutoff (effect of crossing the cutoff, whatever was taken up), or effect_in_window (local randomisation: the units in a small window either side of the line)"
+class RDInterpretation(BaseModel):
+    target_contrast: Literal["assignment", "receipt", "eligibility"] = Field(
+        description="Copy the frozen target.contrast exactly; eligibility is ITT, receipt is a complier effect, assignment applies under sharp compliance."
     )
-    bandwidth_left_stated: float = Field(description="the estimation bandwidth on the control side, copied from the estimate")
-    bandwidth_right_stated: float = Field(
-        description="the estimation bandwidth on the treated side, copied from the estimate; the same number when the window is one width"
-    )
-    n_left_stated: int = Field(description="effective rows on the control side, copied from the estimate")
-    n_right_stated: int = Field(description="effective rows on the treated side, copied from the estimate")
-    ci_low_stated: float = Field(description="lower end of the robust interval, copied from the estimate")
-    ci_high_stated: float = Field(description="upper end of the robust interval, copied from the estimate")
+    design_id: str
+    endpoint_id: str
+    contrast: str
+    answer: str
+    effect_stated: float | None = Field(description="Copy the primary recorded estimate.value exactly, or null only when no primary point estimate exists.")
+    caveats: list[str]
+    cites: list[str]

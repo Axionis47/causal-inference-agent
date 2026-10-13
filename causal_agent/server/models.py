@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts import ConfidenceSet, ContextAdmission, ContextDeficiency, Falsification, Sensitivity
 from causal_agent.viz.spec import FigureSpec
 
 NAME_RE = r"^[a-z][a-z0-9_]{1,39}$"
@@ -150,6 +151,8 @@ class ClaimView(BaseModel):
 
 
 class StatusView(BaseModel):
+    endpoint_admissions: dict[str, ContextAdmission] = Field(default_factory=dict)
+    selected_family: str | None = None
     table: dict[str, dict[str, str]]
     surviving: list[str]
     struck: dict[str, str]
@@ -161,6 +164,7 @@ class StatusView(BaseModel):
 
 
 class CheckView(BaseModel):
+    design_id: str = ""
     contrast: str | None = None
     name: str
     level: str | None = None
@@ -169,17 +173,8 @@ class CheckView(BaseModel):
     detail: str | None = None
 
 
-class RefutationView(BaseModel):
-    contrast: str | None = None
-    refuter: str
-    kind: str | None = None
-    passed: bool | None = None
-    p_value: float | None = None
-    new_effect: float | None = None
-    detail: str | None = None
-
-
 class InterpretationView(BaseModel):
+    design_id: str = ""
     contrast: str | None = None
     answer: str
     caveats: list[str] = Field(default_factory=list)
@@ -187,6 +182,12 @@ class InterpretationView(BaseModel):
 
 
 class EstimateView(BaseModel):
+    design_id: str = ""
+    endpoint_id: str = ""
+    target: dict[str, Any] = Field(default_factory=dict)
+    confidence_set: ConfidenceSet | None = None
+    modifier: str | None = None
+    level: str | None = None
     contrast: str | None = None
     method: str | None = None
     value: float | None = None
@@ -226,6 +227,7 @@ class DecisionView(BaseModel):
 class FeasibilityView(BaseModel):
     """Where and why a lane stopped."""
 
+    terminal_kind: Literal["context_deficiency", "unidentified_effect", "unsupported_method", "inadequate_support", "exhausted_reasoning", "execution_failure"]
     stage: str
     reason: str
     facts: list[str] = Field(default_factory=list)
@@ -247,7 +249,24 @@ class RunView(BaseModel):
     decision_record: str = ""
     flags: list[CheckView] = Field(default_factory=list)
     checks: list[CheckView] = Field(default_factory=list)
-    refutations: list[RefutationView] = Field(default_factory=list)
+    lead_design_id: str | None = None
+    lead_selection: dict[str, Any] = Field(default_factory=dict)
+    context_id: str = ""
+    dataset_identity: str = ""
+    context_admission: ContextAdmission | None = None
+    context_deficiency: ContextDeficiency | None = None
+    terminal: dict[str, Any] = Field(default_factory=dict)
+    candidate_history: list[dict[str, Any]] = Field(default_factory=list)
+    reasoning_history: list[dict[str, Any]] = Field(default_factory=list)
+    context_facts: dict[str, Any] = Field(default_factory=dict)
+    designs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    ledger: dict[str, Any] = Field(default_factory=dict)
+    candidates: list[dict[str, Any]] = Field(default_factory=list)
+    episode_visits: dict[str, Any] = Field(default_factory=dict)
+    comparisons: list[dict[str, Any]] = Field(default_factory=list)
+    execution_attempts: list[dict[str, Any]] = Field(default_factory=list)
+    falsifications: list[Falsification] = Field(default_factory=list)
+    sensitivities: list[Sensitivity] = Field(default_factory=list)
     interpretations: list[InterpretationView] = Field(default_factory=list)
     estimates: list[EstimateView] = Field(default_factory=list)
     feasibility: FeasibilityView | None = None
@@ -344,6 +363,10 @@ class JudgeView(BaseModel):
 
 
 class HandoffView(BaseModel):
+    context_id: str = ""
+    dataset_identity: str = ""
+    data_version: int = 0
+    admission: ContextAdmission | None = None
     """The pack the ready moment read back, shown before the word: every field the design rests on with its status and the
     sentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's
     word and shows the ready moment again."""

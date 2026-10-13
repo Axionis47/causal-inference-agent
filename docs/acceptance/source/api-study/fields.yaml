@@ -1,0 +1,221 @@
+claim:missing.why:
+  value: none
+  status: confirmed
+  source: data
+  said: null
+  reason: null
+  evidence: []
+claim:assignment.treatment_column:
+  value: t
+  status: confirmed
+  source: user:turn:2
+  said: 'This is a simulated study. Each row is one independently sampled person from
+    the study population. t is binary treatment receipt: 1 received, 0 did not. Before
+    assignment, baseline c determines uptake'
+  reason: confirmed as drafted
+  evidence:
+  - check:assignment.treatment_column.treatment_varies
+claim:grain.row_is:
+  value: one independently sampled person
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+claim:grain.panel:
+  value: false
+  status: confirmed
+  source: user:turn:3
+  said: claim:grain.panel = false
+  reason: Independently sampled implies that the same unit does not come back in more
+    than one period, so it is not panel data.
+  evidence: []
+claim:sampling.how:
+  value: whole
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:t.meaning:
+  value: 'binary treatment receipt: 1 received, 0 did not.'
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+claim:assignment.treated_level:
+  value: '1'
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:c.meaning:
+  value: baseline c determines uptake and affects y.
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:c.when:
+  value: before
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:c.feeds_treatment:
+  value: true
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:c.moves_outcome:
+  value: true
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:c.moved_by_change:
+  value: false
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:x.meaning:
+  value: Baseline x affects only y, and cannot influence treatment uptake.
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:x.when:
+  value: before
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:x.moves_outcome:
+  value: true
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:x.feeds_treatment:
+  value: false
+  status: confirmed
+  source: user:turn:22
+  said: x predicts y but does not affect treatment uptake.
+  reason: null
+  evidence: []
+col:x.moved_by_change:
+  value: false
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:y.meaning:
+  value: continuous numeric outcome
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:y.when:
+  value: after
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+col:y.measures_outcome:
+  value: true
+  status: confirmed
+  source: user:turn:7
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+claim:unobserved.exists:
+  value: false
+  status: confirmed
+  source: user:turn:9
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+claim:spillover.possible:
+  value: false
+  status: confirmed
+  source: user:turn:9
+  said: Yes, all right.
+  reason: confirmed as drafted
+  evidence: []
+claim:target.effect:
+  value: total
+  status: drafted
+  source: user:turn:2
+  said: The causal question is the total average outcome difference
+  reason: null
+  evidence: []
+claim:target.population:
+  value: study_population
+  status: drafted
+  source: user:turn:2
+  said: the total average outcome difference for this study population
+  reason: null
+  evidence: []
+claim:assignment.never_treated_exists:
+  value: true
+  status: confirmed
+  source: data
+  said: null
+  reason: registered outcome-blind assignment/context check
+  evidence: []
+claim:assignment.rule:
+  value: uptake based on baseline c
+  status: confirmed
+  source: user:turn:3
+  said: claim:assignment.rule = uptake based on baseline c
+  reason: null
+  evidence: []
+claim:change.what:
+  value: receipt of binary treatment t
+  status: confirmed
+  source: user:turn:3
+  said: claim:change.what = receipt of binary treatment t
+  reason: null
+  evidence: []
+claim:change.to_whom:
+  value: study individuals
+  status: confirmed
+  source: user:turn:3
+  said: claim:change.to_whom = study individuals
+  reason: null
+  evidence: []
+claim:change.when:
+  value: after baseline covariates and before outcome y
+  status: confirmed
+  source: user:turn:3
+  said: claim:change.when = after baseline covariates and before outcome y
+  reason: null
+  evidence: []
+claim:assignment.kind:
+  value: own_choice
+  status: confirmed
+  source: user:turn:8
+  said: claim:assignment.kind = own_choice
+  reason: null
+  evidence: []
+col:t.when:
+  value: at
+  status: confirmed
+  source: user:turn:8
+  said: col:t.when = at
+  reason: null
+  evidence: []

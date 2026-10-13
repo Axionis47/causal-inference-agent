@@ -6,129 +6,570 @@
   "treatment": "state",
   "scope": {
     "population_filter": null,
-    "window": "1989 to 1992 against the years before",
+    "window": null,
     "contrast": "switch",
-    "target": "on_treated"
+    "target": "on_treated",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
   },
   "pack_name": "cigar",
   "relevant_columns": [
     {
-      "reason": "named in the forced hand-off",
+      "reason": "documented benchmark input",
       "cites": [
         "col:sales.note"
       ],
       "column": "sales"
     },
     {
-      "reason": "named in the forced hand-off",
+      "reason": "documented benchmark input",
       "cites": [
         "col:state.note"
       ],
       "column": "state"
     },
     {
-      "reason": "named in the forced hand-off",
+      "reason": "documented benchmark input",
       "cites": [
         "col:year.note"
       ],
       "column": "year"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:price.note"
-      ],
-      "column": "price"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:pimin.note"
-      ],
-      "column": "pimin"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:ndi.note"
-      ],
-      "column": "ndi"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:pop.note"
-      ],
-      "column": "pop"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:cpi.note"
-      ],
-      "column": "cpi"
     }
   ],
-  "chosen_assumption": "forced into the diff-in-diff lane: the router would route this to synthetic control because one state got the change",
-  "reasons": [
-    {
-      "reason": "the outcome the question names",
-      "cites": [
-        "col:sales.note"
-      ]
-    },
-    {
-      "reason": "the change asked about",
-      "cites": [
-        "col:state.note"
-      ]
-    }
-  ],
-  "question": "What did California's 1989 tobacco tax do to cigarette sales?",
-  "story": null,
+  "chosen_assumption": "parallel untreated paths",
+  "reasons": [],
+  "question": "What did California Proposition 99 do to sales?",
+  "story": "# State Cigarette Sales 1963 to 1992\n\n## About the dataset\nEach row is one US state in one year. 46 states are observed every year from 1963 to 1992, 1,380 rows, no gaps. Years are written as two digits, 63 to 92. States are numbered 1 to 51 in alphabetical order of the standard state list with five states missing, so the numbers are not contiguous; state 5 is California. The first column is an unnamed row index left over from an R export and carries no information. States are treated as separate markets, though cigarettes bought in a neighbouring state with lower prices are a known leak, which is why the minimum neighbouring price is included. Data are Baltagi and Levin's panel, distributed in the Ecdat package. [docs/cigar/readme.md]\n\n## What changed\n**California Proposition 99, effective January 1989.** California voters passed a 25 cent per pack tax increase, with the revenue funding an anti-smoking campaign. It applied to the whole state and no other state adopted anything comparable in the period. It was decided by a ballot vote, and which state got it was simply California. The file has 26 years before the change and 4 after. Other states raised their own taxes by smaller amounts at various times, which shows up in the price column. [docs/cigar/readme.md]\n\n## About each column\n**Unnamed: 0** — Row index from the export. Ignore. [readme.md]\n\n**state** — State number, see above. Fixed. [readme.md]\n\n**year** — Two-digit year, 63 to 92. [readme.md]\n\n**price** — Average retail price of a pack in that state and year, in cents, including taxes. Set by manufacturers, retailers, and state tax, and moves with them. [readme.md]\n\n**pop** — State population in thousands. [readme.md]\n\n**pop16** — State population aged 16 and over, in thousands. [readme.md]\n\n**cpi** — National consumer price index, 1983 equals 100. Same for every state in a year. [readme.md]\n\n**ndi** — Per capita disposable income in the state, in current dollars. [readme.md]\n\n**sales** — Packs sold per capita in the state that year, from tax-paid sales. The year's result. [readme.md]\n\n**pimin** — Lowest average price among the state's neighbouring states, in cents. A measure of how cheap it is to buy across the border. [readme.md]\n",
   "intent": "effect_of_change",
   "design_id": 0,
-  "memory_version": 33,
-  "why": "forced",
+  "memory_version": 0,
+  "context_id": "ba94075a112d8986326c2595",
+  "dataset_identity": "7c417c7783303ea97ca709c2f3058f99aa1918cca21bc5d5d1b162c82d545902",
+  "admission": {
+    "family": "diff_in_diff",
+    "contract": "370efe79b5ea9893ec80",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "paired_two_wave_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "common_adoption_projection_effect",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "untreated_imputation_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "untreated_prefix_imputation_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "never_cohort_cell_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "clean_projection_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:cigar.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
   "over": {},
   "csv": "data/raw/cigarette-sales-prop99/Cigar.csv",
-  "dataset_facts": {
-    "rows": 1380,
-    "columns": 10,
-    "duplicate_rows": 0,
-    "grain": [
-      "Unnamed: 0"
-    ],
-    "time_coverage": {
-      "column": "year",
-      "first": "63",
-      "last": "92",
-      "inferred_frequency": "integer period, step 1",
-      "gaps": 0
-    },
-    "entity_summary": {
-      "columns": [
-        "state"
-      ],
-      "entities": 46,
-      "rows_per_entity_min": 30,
-      "rows_per_entity_median": 30.0,
-      "rows_per_entity_max": 30
-    },
-    "format_issues": []
-  },
-  "grain": {
-    "panel": true,
-    "key_columns": [
-      "state",
-      "year"
-    ],
-    "row_is": "one US state in one year"
-  },
+  "dataset_facts": {},
+  "grain": {},
   "sampling": {},
-  "missing": {
-    "why": "none"
-  },
+  "missing": {},
   "treated_level": null,
   "control_level": null,
   "columns": [
@@ -136,7 +577,7 @@
       "name": "sales",
       "key": "sales",
       "role": "outcome",
-      "meaning": "Packs sold per capita in the state that year, from tax-paid sales.",
+      "meaning": "sales: documented benchmark measurement",
       "stands_for": null,
       "proxy": null,
       "when": "after",
@@ -148,23 +589,11 @@
       "same_as": null,
       "nested_in": null,
       "may_modify": null,
-      "source": "doc:context",
+      "source": null,
       "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "measures_outcome": {
-          "status": "drafted",
-          "source": "doc:context",
+          "status": "confirmed",
+          "source": "fixture:cigar.study_account",
           "said": null,
           "reason": null
         }
@@ -175,17 +604,8 @@
         "null_rate": 0.0,
         "distinct": 689,
         "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 53.4,
-          "max": 297.9,
-          "mean": 123.95087,
-          "p01": 66.458,
-          "p25": 107.9,
-          "p50": 121.2,
-          "p75": 133.2,
-          "p99": 250.8080000000002
-        },
+        "varies_over": "unknown",
+        "numeric": null,
         "top_values": [],
         "datetime": null,
         "switch": null,
@@ -200,7 +620,7 @@
       "name": "state",
       "key": "state",
       "role": "treatment",
-      "meaning": "State number, 1 to 51 in alphabetical order of the standard state list with five states missing. State 5 is California.",
+      "meaning": "state: documented benchmark measurement",
       "stands_for": null,
       "proxy": null,
       "when": "before",
@@ -208,42 +628,27 @@
       "feeds_treatment": null,
       "moves_outcome": null,
       "moved_by_change": null,
-      "measures_outcome": null,
+      "measures_outcome": false,
       "same_as": null,
       "nested_in": null,
       "may_modify": null,
-      "source": "doc:context",
+      "source": null,
       "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
+          "status": "confirmed",
+          "source": "fixture:cigar.study_account",
           "said": null,
           "reason": null
         }
       },
       "facts": {
-        "kind": "id",
+        "kind": "numeric",
         "nulls": 0,
         "null_rate": 0.0,
         "distinct": 46,
         "constant": false,
-        "varies_over": "entity",
-        "numeric": {
-          "min": 1.0,
-          "max": 51.0,
-          "mean": 26.826087,
-          "p01": 1.0,
-          "p25": 15.0,
-          "p50": 26.5,
-          "p75": 40.0,
-          "p99": 51.0
-        },
+        "varies_over": "unknown",
+        "numeric": null,
         "top_values": [],
         "datetime": null,
         "switch": null,
@@ -258,29 +663,23 @@
       "name": "year",
       "key": "year",
       "role": "time",
-      "meaning": "Two-digit year, 63 to 92.",
+      "meaning": "year: documented benchmark measurement",
       "stands_for": null,
       "proxy": null,
-      "when": "at",
+      "when": "unknown",
       "set_by": null,
       "feeds_treatment": null,
       "moves_outcome": null,
       "moved_by_change": null,
-      "measures_outcome": null,
+      "measures_outcome": false,
       "same_as": null,
       "nested_in": null,
       "may_modify": null,
-      "source": "doc:context",
+      "source": null,
       "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
+          "status": "confirmed",
+          "source": "fixture:cigar.study_account",
           "said": null,
           "reason": null
         }
@@ -291,377 +690,8 @@
         "null_rate": 0.0,
         "distinct": 30,
         "constant": false,
-        "varies_over": "time",
-        "numeric": {
-          "min": 63.0,
-          "max": 92.0,
-          "mean": 77.5,
-          "p01": 63.0,
-          "p25": 70.0,
-          "p50": 77.5,
-          "p75": 85.0,
-          "p99": 92.0
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "price",
-      "key": "price",
-      "role": "candidate",
-      "meaning": "Average retail price of a pack in that state and year, in cents, including taxes.",
-      "stands_for": null,
-      "proxy": null,
-      "when": "at",
-      "set_by": "manufacturers, retailers, and state tax",
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": true,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "set_by": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "moved_by_change": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "numeric",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 767,
-        "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 23.4,
-          "max": 201.9,
-          "mean": 68.699928,
-          "p01": 24.7,
-          "p25": 34.775,
-          "p50": 52.3,
-          "p75": 98.1,
-          "p99": 181.57600000000022
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "pimin",
-      "key": "pimin",
-      "role": "candidate",
-      "meaning": "Lowest average price among the state's neighbouring states, in cents. A measure of how cheap it is to buy across the border.",
-      "stands_for": null,
-      "proxy": null,
-      "when": "at",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "numeric",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 466,
-        "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 23.4,
-          "max": 178.5,
-          "mean": 62.899275,
-          "p01": 24.1,
-          "p25": 31.975,
-          "p50": 46.4,
-          "p75": 90.5,
-          "p99": 164.4
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "ndi",
-      "key": "ndi",
-      "role": "candidate",
-      "meaning": "Per capita disposable income in the state, in current dollars.",
-      "stands_for": null,
-      "proxy": null,
-      "when": "at",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "numeric",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 1376,
-        "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 1322.5729775,
-          "max": 23074.0,
-          "mean": 7525.023022,
-          "p01": 1719.151851245,
-          "p25": 3327.8691327,
-          "p50": 6281.2008085,
-          "p75": 11024.109942,
-          "p99": 19786.110000000008
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "pop",
-      "key": "pop",
-      "role": "candidate",
-      "meaning": "State population in thousands.",
-      "stands_for": null,
-      "proxy": null,
-      "when": "at",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "numeric",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 1247,
-        "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 319.0,
-          "max": 30703.3,
-          "mean": 4537.113188,
-          "p01": 391.79,
-          "p25": 1053.0,
-          "p50": 3174.0,
-          "p75": 5280.25,
-          "p99": 22393.800000000014
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "cpi",
-      "key": "cpi",
-      "role": "candidate",
-      "meaning": "National consumer price index, 1983 equals 100. Same for every state in a year.",
-      "stands_for": null,
-      "proxy": null,
-      "when": "at",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "numeric",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 30,
-        "constant": false,
-        "varies_over": "time",
-        "numeric": {
-          "min": 30.6,
-          "max": 140.3,
-          "mean": 73.596667,
-          "p01": 30.6,
-          "p25": 38.8,
-          "p50": 62.900000000000006,
-          "p75": 107.6,
-          "p99": 140.3
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "pop16",
-      "key": "pop16",
-      "role": "candidate",
-      "meaning": "State population aged 16 and over, in thousands.",
-      "stands_for": null,
-      "proxy": null,
-      "when": "at",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "numeric",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 1341,
-        "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 215.2,
-          "max": 22920.0,
-          "mean": 3366.616087,
-          "p01": 271.791,
-          "p25": 781.175,
-          "p50": 2315.3,
-          "p75": 3914.3250000000003,
-          "p99": 17193.724000000013
-        },
+        "varies_over": "unknown",
+        "numeric": null,
         "top_values": [],
         "datetime": null,
         "switch": null,
@@ -673,437 +703,161 @@
       }
     }
   ],
-  "change": {
-    "what": "California Proposition 99: a 25 cent per pack tax increase, with revenue funding an anti-smoking campaign",
-    "to_whom": "the whole state of California",
-    "when": "effective January 1989"
-  },
-  "assignment": {
-    "kind": "own_choice",
-    "rule": "California voters passed Proposition 99",
-    "level_column": "state"
-  },
+  "change": {},
+  "assignment": {},
   "facts": {
-    "claim:missing.why": {
+    "claim:grain.row_is": {
       "status": "confirmed",
-      "source": "data",
-      "said": null,
-      "reason": null,
-      "value": "none"
+      "source": "fixture:cigar.study_account",
+      "said": "# State Cigarette Sales 1963 to 1992\n\n## About the dataset\nEach row is one US state in one year. 46 states are observed every year from 1963 to 1992, 1,380 rows, no gaps. Years are written as two digits, 63 to 92. States are numbered 1 to 51 in alphabetical order of the standard state list with five states missing, so the numbers are not contiguous; state 5 is California. The first column is an unnamed row index left over from an R export and carries no information. States are treated as separate markets, though cigarettes bought in a neighbouring state with lower prices are a known leak, which is why the minimum neighbouring price is included. Data are Baltagi and Levin's panel, distributed in the Ecdat package. [docs/cigar/readme.md]\n\n## What changed\n**California Proposition 99, effective January 1989.** California voters passed a 25 cent per pack tax increase, with the revenue funding an anti-smoking campaign. It applied to the whole state and no other state adopted anything comparable in the period. It was decided by a ballot vote, and which state got it was simply California. The file has 26 years before the change and 4 after. Other states raised their own taxes by smaller amounts at various times, which shows up in the price column. [docs/cigar/readme.md]\n\n## About each column\n**Unnamed: 0** — Row index from the export. Ignore. [readme.md]\n\n**state** — State number, see above. Fixed. [readme.md]\n\n**year** — Two-digit year, 63 to 92. [readme.md]\n\n**price** — Average retail price of a pack in that state and year, in cents, including taxes. Set by manufacturers, retailers, and state tax, and moves with them. [readme.md]\n\n**pop** — State population in thousands. [readme.md]\n\n**pop16** — State population aged 16 and over, in thousands. [readme.md]\n\n**cpi** — National consumer price index, 1983 equals 100. Same for every state in a year. [readme.md]\n\n**ndi** — Per capita disposable income in the state, in current dollars. [readme.md]\n\n**sales** — Packs sold per capita in the state that year, from tax-paid sales. The year's result. [readme.md]\n\n**pimin** — Lowest average price among the state's neighbouring states, in cents. A measure of how cheap it is to buy across the border. [readme.md]\n",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "one unit observed over declared periods"
     },
-    "claim:grain.panel": {
+    "claim:grain.layout": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "time representation in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "long"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "study assignment account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "date_by_others"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "record of exposure or group",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "state"
+    },
+    "claim:assignment.treated_level": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "treated group or on indicator",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "5"
+    },
+    "claim:assignment.level_column": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "assignment level in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "state"
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "benchmark population only",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "benchmark supplied units"
+    },
+    "claim:trend_continues.believed": {
+      "status": "unknown",
+      "source": "fixture:cigar.study_account",
+      "said": "not asserted by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:spillover.possible": {
+      "status": "unknown",
+      "source": "fixture:cigar.study_account",
+      "said": "not established by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:target.population": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "effect on treated units in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "treated"
+    },
+    "claim:assignment.never_treated_exists": {
       "status": "confirmed",
       "source": "data",
-      "said": null,
-      "reason": null,
+      "said": "unit-level exposure histories have never-treated units",
+      "reason": "benchmark source account supplied as evaluation context",
       "value": true
     },
     "claim:grain.key_columns": {
-      "status": "drafted",
-      "source": "data",
-      "said": null,
-      "reason": null,
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "unit and period identifiers",
+      "reason": "benchmark source account supplied as evaluation context",
       "value": [
         "state",
         "year"
       ]
     },
-    "claim:grain.row_is": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "one US state in one year"
+    "claim:change.date_column": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "time column in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "year"
     },
-    "claim:change.what": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "California Proposition 99: a 25 cent per pack tax increase, with revenue funding an anti-smoking campaign"
-    },
-    "claim:change.to_whom": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "the whole state of California"
-    },
-    "claim:change.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "effective January 1989"
-    },
-    "claim:assignment.kind": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "own_choice"
-    },
-    "claim:assignment.rule": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "California voters passed Proposition 99"
-    },
-    "claim:assignment.level_column": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "state"
-    },
-    "col:state.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "State number, 1 to 51 in alphabetical order of the standard state list with five states missing. State 5 is California."
-    },
-    "col:state.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "before"
-    },
-    "col:year.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Two-digit year, 63 to 92."
-    },
-    "col:year.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
-    },
-    "col:price.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Average retail price of a pack in that state and year, in cents, including taxes."
-    },
-    "col:price.set_by": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "manufacturers, retailers, and state tax"
-    },
-    "col:price.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
-    },
-    "col:price.moved_by_change": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": true
-    },
-    "col:pop.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "State population in thousands."
-    },
-    "col:pop.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
-    },
-    "col:pop16.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "State population aged 16 and over, in thousands."
-    },
-    "col:pop16.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
-    },
-    "col:cpi.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "National consumer price index, 1983 equals 100. Same for every state in a year."
-    },
-    "col:cpi.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
-    },
-    "col:ndi.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Per capita disposable income in the state, in current dollars."
-    },
-    "col:ndi.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
-    },
-    "col:sales.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Packs sold per capita in the state that year, from tax-paid sales."
+    "claim:change.period_value": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "earliest assignment date",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "89"
     },
     "col:sales.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
       "value": "after"
     },
-    "col:sales.measures_outcome": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": true
+    "col:state.when": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
     },
-    "col:pimin.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Lowest average price among the state's neighbouring states, in cents. A measure of how cheap it is to buy across the border."
+    "col:year.when": {
+      "status": "confirmed",
+      "source": "fixture:cigar.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "unknown"
     },
-    "col:pimin.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "at"
+    "claim:target.weighting": {
+      "status": "confirmed",
+      "source": "fixture:cigar.requested_target",
+      "said": "Requested summary gives each treated unit-period equal weight within its requested cohort or horizon.",
+      "reason": "explicit benchmark target policy",
+      "value": "treated_cell_shares"
     }
   },
   "beliefs": {},
   "said": [],
-  "probes": [
-    {
-      "family": "adjustment",
-      "name": "arms",
-      "value": null,
-      "passed": null,
-      "detail": "treatment column not settled"
-    },
-    {
-      "family": "diff_in_diff",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
-    },
-    {
-      "family": "interrupted_series",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
-    },
-    {
-      "family": "synthetic_control",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.year",
-      "value": -0.18190097485075163,
-      "passed": null,
-      "detail": "'year' against the outcome 'sales': correlation -0.18"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.price",
-      "value": -0.3112580489119041,
-      "passed": null,
-      "detail": "'price' against the outcome 'sales': correlation -0.31"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.pimin",
-      "value": -0.2772576924089407,
-      "passed": null,
-      "detail": "'pimin' against the outcome 'sales': correlation -0.28"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.ndi",
-      "value": -0.18383896653946863,
-      "passed": null,
-      "detail": "'ndi' against the outcome 'sales': correlation -0.18"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.pop",
-      "value": -0.11154106821306228,
-      "passed": null,
-      "detail": "'pop' against the outcome 'sales': correlation -0.11"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.cpi",
-      "value": -0.21023111949326348,
-      "passed": null,
-      "detail": "'cpi' against the outcome 'sales': correlation -0.21"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.pop16",
-      "value": -0.11159585621628994,
-      "passed": null,
-      "detail": "'pop16' against the outcome 'sales': correlation -0.11"
-    },
-    {
-      "family": "data",
-      "name": "assoc.year~price",
-      "value": 0.9182176949209647,
-      "passed": null,
-      "detail": "'year' and 'price': correlation 0.92"
-    },
-    {
-      "family": "data",
-      "name": "assoc.year~pimin",
-      "value": 0.9202964534450588,
-      "passed": null,
-      "detail": "'year' and 'pimin': correlation 0.92"
-    },
-    {
-      "family": "data",
-      "name": "assoc.year~ndi",
-      "value": 0.9355700114926229,
-      "passed": null,
-      "detail": "'year' and 'ndi': correlation 0.94"
-    },
-    {
-      "family": "data",
-      "name": "assoc.year~cpi",
-      "value": 0.9794833098343406,
-      "passed": null,
-      "detail": "'year' and 'cpi': correlation 0.98"
-    },
-    {
-      "family": "data",
-      "name": "redundancy.year~cpi",
-      "value": 1.0,
-      "passed": null,
-      "detail": "'year' and 'cpi' carry the same information: each value of one maps to one value of the other"
-    },
-    {
-      "family": "data",
-      "name": "assoc.price~pimin",
-      "value": 0.9870499248356119,
-      "passed": null,
-      "detail": "'price' and 'pimin': correlation 0.99"
-    },
-    {
-      "family": "data",
-      "name": "assoc.price~ndi",
-      "value": 0.94431121127728,
-      "passed": null,
-      "detail": "'price' and 'ndi': correlation 0.94"
-    },
-    {
-      "family": "data",
-      "name": "assoc.price~cpi",
-      "value": 0.9491390241401609,
-      "passed": null,
-      "detail": "'price' and 'cpi': correlation 0.95"
-    },
-    {
-      "family": "data",
-      "name": "assoc.pimin~ndi",
-      "value": 0.9378117076575525,
-      "passed": null,
-      "detail": "'pimin' and 'ndi': correlation 0.94"
-    },
-    {
-      "family": "data",
-      "name": "assoc.pimin~cpi",
-      "value": 0.9527587113882479,
-      "passed": null,
-      "detail": "'pimin' and 'cpi': correlation 0.95"
-    },
-    {
-      "family": "data",
-      "name": "assoc.ndi~cpi",
-      "value": 0.9532968096561585,
-      "passed": null,
-      "detail": "'ndi' and 'cpi': correlation 0.95"
-    },
-    {
-      "family": "data",
-      "name": "assoc.pop~pop16",
-      "value": 0.9977986216298482,
-      "passed": null,
-      "detail": "'pop' and 'pop16': correlation 1.00"
-    },
-    {
-      "family": "data",
-      "name": "assoc.quiet",
-      "value": null,
-      "passed": null,
-      "detail": "associations below 0.2 among the candidates: 'year' and 'pop' (0.08); 'year' and 'pop16' (0.12); 'price' and 'pop' (0.11); 'price' and 'pop16' (0.14); 'pimin' and 'pop' (0.08); 'pimin' and 'pop16' (0.11); 'ndi' and 'pop' (0.16); 'ndi' and 'pop16' (0.19); 'pop' and 'cpi' (0.08); 'cpi' and 'pop16' (0.12)"
-    },
-    {
-      "family": "data",
-      "name": "timing",
-      "value": null,
-      "passed": null,
-      "detail": "before: state; at: year, price, pimin, ndi, pop, cpi, pop16; after: sales; unknown: none"
-    }
-  ],
+  "probes": [],
   "design": {
     "kind": "diff_in_diff",
     "unit": "state",
     "time": "year",
     "period_kind": "integer",
-    "change_period": null,
-    "treated_group": {},
-    "staggered": null,
-    "pre_periods": null,
-    "post_periods": null,
-    "controls_allowed": [
-      "pimin",
-      "ndi",
-      "pop",
-      "cpi",
-      "pop16"
-    ],
-    "cluster_level": "state",
-    "trend_belief": null,
-    "spillover": null
+    "change_period": "89",
+    "treated_group": {
+      "column": "state",
+      "level": "5"
+    },
+    "before_column": null,
+    "after_column": null,
+    "adoption_representation": "label",
+    "aggregation": "pooled",
+    "target_weighting": "treated_cell_shares",
+    "horizons": [],
+    "cohorts": [],
+    "prefix_scope_accepted": false,
+    "cluster_level": "state"
   },
   "brief": null
 }

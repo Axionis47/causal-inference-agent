@@ -31,5 +31,9 @@ def test_the_needs_grid_lists_only_families_with_claims():
 def test_the_lanes_are_compiled_once_and_a_declared_family_gets_a_stub():
     lanes = R.lanes()
     assert lanes is R.lanes()
-    assert "freeze_design" in lanes["adjustment"].get_graph().nodes and "shape_table" in lanes["diff_in_diff"].get_graph().nodes
+    from causal_agent.evals.ladder import knowledge_of
+
+    for name in BUILT:
+        assert knowledge_of(name).SPEC.goal in lanes[name].get_graph().nodes
+        assert R.needs()[name].endpoints is not None
     assert list(lanes["synthetic_control"].get_graph().nodes) == ["__start__", "run", "__end__"]

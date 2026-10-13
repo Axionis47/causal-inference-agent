@@ -652,6 +652,11 @@
       },
       "CheckView": {
         "properties": {
+          "design_id": {
+            "type": "string",
+            "title": "Design Id",
+            "default": ""
+          },
           "contrast": {
             "anyOf": [
               {
@@ -861,6 +866,135 @@
         ],
         "title": "ColumnSummary",
         "description": "One column as the profiler read it. Facts only: shape, missingness, and anything odd."
+      },
+      "ConfidenceSet": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "bounded",
+              "disconnected",
+              "unresolved_tail",
+              "empty",
+              "computational_failure"
+            ],
+            "title": "Status"
+          },
+          "regions": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Regions"
+          },
+          "searched_range": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Searched Range"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ConfidenceSet"
+      },
+      "ContextAdmission": {
+        "properties": {
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "contract": {
+            "type": "string",
+            "title": "Contract"
+          },
+          "memory_version": {
+            "type": "integer",
+            "title": "Memory Version"
+          },
+          "data_version": {
+            "type": "integer",
+            "title": "Data Version"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/EndpointAdmission"
+            },
+            "type": "array",
+            "title": "Endpoints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "family",
+          "contract",
+          "memory_version",
+          "data_version",
+          "endpoints"
+        ],
+        "title": "ContextAdmission"
+      },
+      "ContextDeficiency": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Addresses"
+          },
+          "decisions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "candidates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "addresses",
+          "reason"
+        ],
+        "title": "ContextDeficiency"
       },
       "DatasetCreate": {
         "properties": {
@@ -1147,6 +1281,11 @@
             },
             "type": "array",
             "title": "Cites"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "supported"
           }
         },
         "type": "object",
@@ -1157,8 +1296,92 @@
         "title": "Edge",
         "description": "One arrow of a graph figure, with the addresses it rests on."
       },
+      "EndpointAdmission": {
+        "properties": {
+          "endpoint_id": {
+            "type": "string",
+            "title": "Endpoint Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "conditional",
+              "missing",
+              "excluded",
+              "unsupported"
+            ],
+            "title": "Status"
+          },
+          "obligations": {
+            "items": {
+              "$ref": "#/components/schemas/Obligation"
+            },
+            "type": "array",
+            "title": "Obligations"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint_id",
+          "status"
+        ],
+        "title": "EndpointAdmission"
+      },
       "EstimateView": {
         "properties": {
+          "design_id": {
+            "type": "string",
+            "title": "Design Id",
+            "default": ""
+          },
+          "endpoint_id": {
+            "type": "string",
+            "title": "Endpoint Id",
+            "default": ""
+          },
+          "target": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Target"
+          },
+          "confidence_set": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceSet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modifier"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
           "contrast": {
             "anyOf": [
               {
@@ -1289,8 +1512,81 @@
         "type": "object",
         "title": "EstimateView"
       },
+      "Falsification": {
+        "properties": {
+          "design_id": {
+            "type": "string",
+            "title": "Design Id",
+            "default": ""
+          },
+          "contrast": {
+            "type": "string",
+            "title": "Contrast"
+          },
+          "refuter": {
+            "type": "string",
+            "title": "Refuter"
+          },
+          "new_effect": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Effect"
+          },
+          "p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Value"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "contrast",
+          "refuter"
+        ],
+        "title": "Falsification"
+      },
       "FeasibilityView": {
         "properties": {
+          "terminal_kind": {
+            "type": "string",
+            "enum": [
+              "context_deficiency",
+              "unidentified_effect",
+              "unsupported_method",
+              "inadequate_support",
+              "exhausted_reasoning",
+              "execution_failure"
+            ],
+            "title": "Terminal Kind"
+          },
           "stage": {
             "type": "string",
             "title": "Stage"
@@ -1314,6 +1610,7 @@
         },
         "type": "object",
         "required": [
+          "terminal_kind",
           "stage",
           "reason"
         ],
@@ -1518,6 +1815,31 @@
       },
       "HandoffView": {
         "properties": {
+          "context_id": {
+            "type": "string",
+            "title": "Context Id",
+            "default": ""
+          },
+          "dataset_identity": {
+            "type": "string",
+            "title": "Dataset Identity",
+            "default": ""
+          },
+          "data_version": {
+            "type": "integer",
+            "title": "Data Version",
+            "default": 0
+          },
+          "admission": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextAdmission"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "family": {
             "type": "string",
             "title": "Family"
@@ -1577,11 +1899,15 @@
           "specialist",
           "outcome"
         ],
-        "title": "HandoffView",
-        "description": "The pack the ready moment read back, shown before the word: every field the design rests on with its status and the\nsentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's\nword and shows the ready moment again."
+        "title": "HandoffView"
       },
       "InterpretationView": {
         "properties": {
+          "design_id": {
+            "type": "string",
+            "title": "Design Id",
+            "default": ""
+          },
           "contrast": {
             "anyOf": [
               {
@@ -1770,6 +2096,48 @@
           "mean"
         ],
         "title": "NumericShape"
+      },
+      "Obligation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "met",
+              "assumed",
+              "missing",
+              "failed",
+              "inapplicable"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cites"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "address",
+          "status",
+          "reason"
+        ],
+        "title": "Obligation"
       },
       "ProfileOut": {
         "properties": {
@@ -1975,85 +2343,6 @@
         "title": "QuestionView",
         "description": "The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips, the\noption the desk recommends first, and for a readback each draft as an item."
       },
-      "RefutationView": {
-        "properties": {
-          "contrast": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contrast"
-          },
-          "refuter": {
-            "type": "string",
-            "title": "Refuter"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
-          "passed": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Passed"
-          },
-          "p_value": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "P Value"
-          },
-          "new_effect": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "New Effect"
-          },
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "required": [
-          "refuter"
-        ],
-        "title": "RefutationView"
-      },
       "RunFiles": {
         "properties": {
           "run_id": {
@@ -2188,12 +2477,133 @@
             "type": "array",
             "title": "Checks"
           },
-          "refutations": {
+          "lead_design_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Design Id"
+          },
+          "lead_selection": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Lead Selection"
+          },
+          "context_id": {
+            "type": "string",
+            "title": "Context Id",
+            "default": ""
+          },
+          "dataset_identity": {
+            "type": "string",
+            "title": "Dataset Identity",
+            "default": ""
+          },
+          "context_admission": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextAdmission"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context_deficiency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextDeficiency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terminal": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Terminal"
+          },
+          "candidate_history": {
             "items": {
-              "$ref": "#/components/schemas/RefutationView"
+              "additionalProperties": true,
+              "type": "object"
             },
             "type": "array",
-            "title": "Refutations"
+            "title": "Candidate History"
+          },
+          "reasoning_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Reasoning History"
+          },
+          "context_facts": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Context Facts"
+          },
+          "designs": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Designs"
+          },
+          "ledger": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Ledger"
+          },
+          "candidates": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "episode_visits": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Episode Visits"
+          },
+          "comparisons": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Comparisons"
+          },
+          "execution_attempts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Execution Attempts"
+          },
+          "falsifications": {
+            "items": {
+              "$ref": "#/components/schemas/Falsification"
+            },
+            "type": "array",
+            "title": "Falsifications"
+          },
+          "sensitivities": {
+            "items": {
+              "$ref": "#/components/schemas/Sensitivity"
+            },
+            "type": "array",
+            "title": "Sensitivities"
           },
           "interpretations": {
             "items": {
@@ -2271,6 +2681,80 @@
           "status"
         ],
         "title": "RunView"
+      },
+      "Sensitivity": {
+        "properties": {
+          "design_id": {
+            "type": "string",
+            "title": "Design Id",
+            "default": ""
+          },
+          "contrast": {
+            "type": "string",
+            "title": "Contrast"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "range_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Low"
+          },
+          "range_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range High"
+          },
+          "points": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": ""
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "target": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contrast",
+          "method"
+        ],
+        "title": "Sensitivity"
       },
       "Sentinel": {
         "properties": {
@@ -2604,6 +3088,24 @@
       },
       "StatusView": {
         "properties": {
+          "endpoint_admissions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ContextAdmission"
+            },
+            "type": "object",
+            "title": "Endpoint Admissions"
+          },
+          "selected_family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Family"
+          },
           "table": {
             "additionalProperties": {
               "additionalProperties": {

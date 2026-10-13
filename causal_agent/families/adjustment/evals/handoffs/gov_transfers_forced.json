@@ -8,7 +8,10 @@
     "population_filter": null,
     "window": null,
     "contrast": "switch",
-    "target": "average"
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
   },
   "pack_name": "gov_transfers",
   "relevant_columns": [
@@ -68,6 +71,299 @@
   "intent": "effect_of_change",
   "design_id": 0,
   "memory_version": 33,
+  "context_id": "7cfa9b72a2610163097d4e83",
+  "dataset_identity": "c1f1699a0f9d2d3182aa4373c18830e0eefa5d32862b265fa5e642a9ad97d116",
+  "admission": {
+    "family": "adjustment",
+    "contract": "b6f1e723569374947b89",
+    "memory_version": 33,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "total.unadjusted",
+        "status": "missing",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "timing:col:support.when",
+            "address": "col:support.when",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "col:support.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.backdoor",
+        "status": "missing",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "timing:col:support.when",
+            "address": "col:support.when",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "col:support.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.general_adjustment",
+        "status": "missing",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "timing:col:support.when",
+            "address": "col:support.when",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "col:support.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.wald_late",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "iv.linear_single",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "iv.linear_multiple",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "iv.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "frontdoor.linear_total",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "mediation.linear_nie",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "mediation.linear_nde",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "adjustment.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "structural.zero",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "identification.id_expression",
+        "status": "missing",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently empty",
+            "cites": []
+          },
+          {
+            "id": "timing:col:support.when",
+            "address": "col:support.when",
+            "status": "missing",
+            "reason": "requires ['confirmed']; currently drafted",
+            "cites": [
+              "col:support.when"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
   "why": "forced",
   "over": {},
   "csv": "data/raw/gov-transfers-uruguay/gov_transfers.csv",
@@ -697,13 +993,6 @@
     },
     {
       "family": "data",
-      "name": "with_outcome.income_centered",
-      "value": 0.1718420953637743,
-      "passed": null,
-      "detail": "'Income_Centered' against the outcome 'Support': correlation ratio 0.17"
-    },
-    {
-      "family": "data",
       "name": "by_arm.education",
       "value": 0.03250068439659365,
       "passed": null,
@@ -711,24 +1000,10 @@
     },
     {
       "family": "data",
-      "name": "with_outcome.education",
-      "value": 0.023885618233997902,
-      "passed": null,
-      "detail": "'Education' against the outcome 'Support': correlation ratio 0.02"
-    },
-    {
-      "family": "data",
       "name": "by_arm.age",
       "value": 0.29288716536320936,
       "passed": null,
       "detail": "'Age' by arm: mean 27.3 among the treated, 31.6 among the others; standardised difference 0.29"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.age",
-      "value": 0.05981152294364194,
-      "passed": null,
-      "detail": "'Age' against the outcome 'Support': correlation ratio 0.06"
     },
     {
       "family": "data",
@@ -753,6 +1028,9 @@
       "age"
     ],
     "forbidden": [],
+    "instruments": [],
+    "iv_controls": [],
+    "modifiers": [],
     "instrument": null,
     "mediator": null,
     "unobserved_confounding": null,

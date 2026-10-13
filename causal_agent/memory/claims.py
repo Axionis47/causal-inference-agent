@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts.endpoints import ContextAdmission
+
 ClaimStatus = Literal["empty", "drafted", "confirmed", "refuted", "unknown", "contradiction"]
 Cell = Literal["fits", "does_not_fit", "unknown", "not_needed"]
 
@@ -78,6 +80,8 @@ class ProbeResult(BaseModel):
 
 
 class Status(BaseModel):
+    endpoint_admissions: dict[str, ContextAdmission] = Field(default_factory=dict)
+    selected_family: str | None = None
     table: dict[str, dict[str, Cell]]
     set_by: dict[str, dict[str, str | None]] = Field(default_factory=dict, description="family -> kind -> the address that decided the cell")
     surviving: list[str]

@@ -1,5 +1,4 @@
-"""The data facts computed before a run: by arm, associations, redundancy and nesting, the outcome, the timing; and the one rule,
-that no fact joins the outcome with the treatment."""
+"""Shared context facts cannot use outcome associations before a permitted lane diagnostic."""
 
 from __future__ import annotations
 
@@ -34,17 +33,19 @@ def _frame(n: int = 400) -> pd.DataFrame:
     return pd.DataFrame({"school": school, "district": district, "income": income, "lunch": lunch, "course": course, "score": score})
 
 
-def test_facts_cover_arms_associations_redundancy_outcome_and_timing_and_never_join_outcome_with_treatment():
+def test_context_facts_are_invariant_to_outcomes_and_cover_baseline_arms_and_timing():
     df = _frame()
     m = _memory(df, {"school": "before", "district": "before", "income": "before", "lunch": "before", "course": "at", "score": "after"})
     out = FX.facts(df, m, m.to_claims(), outcome="score", treatment="course", columns=list(df.columns))
     names = {p.name for p in out}
-    assert {"by_arm.lunch", "by_arm.income", "with_outcome.income", "redundancy.school~district", "timing"} <= names
+    assert {"by_arm.lunch", "by_arm.income", "redundancy.school~district", "timing"} <= names
     by = {p.name: p for p in out}
     assert "free" in by["by_arm.lunch"].detail and "of the treated" in by["by_arm.lunch"].detail and 0 < by["by_arm.lunch"].value <= 1
     assert "standardised difference" in by["by_arm.income"].detail
     assert "sits inside" in by["redundancy.school~district"].detail and "'school' sits inside 'district'" in by["redundancy.school~district"].detail
-    assert by["with_outcome.income"].value > 0.5 and "correlation 0." in by["with_outcome.income"].detail
+    assert not any(name.startswith("with_outcome.") for name in names)
+    perturbed = df.assign(score=np.random.default_rng(8).normal(size=len(df)))
+    assert FX.facts(perturbed, m, m.to_claims(), outcome="score", treatment="course", columns=list(df.columns)) == out
     assert by["timing"].detail == "before: school, district, income, lunch; at: course; after: score; unknown: none"
     assert all(p.family == "data" and p.passed is None and p.address.startswith("probe:data.") for p in out)
     # the rule: nothing pairs the outcome with the treatment, and neither is a candidate

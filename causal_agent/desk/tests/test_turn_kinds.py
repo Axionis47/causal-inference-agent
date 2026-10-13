@@ -63,10 +63,12 @@ def test_a_reading_with_the_wrong_kind_is_re_prompted_three_times_and_the_memory
     reads_before = len(fake.reads())
     d.say("why do you ask about hidden factors, I wonder")  # no question mark: the decision model is unsure, the Reader decides
     prompts = fake.reads()[reads_before:]
-    assert len(prompts) == 3, "three tries, then the kind stands"
+    assert len(prompts) == 3, "three tries, then the invalid reading is refused"
     assert "PREVIOUS READING WAS REJECTED" in prompts[1] and "carries writes" in prompts[1]
-    assert m.version == version and m.field("claim:unobserved.exists") is None or m.field("claim:unobserved.exists").value is None
-    assert "A scripted answer" in d.payload["text"], "the kind stood as ask: the Explainer answered, nothing was written"
+    assert m.version == version
+    assert m.field("claim:unobserved.exists") is None or m.field("claim:unobserved.exists").value is None
+    assert "I could not accept that message" in d.payload["text"]
+    assert "kind is ask but the reading carries writes" in d.payload["text"]
 
 
 def test_a_confident_decision_skips_the_reader_and_an_unsure_one_reaches_it():
@@ -74,8 +76,8 @@ def test_a_confident_decision_skips_the_reader_and_an_unsure_one_reaches_it():
     d = Desk(fake)
     d.say(QUESTION)
     reads = len(fake.reads())
-    p = d.say("plot math score by lunch")  # the decision model is sure: explore, no Reader call
-    assert len(fake.reads()) == reads and p["kind"] == "chat" and "Mean math score by lunch" in p["text"] and "[artifact:" in p["text"]
+    p = d.say("plot student counts by lunch")  # the decision model is sure: explore, no Reader call
+    assert len(fake.reads()) == reads and p["kind"] == "chat" and "Student counts by lunch" in p["text"] and "[artifact:" in p["text"]
     d.say("thanks, one moment")  # unsure: the Reader decides the kind
     assert len(fake.reads()) == reads + 1 and fake.calls.count("decide") >= 2
     p = d.say("why do you ask about hidden factors?")  # sure: ask, straight to the Explainer

@@ -42,7 +42,14 @@ def run_checks(table: pd.DataFrame, adjustment_set: list[str], contrast_key: str
         )
     )
     if not adjustment_set:
-        out.append(CheckResult(contrast=contrast_key, name="overlap", level="pass", detail="nothing to adjust for; overlap holds by construction"))
+        out.append(
+            CheckResult(
+                contrast=contrast_key,
+                name="overlap",
+                level="pass",
+                detail="both comparison arms are observed; no covariate-conditional overlap check is needed for the empty adjustment set",
+            )
+        )
         return out, facts
 
     X = _design_matrix(table[adjustment_set])

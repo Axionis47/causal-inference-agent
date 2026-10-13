@@ -28,7 +28,7 @@ def not_in_graph_ok(run, example):
 def placebo_passes(run, example):
     if not exp(example).get("placebo_passes"):
         return {"score": 1, "comment": "not graded"}
-    ref = outs(run).get("refuters") or {}
+    ref = outs(run).get("falsifications") or {}
     results = [v.get("placebo_treatment_refuter") for v in ref.values()]
     ok = bool(results) and all(results)
     return {"score": int(ok), "comment": f"placebo per contrast: {results}"}
@@ -42,4 +42,28 @@ def contrasts_count(run, example):
     return {"score": int(got == want), "comment": f"expected {want}, got {got}"}
 
 
-ALL = [*SHARED, adjustment_set_ok, not_in_graph_ok, placebo_passes, contrasts_count]
+def endpoint_coverage(run, example):
+    want = set(exp(example).get("endpoint_ids_contains") or [])
+    missing = want - set(outs(run).get("endpoint_ids") or [])
+    return {"score": int(not missing), "comment": f"missing endpoints: {sorted(missing)}" if missing else "required endpoints reached"}
+
+
+def endpoint_effect_accuracy(run, example):
+    truth = exp(example).get("endpoint_truth") or {}
+    tolerance = exp(example).get("effect_tolerance", 0.6)
+    estimates = [e for e in outs(run).get("estimates") or [] if e.get("error") is None and e.get("modifier") is None]
+    bad = [
+        endpoint
+        for endpoint, value in truth.items()
+        if not any(e.get("endpoint_id") == endpoint and e.get("value") is not None and abs(e["value"] - value) <= tolerance for e in estimates)
+    ]
+    return {"score": int(not bad), "comment": f"missing or inaccurate endpoints: {bad}" if bad else "generating values recovered"}
+
+
+def terminal_kind_ok(run, example):
+    want = exp(example).get("terminal_kind")
+    got = (outs(run).get("terminal") or {}).get("kind")
+    return {"score": int(want is None or want == got), "comment": f"expected {want}, got {got}" if want else "not graded"}
+
+
+ALL = [*SHARED, adjustment_set_ok, not_in_graph_ok, placebo_passes, contrasts_count, endpoint_coverage, endpoint_effect_accuracy, terminal_kind_ok]

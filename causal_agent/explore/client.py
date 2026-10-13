@@ -78,7 +78,7 @@ def _explore(dataset, ask, context, columns, csv, outcome, treatment, frozen, de
     artifact_id = VA.new_id()
     out_dir = VA.folder(dataset, artifact_id, root)
     out_dir.mkdir(parents=True, exist_ok=True)
-    dropped_name = {"outcome": outcome, "treatment": treatment}.get(drop or "")
+    dropped_name = outcome if drop == "outcome" else None
     table = PJ.project(csv, out_dir, drop=dropped_name) if dropped_name else csv
     sent = {k: v for k, v in columns.items() if v != dropped_name}
     req = ExploreRequest(
@@ -170,7 +170,7 @@ def _transform(dataset, ask, context, columns, csv, outcome, treatment, frozen, 
     v = VS.next_version(dataset, root)
     out_dir = VS.folder(dataset, v, root)
     out_dir.mkdir(parents=True, exist_ok=True)
-    dropped_name = {"outcome": outcome, "treatment": treatment}.get(drop or "")
+    dropped_name = outcome if drop == "outcome" else None
     orig = pd.read_csv(csv)
     table = PJ.project(csv, out_dir, drop=dropped_name, row_id=True)
     sent = {k: n for k, n in columns.items() if n != dropped_name}

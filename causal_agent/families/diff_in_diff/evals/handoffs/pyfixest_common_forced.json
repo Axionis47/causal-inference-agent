@@ -1,0 +1,1039 @@
+{
+  "family": "diff_in_diff",
+  "specialist": "pyfixest",
+  "supported_now": true,
+  "outcome": "dep_var",
+  "treatment": "arm",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "horizon_profile",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "pyfixest_common",
+  "relevant_columns": [
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:dep_var.note"
+      ],
+      "column": "dep_var"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:arm.note"
+      ],
+      "column": "arm"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:unit.note"
+      ],
+      "column": "unit"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:year.note"
+      ],
+      "column": "year"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:g.note"
+      ],
+      "column": "g"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:state.note"
+      ],
+      "column": "state"
+    }
+  ],
+  "chosen_assumption": "parallel untreated paths",
+  "reasons": [],
+  "question": "What is the common-adoption effect at each horizon?",
+  "story": "Subset of the distributed pyfixest df_het benchmark retaining the 2000 adoption cohort and never-treated units. Each unit repeats annually. g records its first exposure year; 0 denotes never treated. state is the cluster. This evaluation asks for horizon effects on treated units with a single adoption date; parallel trends remains an explicit assumption.",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "611f8ef444003b73845e9e39",
+  "dataset_identity": "0bab12e644ab094aa1313036973bb6202bb559e8493bd11e236f042d9b332755",
+  "admission": {
+    "family": "diff_in_diff",
+    "contract": "370efe79b5ea9893ec80",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "paired_two_wave_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target horizon_profile"
+      },
+      {
+        "endpoint_id": "common_adoption_projection_effect",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "untreated_imputation_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "untreated_prefix_imputation_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "never_cohort_cell_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "clean_projection_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:pyfixest_common.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "causal_agent/families/diff_in_diff/evals/data/pyfixest_common.csv",
+  "dataset_facts": {},
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "dep_var",
+      "key": "dep_var",
+      "role": "outcome",
+      "meaning": "dep_var: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:pyfixest_common.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 30442,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "arm",
+      "key": "arm",
+      "role": "treatment",
+      "meaning": "arm: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:pyfixest_common.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "unit",
+      "key": "unit",
+      "role": "unit",
+      "meaning": "unit: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:pyfixest_common.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 982,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "year",
+      "key": "year",
+      "role": "time",
+      "meaning": "year: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "unknown",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:pyfixest_common.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 31,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "g",
+      "key": "g",
+      "role": "time",
+      "meaning": "g: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "unknown",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:pyfixest_common.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "state",
+      "key": "state",
+      "role": "group",
+      "meaning": "state: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:pyfixest_common.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 40,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {},
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "Subset of the distributed pyfixest df_het benchmark retaining the 2000 adoption cohort and never-treated units. Each unit repeats annually. g records its first exposure year; 0 denotes never treated. state is the cluster. This evaluation asks for horizon effects on treated units with a single adoption date; parallel trends remains an explicit assumption.",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "one unit observed over declared periods"
+    },
+    "claim:grain.layout": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "time representation in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "long"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "study assignment account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "third_party"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "record of exposure or group",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "arm"
+    },
+    "claim:assignment.treated_level": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "treated group or on indicator",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "1"
+    },
+    "claim:assignment.level_column": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "assignment level in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "state"
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "benchmark population only",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "benchmark supplied units"
+    },
+    "claim:trend_continues.believed": {
+      "status": "unknown",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "not asserted by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:spillover.possible": {
+      "status": "unknown",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "not established by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:target.population": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "effect on treated units in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "treated"
+    },
+    "claim:assignment.never_treated_exists": {
+      "status": "confirmed",
+      "source": "data",
+      "said": "unit-level exposure histories have never-treated units",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": true
+    },
+    "claim:grain.key_columns": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "unit and period identifiers",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": [
+        "unit",
+        "year"
+      ]
+    },
+    "claim:change.date_column": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "time column in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "year"
+    },
+    "claim:change.period_value": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "earliest assignment date",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "2000"
+    },
+    "col:dep_var.when": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "after"
+    },
+    "col:arm.when": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
+    },
+    "col:unit.when": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
+    },
+    "col:year.when": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "unknown"
+    },
+    "col:g.when": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "unknown"
+    },
+    "col:state.when": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
+    },
+    "claim:target.weighting": {
+      "status": "confirmed",
+      "source": "fixture:pyfixest_common.requested_target",
+      "said": "Requested common-adoption horizon comparison is the linear-response projection at every requested horizon.",
+      "reason": "explicit benchmark target policy",
+      "value": "linear_response_horizon_projection"
+    }
+  },
+  "beliefs": {},
+  "said": [],
+  "probes": [],
+  "design": {
+    "kind": "diff_in_diff",
+    "unit": "unit",
+    "time": "year",
+    "period_kind": "integer",
+    "change_period": "2000",
+    "treated_group": {
+      "column": "arm",
+      "level": "1",
+      "cohort_column": "g"
+    },
+    "before_column": null,
+    "after_column": null,
+    "adoption_representation": "cohort_column",
+    "aggregation": "horizon_profile",
+    "target_weighting": "linear_response_horizon_projection",
+    "horizons": [
+      0,
+      1,
+      2
+    ],
+    "cohorts": [],
+    "prefix_scope_accepted": false,
+    "cluster_level": "state"
+  },
+  "brief": null
+}

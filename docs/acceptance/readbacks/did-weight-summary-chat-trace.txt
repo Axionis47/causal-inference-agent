@@ -1,0 +1,6 @@
+acceptance:did-weight-summary-chat [chain] 17.5s 131057tok
+  explain:after [chain] 17.4s 131057tok
+    ChatVertexAI [llm] 14.5s 131057tok
+  gate:reply [tool] 0.0s
+  artifact:did-weight-summary-chat.json [tool] 0.0s
+    2622 bytes

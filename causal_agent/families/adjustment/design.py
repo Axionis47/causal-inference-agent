@@ -17,16 +17,23 @@ class AdjustmentDesign(Design):
     adjustment_candidates: list[str] = Field(
         default_factory=list, description="columns the offer depended on plus every before-column the change could not have moved"
     )
-    forbidden: list[str] = Field(default_factory=list, description="columns set at or after the change; never a parent of the outcome in the graph")
+    forbidden: list[str] = Field(
+        default_factory=list, description="columns excluded from total-effect adjustment; a mediator may still appear on a causal path"
+    )
+    instruments: list[str] = Field(default_factory=list)
+    iv_controls: list[str] = Field(default_factory=list)
+    modifiers: list[str] = Field(default_factory=list)
     instrument: str | None = None
     mediator: str | None = None
-    unobserved_confounding: bool | None = Field(default=None, description="true: the person says something hidden drove both; the caveat must say so")
+    unobserved_confounding: bool | None = Field(
+        default=None, description="true: a supplied hidden common cause must remain in the graph and its identification checks"
+    )
     voluntary_uptake: bool | None = Field(default=None, description="true when units chose after an offer, so overlap is expected; false for a strict rule")
     target_units: str = "average"
     contrast: str = "switch"
 
     def columns(self) -> list[str]:
-        return [n for n in [self.instrument, self.mediator, *self.adjustment_candidates] if n]
+        return [n for n in [self.instrument, self.mediator, *self.instruments, *self.iv_controls, *self.modifiers, *self.adjustment_candidates] if n]
 
     def render(self) -> str:
         return "\n".join(

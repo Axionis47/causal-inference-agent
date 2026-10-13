@@ -51,23 +51,36 @@ def run(
     from causal_agent.profile.datasets import ROOT
 
     handoff_path = Path(handoff_path)
+    h = Handoff.model_validate_json(handoff_path.read_text())
     out_path = handoff_path.parent / "result.json"
     cmd = [sys.executable, "-m", "causal_agent.desk.pipeline", str(handoff_path), "--json-file", str(out_path)]
     env = trace.child_env(dict(os.environ), thread_id)
     proc = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True)
     if not out_path.exists():
         tail = (proc.stderr or proc.stdout or "")[-2000:]
-        return RunRecord(
-            index=index,
-            dataset=dataset,
-            question=question,
-            status="pipeline_error",
-            design_dir=str(handoff_path.parent),
-            decision=decision or {},
-            decision_record=f"the analysis process exited {proc.returncode} without a record:\n{tail}",
-        )
+        reason = f"the analysis process exited {proc.returncode} without a record"
+        sr = {
+            "status": "pipeline_error",
+            "context_id": h.context_id,
+            "dataset_identity": h.dataset_identity,
+            "context_admission": h.admission.model_dump() if h.admission else None,
+            "context_facts": {a: f.model_dump() for a, f in h.facts.items()},
+            "designs": {},
+            "lead_design_id": None,
+            "lead_selection": {},
+            "terminal": {"kind": "execution_failure", "status": "pipeline_error"},
+            "execution_attempts": [{"stage": "lane_process", "exit_code": proc.returncode, "error": reason}],
+            "feasibility": {
+                "terminal_kind": "execution_failure",
+                "stage": "lane_process",
+                "reason": reason,
+                "facts": [tail],
+                "what_would_fix": "resolve the recorded process failure, then authorize a new run",
+            },
+        }
+        trace.write(out_path, json.dumps(sr, indent=2))
+        return record(dataset, question, index, h, sr, decision or {}, f"{reason}:\n{tail}", design_dir=str(handoff_path.parent))
     sr = json.loads(out_path.read_text())
-    h = Handoff.model_validate(json.loads(handoff_path.read_text()))
     return record(dataset, question, index, h, sr, decision or {}, decision_record, design_dir=str(handoff_path.parent))
 
 
@@ -75,7 +88,11 @@ def record(
     dataset: str, question: str, index: int, h: Handoff | None, sr: dict, decision: dict, decision_record: str, design_dir: str | None = None
 ) -> RunRecord:
     """A RunRecord from a lane's result, whether live or read back from the file it wrote."""
-    est = next((e for e in sr.get("estimates") or [] if not e.get("secondary") and e.get("error") is None), None)
+    lead = sr.get("lead_design_id")
+    est = next(
+        (e for e in sr.get("estimates") or [] if e.get("design_id") == lead and not e.get("secondary") and not e.get("modifier") and e.get("error") is None),
+        None,
+    )
     run_dir = sr.get("run_dir")
     artifacts = {}
     if run_dir and (Path(run_dir) / "artifacts.json").exists():
@@ -96,6 +113,7 @@ def record(
         ci_low=est.get("ci_low") if est else None,
         ci_high=est.get("ci_high") if est else None,
         estimator=est.get("method") if est else None,
+        lead_design_id=lead,
         decision_record=decision_record,
         decision=decision,
         specialist_result=sr,

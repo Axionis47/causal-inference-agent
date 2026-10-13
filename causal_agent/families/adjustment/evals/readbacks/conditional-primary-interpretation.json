@@ -1,0 +1,479 @@
+{
+  "trace_id": "01a13779-5077-7bb0-b96a-0de1cc9fcf1c",
+  "source_result": ".artifacts/runs/protocol_conditional-dowhy-a349a942/result.json",
+  "context_id": "3269649eae5a52e519fc2aed",
+  "interpretations": [
+    {
+      "contrast": "all",
+      "answer": "The treatment effect on y varies across different ranges of x. For design d8e18cc42fb7d, the effect of treatment on y increases as x increases, ranging from 1.36 (95% CI: 1.20, 1.50) for x in [-3.25, -0.70] to 2.62 (95% CI: 2.41, 2.79) for x in [0.57, 2.57]. Design dcf7a62deb559 shows identical results, with effects ranging from 1.36 (95% CI: 1.20, 1.50) to 2.62 (95% CI: 2.41, 2.79) across the same x ranges. Both designs assume unconfoundedness, consistency, and no interference, with graph relationships explicitly stated as assumptions.",
+      "caveats": [
+        "Design d8e18cc42fb7d assumes unconfoundedness given x, while design dcf7a62deb559 assumes unconfoundedness without explicitly conditioning on x in its identification adjustment set.",
+        "The diagnostic score model for design d8e18cc42fb7d shows weak arm distinguishability with an AUC of 0.51 (check:d8e18cc42fb7d.1_vs_0.separation).",
+        "Both designs passed data subset refuter tests (falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed, falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed) and graph independence tests (falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed, falsification:dcf7a62deb559.1_vs_0.graph_independences.passed)."
+      ],
+      "cites": [
+        "design:d8e18cc42fb7d.target",
+        "design:d8e18cc42fb7d.assumptions",
+        "design:d8e18cc42fb7d.model",
+        "design:d8e18cc42fb7d.confidence_level",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+        "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci",
+        "check:d8e18cc42fb7d.1_vs_0.overlap",
+        "check:d8e18cc42fb7d.1_vs_0.balance.x",
+        "check:d8e18cc42fb7d.1_vs_0.separation",
+        "design:dcf7a62deb559.target",
+        "design:dcf7a62deb559.assumptions",
+        "design:dcf7a62deb559.model",
+        "design:dcf7a62deb559.confidence_level",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+        "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci",
+        "check:dcf7a62deb559.1_vs_0.overlap",
+        "falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed",
+        "falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed",
+        "falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed",
+        "falsification:dcf7a62deb559.1_vs_0.graph_independences.passed"
+      ],
+      "comparisons": [
+        "Design d8e18cc42fb7d and design dcf7a62deb559 report identical treatment effects on y across all subgroups of x."
+      ]
+    }
+  ],
+  "episodes": {
+    "interpret_1": {
+      "node": "interpret_1",
+      "visit": "4bd1a8645249",
+      "notes": "",
+      "system": "Explain the causal results and the assumptions linking context to each design. Keep answer to two to four sentences, comparisons to one short statement per design, and caveats to at most six concise statements. Summarize diagnostic implications instead of reproducing every diagnostic number. Cite displayed addresses, and reproduce every number accurately. Cite a numeric evidence address for every number, including confidence level, contrast levels, diagnostic details, and interval endpoints. Do not state uncited ordinal counts or diagnostic thresholds. Distinguish graph-implied zero from measured effects. Discuss each surviving design and identify which relationship assumptions split them. Compare estimates only within the displayed numerical comparison groups, which require identical full target definitions and frozen analysis rows as well as contrast and scale. Name compared design IDs explicitly; describe incompatible target or support differences as caveats. A pass check records that its stated condition was met; never describe a passed requirement as missing. Frozen model declarations name the actual estimator, model covariates and provided baseline modifiers. Excluded unused-method support screens describe hypothetical row loss, never actual row loss in the selected analysis. Pre-fit diagnostic weighting balance is not the final regression, matching or weighting estimator's achieved balance. AUC measures arm distinguishability, not common support. Never claim that an AUC supports or establishes overlap. A value near one half indicates weak arm distinguishability; larger values indicate stronger distinguishability. Describe overlap only from the separate overlap check. A soft baseline-balance flag grades the before-adjustment value; it does not imply remaining imbalance after the hypothetical diagnostic weighting. Passing falsification tests cannot establish causal validity or justify changing the pre-frozen lead design. LATE, natural effects and subgroup effects cannot be claimed to agree with total ATE merely because values are close. Include failed computations, unresolved assumptions, sensitivity ranges, and falsification caveats. Sensitivity has no pass verdict. Give descriptive comparisons, not a universal agreement score. For a conditional endpoint, every frozen baseline subgroup in target.primary_summaries is a requested primary result. The overall mean is a secondary reference. Report any subgroup failure or missing subgroup as incomplete requested analysis; an overall mean cannot replace it. Identification adjustment sets and fitted model covariates are distinct: an empty identification_adjustment_set does not mean the fitted conditional model omits x or another named model_covariate. Describe fitted conditioning from model_covariates, and identification assumptions separately.\nEvery cites list contains raw address strings exactly as printed under ADDRESSES YOU MAY CITE. For example [\"claim:story.text\", \"claim:assignment.depends_on\"]. Do not put quotes from the account in cites. Put explanations in reason. RelationshipProposal.cites uses those same raw strings.",
+      "commit_system": "Explain the causal results and the assumptions linking context to each design. Keep answer to two to four sentences, comparisons to one short statement per design, and caveats to at most six concise statements. Summarize diagnostic implications instead of reproducing every diagnostic number. Cite displayed addresses, and reproduce every number accurately. Cite a numeric evidence address for every number, including confidence level, contrast levels, diagnostic details, and interval endpoints. Do not state uncited ordinal counts or diagnostic thresholds. Distinguish graph-implied zero from measured effects. Discuss each surviving design and identify which relationship assumptions split them. Compare estimates only within the displayed numerical comparison groups, which require identical full target definitions and frozen analysis rows as well as contrast and scale. Name compared design IDs explicitly; describe incompatible target or support differences as caveats. A pass check records that its stated condition was met; never describe a passed requirement as missing. Frozen model declarations name the actual estimator, model covariates and provided baseline modifiers. Excluded unused-method support screens describe hypothetical row loss, never actual row loss in the selected analysis. Pre-fit diagnostic weighting balance is not the final regression, matching or weighting estimator's achieved balance. AUC measures arm distinguishability, not common support. Never claim that an AUC supports or establishes overlap. A value near one half indicates weak arm distinguishability; larger values indicate stronger distinguishability. Describe overlap only from the separate overlap check. A soft baseline-balance flag grades the before-adjustment value; it does not imply remaining imbalance after the hypothetical diagnostic weighting. Passing falsification tests cannot establish causal validity or justify changing the pre-frozen lead design. LATE, natural effects and subgroup effects cannot be claimed to agree with total ATE merely because values are close. Include failed computations, unresolved assumptions, sensitivity ranges, and falsification caveats. Sensitivity has no pass verdict. Give descriptive comparisons, not a universal agreement score. For a conditional endpoint, every frozen baseline subgroup in target.primary_summaries is a requested primary result. The overall mean is a secondary reference. Report any subgroup failure or missing subgroup as incomplete requested analysis; an overall mean cannot replace it. Identification adjustment sets and fitted model covariates are distinct: an empty identification_adjustment_set does not mean the fitted conditional model omits x or another named model_covariate. Describe fitted conditioning from model_covariates, and identification assumptions separately.\nEvery cites list contains raw address strings exactly as printed under ADDRESSES YOU MAY CITE. For example [\"claim:story.text\", \"claim:assignment.depends_on\"]. Do not put quotes from the account in cites. Put explanations in reason. RelationshipProposal.cites uses those same raw strings.",
+      "facts": [],
+      "refusals": [],
+      "calls": 0,
+      "tries": [
+        {
+          "n": 1,
+          "user": "QUESTION: How does the treatment effect on y differ by x?\n\n[design:d8e18cc42fb7d.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}]}\n[design:d8e18cc42fb7d.contrasts] [{\"reason\": \"admitted treatment comparison\", \"cites\": [\"pair.levels\"], \"control\": \"0\", \"treated\": \"1\"}]\n[design:d8e18cc42fb7d.confidence_level] 95 percent confidence intervals when an interval is available\n[design:d8e18cc42fb7d.assumptions] {'estimand': Derivative(Expectation(y|x), [treated]), 'assumptions': {'Unconfoundedness': 'If U\u2192{treated} and U\u2192y then P(y|treated,x,U) = P(y|treated,x)'}}; consistency, no_interference, graph_relationships_are_explicit_assumptions, every omitted identification-relevant edge is a conditional graph assumption, not an observed absence\n[design:d8e18cc42fb7d.model] {\"estimator\": \"linear_interaction\", \"identification_adjustment_set\": [\"x\"], \"model_covariates\": [\"x\"], \"conditional_model_policy\": \"Estimation conditions on every model_covariate and includes treatment interactions with every provided baseline modifier. An empty identification_adjustment_set means causal identification does not require covariate adjustment, not that the fitted model omits these covariates.\", \"provided_baseline_modifiers\": [\"x\"], \"modifier_groups\": {\"x\": [{\"label\": \"-3.25144 to -0.703383\", \"low\": -3.2514384154965383, \"high\": -0.7033826256874236, \"include_low\": true}, {\"label\": \"-0.703383 to -0.0719542\", \"low\": -0.7033826256874236, \"high\": -0.071954192057328, \"include_low\": false}, {\"label\": \"-0.0719542 to 0.566655\", \"low\": -0.071954192057328, \"high\": 0.5666552402464478, \"include_low\": false}, {\"label\": \"0.566655 to 2.57167\", \"low\": 0.5666552402464478, \"high\": 2.5716688829102927, \"include_low\": false}]}}\n[design:d8e18cc42fb7d.support] {\"missingness_policy\": \"one common complete-case population across all admitted loaded columns\", \"contrasts\": {\"1_vs_0\": {\"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"rows\": 1200}}}\n[check:d8e18cc42fb7d.1_vs_0.arms] pass: 611 treated, 589 control; value=589.0\n[check:d8e18cc42fb7d.1_vs_0.overlap] pass: 100% of rows inside the score range both arms cover (0.50 to 0.52); value=0.998\n[check:d8e18cc42fb7d.1_vs_0.separation] pass: AUC measures arm predictability, not common support. Larger AUC means more distinguishable arms. A pass means the hard separation threshold was not crossed; overlap must be read from its separate check. a score model tells the arms apart with AUC 0.51; value=0.506\n[check:d8e18cc42fb7d.1_vs_0.balance.x] pass: The flag grades unadjusted baseline imbalance. Diagnostic score weighting is hypothetical; its after-value is not final estimator balance or proof of remaining imbalance. standardised mean difference 0.01 between arms before adjustment, 0.00 after weighting on the score; value=0.008\n[check:d8e18cc42fb7d.1_vs_0.dimensionality] pass: at least ten rows in the smaller arm per adjustment column\n[check:d8e18cc42fb7d.1_vs_0.baseline_modifiers] pass: provided named baseline modifiers: ['x']; all must be measured before treatment\n[design:dcf7a62deb559.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}]}\n[design:dcf7a62deb559.contrasts] [{\"reason\": \"admitted treatment comparison\", \"cites\": [\"pair.levels\"], \"control\": \"0\", \"treated\": \"1\"}]\n[design:dcf7a62deb559.confidence_level] 95 percent confidence intervals when an interval is available\n[design:dcf7a62deb559.assumptions] {'estimand': Derivative(Expectation(y), [treated]), 'assumptions': {'Unconfoundedness': 'If U\u2192{treated} and U\u2192y then P(y|treated,,U) = P(y|treated,)'}}; consistency, no_interference, graph_relationships_are_explicit_assumptions, every omitted identification-relevant edge is a conditional graph assumption, not an observed absence\n[design:dcf7a62deb559.model] {\"estimator\": \"linear_interaction\", \"identification_adjustment_set\": [], \"model_covariates\": [\"x\"], \"conditional_model_policy\": \"Estimation conditions on every model_covariate and includes treatment interactions with every provided baseline modifier. An empty identification_adjustment_set means causal identification does not require covariate adjustment, not that the fitted model omits these covariates.\", \"provided_baseline_modifiers\": [\"x\"], \"modifier_groups\": {\"x\": [{\"label\": \"-3.25144 to -0.703383\", \"low\": -3.2514384154965383, \"high\": -0.7033826256874236, \"include_low\": true}, {\"label\": \"-0.703383 to -0.0719542\", \"low\": -0.7033826256874236, \"high\": -0.071954192057328, \"include_low\": false}, {\"label\": \"-0.0719542 to 0.566655\", \"low\": -0.071954192057328, \"high\": 0.5666552402464478, \"include_low\": false}, {\"label\": \"0.566655 to 2.57167\", \"low\": 0.5666552402464478, \"high\": 2.5716688829102927, \"include_low\": false}]}}\n[design:dcf7a62deb559.support] {\"missingness_policy\": \"one common complete-case population across all admitted loaded columns\", \"contrasts\": {\"1_vs_0\": {\"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"rows\": 1200}}}\n[check:dcf7a62deb559.1_vs_0.arms] pass: 611 treated, 589 control; value=589.0\n[check:dcf7a62deb559.1_vs_0.overlap] pass: both comparison arms are observed; no covariate-conditional overlap check is needed for the empty adjustment set\n[check:dcf7a62deb559.1_vs_0.dimensionality] pass: at least ten rows in the smaller arm per adjustment column\n[check:dcf7a62deb559.1_vs_0.baseline_modifiers] pass: provided named baseline modifiers: ['x']; all must be measured before treatment\n[estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.role] secondary reference or superseded attempt\n[estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.counts] treated=611; control=589\n[estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value] 1.9822081125169304; secondary reference or superseded attempt; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\"}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.ci] 95 percent confidence interval: 1.8759427902676427, 2.085857590131169\n[estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.error] none\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-3.25144 to -0.703383\", \"low\": -3.2514384154965383, \"high\": -0.7033826256874236, \"include_low\": true}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.role] primary requested target summary\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.counts] treated=152; control=148\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value] 1.3553106108791146; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-3.25144 to -0.703383\", \"low\": -3.2514384154965383, \"high\": -0.7033826256874236, \"include_low\": true}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci] 95 percent confidence interval: 1.1961219557926503, 1.4953558887700351\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.error] none\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.703383 to -0.0719542\", \"low\": -0.7033826256874236, \"high\": -0.071954192057328, \"include_low\": false}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.role] primary requested target summary\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.counts] treated=161; control=139\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value] 1.8319707715169735; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.703383 to -0.0719542\", \"low\": -0.7033826256874236, \"high\": -0.071954192057328, \"include_low\": false}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci] 95 percent confidence interval: 1.723360426001869, 1.9280034894720053\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.error] none\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.0719542 to 0.566655\", \"low\": -0.071954192057328, \"high\": 0.5666552402464478, \"include_low\": false}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.role] primary requested target summary\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.counts] treated=148; control=152\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value] 2.1224060110679974; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.0719542 to 0.566655\", \"low\": -0.071954192057328, \"high\": 0.5666552402464478, \"include_low\": false}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci] 95 percent confidence interval: 2.003168819209194, 2.22775028794443\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.error] none\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"0.566655 to 2.57167\", \"low\": 0.5666552402464478, \"high\": 2.5716688829102927, \"include_low\": false}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.role] primary requested target summary\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.counts] treated=150; control=150\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value] 2.619145056603636; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"0.566655 to 2.57167\", \"low\": 0.5666552402464478, \"high\": 2.5716688829102927, \"include_low\": false}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci] 95 percent confidence interval: 2.408427078704728, 2.7891810942528465\n[estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.error] none\n[estimate:dcf7a62deb559.1_vs_0.linear_interaction.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:dcf7a62deb559.1_vs_0.linear_interaction.role] secondary reference or superseded attempt\n[estimate:dcf7a62deb559.1_vs_0.linear_interaction.counts] treated=611; control=589\n[estimate:dcf7a62deb559.1_vs_0.linear_interaction.value] 1.9822081125169304; secondary reference or superseded attempt; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\"}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:dcf7a62deb559.1_vs_0.linear_interaction.ci] 95 percent confidence interval: 1.8759427902676427, 2.085857590131169\n[estimate:dcf7a62deb559.1_vs_0.linear_interaction.error] none\n[estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-3.25144 to -0.703383\", \"low\": -3.2514384154965383, \"high\": -0.7033826256874236, \"include_low\": true}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.role] primary requested target summary\n[estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.counts] treated=152; control=148\n[estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value] 1.3553106108791146; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-3.25144 to -0.703383\", \"low\": -3.2514384154965383, \"high\": -0.7033826256874236, \"include_low\": true}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci] 95 percent confidence interval: 1.1961219557926503, 1.4953558887700351\n[estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.error] none\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.703383 to -0.0719542\", \"low\": -0.7033826256874236, \"high\": -0.071954192057328, \"include_low\": false}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.role] primary requested target summary\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.counts] treated=161; control=139\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value] 1.8319707715169735; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.703383 to -0.0719542\", \"low\": -0.7033826256874236, \"high\": -0.071954192057328, \"include_low\": false}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci] 95 percent confidence interval: 1.723360426001869, 1.9280034894720053\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.error] none\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.0719542 to 0.566655\", \"low\": -0.071954192057328, \"high\": 0.5666552402464478, \"include_low\": false}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.role] primary requested target summary\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.counts] treated=148; control=152\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value] 2.1224060110679974; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"-0.0719542 to 0.566655\", \"low\": -0.071954192057328, \"high\": 0.5666552402464478, \"include_low\": false}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci] 95 percent confidence interval: 2.003168819209194, 2.22775028794443\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.error] none\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.target] {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"0.566655 to 2.57167\", \"low\": 0.5666552402464478, \"high\": 2.5716688829102927, \"include_low\": false}}, \"contrast_definition\": {\"treated\": \"1\", \"control\": \"0\"}}\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.role] primary requested target summary\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.counts] treated=150; control=150\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value] 2.619145056603636; primary requested target summary; target {\"type\": \"conditional\", \"population\": \"scoped dataset\", \"outcome\": \"y\", \"scale\": \"outcome_units\", \"scope\": \"conditional\", \"analysis_population_ids\": {\"1_vs_0\": \"f0c6ea79acea37553ff35b6d\"}, \"primary_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-3.25144 to -0.703383\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.703383 to -0.0719542\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"-0.0719542 to 0.566655\"}, {\"contrast\": \"1_vs_0\", \"modifier\": \"x\", \"level\": \"0.566655 to 2.57167\"}], \"reference_summaries\": [{\"contrast\": \"1_vs_0\", \"modifier\": null, \"level\": null}], \"analysis_population_id\": \"f0c6ea79acea37553ff35b6d\", \"subgroup\": {\"column\": \"x\", \"definition\": {\"label\": \"0.566655 to 2.57167\", \"low\": 0.5666552402464478, \"high\": 2.5716688829102927, \"include_low\": false}}}; contrast {\"treated\": \"1\", \"control\": \"0\"}; method linear_interaction\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci] 95 percent confidence interval: 2.408427078704728, 2.7891810942528465\n[estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.error] none\n[falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.detail] new effect 1.98, p=0.92 (pass)\n[falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed] True\n[falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.p_value] 0.9199999999999999\n[falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.new_effect] 1.9845607242600856\n[falsification:d8e18cc42fb7d.1_vs_0.graph_independences.detail] {\"tests\": [{\"x\": \"treated\", \"y\": \"x\", \"given\": [], \"p_value\": 0.13247359957227944, \"adjusted_p_value\": 0.13247359957227944}], \"failures\": [], \"rejected_constraints\": 0, \"unexamined_constraints\": 0, \"policy\": \"diagnostic only, no causal-edge attribution or post-outcome redesign\"}\n[falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed] True\n[falsification:d8e18cc42fb7d.1_vs_0.graph_independences.p_value] 0.13247359957227944\n[falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.detail] new effect 1.98, p=0.92 (pass)\n[falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed] True\n[falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.p_value] 0.9199999999999999\n[falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.new_effect] 1.9845607242600856\n[falsification:dcf7a62deb559.1_vs_0.graph_independences.detail] {\"tests\": [{\"x\": \"treated\", \"y\": \"x\", \"given\": [], \"p_value\": 0.13247359957227944, \"adjusted_p_value\": 0.13247359957227944}], \"failures\": [], \"rejected_constraints\": 0, \"unexamined_constraints\": 0, \"policy\": \"diagnostic only, no causal-edge attribution or post-outcome redesign\"}\n[falsification:dcf7a62deb559.1_vs_0.graph_independences.passed] True\n[falsification:dcf7a62deb559.1_vs_0.graph_independences.p_value] 0.13247359957227944\n[rel:when.t.value] when: t  'at'; confirmed; literal relationship or timing reported in admitted context\n[rel:modifies.t.value] modifies: t  False; confirmed; literal relationship or timing reported in admitted context\n[rel:no_edge.x.t] no_edge: x t False; confirmed; literal relationship or timing reported in admitted context\n[rel:edge.x.y] edge: x y True; confirmed; literal relationship or timing reported in admitted context\n[rel:no_edge.t.x] no_edge: t x False; confirmed; literal relationship or timing reported in admitted context\n[rel:when.x.value] when: x  'before'; confirmed; literal relationship or timing reported in admitted context\n[rel:outcome_measure.x.value] outcome_measure: x  False; confirmed; literal relationship or timing reported in admitted context\n[rel:modifies.x.value] modifies: x  True; confirmed; literal relationship or timing reported in admitted context\n[rel:when.y.value] when: y  'after'; confirmed; literal relationship or timing reported in admitted context\n[rel:modifies.y.value] modifies: y  False; confirmed; literal relationship or timing reported in admitted context\n[rel:edge.t.y] edge: t y True; proposed; The question and pair.target/pair.treatment/pair.outcome define the requested candidate, not a causal fact. The story states 'an unknown treatment effect that changes linearly with x', implying a direct effect of t on y.\n[run:design_count] 2\nNUMERICAL COMPARISON GROUPS (same contrast, full target and frozen analysis population):\n[[\"d8e18cc42fb7d\", \"dcf7a62deb559\"], [\"d8e18cc42fb7d\", \"dcf7a62deb559\"], [\"d8e18cc42fb7d\", \"dcf7a62deb559\"], [\"d8e18cc42fb7d\", \"dcf7a62deb559\"], [\"d8e18cc42fb7d\", \"dcf7a62deb559\"]]\n\nADDRESSES YOU MAY CITE\ncheck:d8e18cc42fb7d.1_vs_0.arms\ncheck:d8e18cc42fb7d.1_vs_0.balance.x\ncheck:d8e18cc42fb7d.1_vs_0.baseline_modifiers\ncheck:d8e18cc42fb7d.1_vs_0.dimensionality\ncheck:d8e18cc42fb7d.1_vs_0.overlap\ncheck:d8e18cc42fb7d.1_vs_0.separation\ncheck:dcf7a62deb559.1_vs_0.arms\ncheck:dcf7a62deb559.1_vs_0.baseline_modifiers\ncheck:dcf7a62deb559.1_vs_0.dimensionality\ncheck:dcf7a62deb559.1_vs_0.overlap\ndesign:d8e18cc42fb7d.assumptions\ndesign:d8e18cc42fb7d.confidence_level\ndesign:d8e18cc42fb7d.contrasts\ndesign:d8e18cc42fb7d.model\ndesign:d8e18cc42fb7d.support\ndesign:d8e18cc42fb7d.target\ndesign:dcf7a62deb559.assumptions\ndesign:dcf7a62deb559.confidence_level\ndesign:dcf7a62deb559.contrasts\ndesign:dcf7a62deb559.model\ndesign:dcf7a62deb559.support\ndesign:dcf7a62deb559.target\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.counts\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.error\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.role\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.target\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.counts\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.error\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.role\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.target\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.counts\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.error\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.role\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.target\nestimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value\nestimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci\nestimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.counts\nestimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.error\nestimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.role\nestimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.target\nestimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value\nestimate:d8e18cc42fb7d.1_vs_0.linear_interaction.ci\nestimate:d8e18cc42fb7d.1_vs_0.linear_interaction.counts\nestimate:d8e18cc42fb7d.1_vs_0.linear_interaction.error\nestimate:d8e18cc42fb7d.1_vs_0.linear_interaction.role\nestimate:d8e18cc42fb7d.1_vs_0.linear_interaction.target\nestimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value\nestimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci\nestimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.counts\nestimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.error\nestimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.role\nestimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.target\nestimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value\nestimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci\nestimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.counts\nestimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.error\nestimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.role\nestimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.target\nestimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value\nestimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci\nestimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.counts\nestimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.error\nestimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.role\nestimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.target\nestimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value\nestimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci\nestimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.counts\nestimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.error\nestimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.role\nestimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.target\nestimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value\nestimate:dcf7a62deb559.1_vs_0.linear_interaction.ci\nestimate:dcf7a62deb559.1_vs_0.linear_interaction.counts\nestimate:dcf7a62deb559.1_vs_0.linear_interaction.error\nestimate:dcf7a62deb559.1_vs_0.linear_interaction.role\nestimate:dcf7a62deb559.1_vs_0.linear_interaction.target\nestimate:dcf7a62deb559.1_vs_0.linear_interaction.value\nfalsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.detail\nfalsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.new_effect\nfalsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.p_value\nfalsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed\nfalsification:d8e18cc42fb7d.1_vs_0.graph_independences.detail\nfalsification:d8e18cc42fb7d.1_vs_0.graph_independences.p_value\nfalsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed\nfalsification:dcf7a62deb559.1_vs_0.data_subset_refuter.detail\nfalsification:dcf7a62deb559.1_vs_0.data_subset_refuter.new_effect\nfalsification:dcf7a62deb559.1_vs_0.data_subset_refuter.p_value\nfalsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed\nfalsification:dcf7a62deb559.1_vs_0.graph_independences.detail\nfalsification:dcf7a62deb559.1_vs_0.graph_independences.p_value\nfalsification:dcf7a62deb559.1_vs_0.graph_independences.passed\nrel:edge.t.y\nrel:edge.x.y\nrel:modifies.t.value\nrel:modifies.x.value\nrel:modifies.y.value\nrel:no_edge.t.x\nrel:no_edge.x.t\nrel:outcome_measure.x.value\nrel:when.t.value\nrel:when.x.value\nrel:when.y.value\nrun:design_count",
+          "answer": {
+            "answer": "The treatment effect on y varies across different ranges of x. For design d8e18cc42fb7d, the effect of treatment on y increases as x increases, ranging from 1.36 (95% CI: 1.20, 1.50) for x in [-3.25, -0.70] to 2.62 (95% CI: 2.41, 2.79) for x in [0.57, 2.57]. Design dcf7a62deb559 shows identical results, with effects ranging from 1.36 (95% CI: 1.20, 1.50) to 2.62 (95% CI: 2.41, 2.79) across the same x ranges. Both designs assume unconfoundedness, consistency, and no interference, with graph relationships explicitly stated as assumptions.",
+            "caveats": [
+              "Design d8e18cc42fb7d assumes unconfoundedness given x, while design dcf7a62deb559 assumes unconfoundedness without explicitly conditioning on x in its identification adjustment set.",
+              "The diagnostic score model for design d8e18cc42fb7d shows weak arm distinguishability with an AUC of 0.51 (check:d8e18cc42fb7d.1_vs_0.separation).",
+              "Both designs passed data subset refuter tests (falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed, falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed) and graph independence tests (falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed, falsification:dcf7a62deb559.1_vs_0.graph_independences.passed)."
+            ],
+            "cites": [
+              "design:d8e18cc42fb7d.target",
+              "design:d8e18cc42fb7d.assumptions",
+              "design:d8e18cc42fb7d.model",
+              "design:d8e18cc42fb7d.confidence_level",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+              "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci",
+              "check:d8e18cc42fb7d.1_vs_0.overlap",
+              "check:d8e18cc42fb7d.1_vs_0.balance.x",
+              "check:d8e18cc42fb7d.1_vs_0.separation",
+              "design:dcf7a62deb559.target",
+              "design:dcf7a62deb559.assumptions",
+              "design:dcf7a62deb559.model",
+              "design:dcf7a62deb559.confidence_level",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+              "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci",
+              "check:dcf7a62deb559.1_vs_0.overlap",
+              "falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed",
+              "falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed",
+              "falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed",
+              "falsification:dcf7a62deb559.1_vs_0.graph_independences.passed"
+            ],
+            "comparisons": [
+              "Design d8e18cc42fb7d and design dcf7a62deb559 report identical treatment effects on y across all subgroups of x."
+            ]
+          },
+          "errors": []
+        }
+      ]
+    }
+  },
+  "comparisons": [
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "comparable": true,
+      "numerical_difference": 0.0,
+      "same_direction": true,
+      "reason": "same complete target, contrast and frozen analysis population; no universal agreement threshold"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": true,
+      "numerical_difference": 0.0,
+      "same_direction": true,
+      "reason": "same complete target, contrast and frozen analysis population; no universal agreement threshold"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": true,
+      "numerical_difference": 0.0,
+      "same_direction": true,
+      "reason": "same complete target, contrast and frozen analysis population; no universal agreement threshold"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": true,
+      "numerical_difference": 0.0,
+      "same_direction": true,
+      "reason": "same complete target, contrast and frozen analysis population; no universal agreement threshold"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": true,
+      "numerical_difference": 0.0,
+      "same_direction": true,
+      "reason": "same complete target, contrast and frozen analysis population; no universal agreement threshold"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.linear_interaction.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    },
+    {
+      "left": "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+      "right": "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+      "comparable": false,
+      "numerical_difference": null,
+      "same_direction": null,
+      "reason": "full targets or frozen analysis populations differ"
+    }
+  ]
+}

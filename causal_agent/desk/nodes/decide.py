@@ -14,7 +14,7 @@ from causal_agent.common.addresses import norm_address
 from causal_agent.common.contracts import FamilyDecision, FamilyVerdict, Handoff, NeedCheck, QuestionFrame, Rejection, render_change_text
 from causal_agent.common.llm import structured
 from causal_agent.desk import handoff as H
-from causal_agent.desk.nodes.frame import memory_of
+from causal_agent.desk.nodes.frame import memory_of, saved
 from causal_agent.desk.nodes.shared import focused_needs, probes_and_facts
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import Context, RouteState
@@ -59,6 +59,9 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
     all_needs = R.needs()
     out = []
     for fam in registry:
+        if fam.status != "built":
+            out.append(FamilyVerdict(family=fam.name, admissible=False, needs=[], concern="declared family has no implemented endpoint trajectory"))
+            continue
         if focus and fam.name not in focus:
             out.append(FamilyVerdict(family=fam.name, admissible=False, needs=[], concern="not asked for"))
             continue
@@ -88,6 +91,15 @@ def verdicts_from(memory: Memory, status: Status, probes: list[ProbeResult], reg
             needs.append(NeedCheck(need=p.name, met=False, cites=[p.address], note=p.detail))
             blocking = True
         concern = status.struck.get(fam.name, "")
+        admission = status.endpoint_admissions.get(fam.name)
+        if admission is not None:
+            needs = [
+                NeedCheck(need=f"{e.endpoint_id}: {o.id}", met=o.status in {"met", "assumed", "inapplicable"}, cites=o.cites, note=o.reason)
+                for e in admission.endpoints
+                if e.status not in {"excluded", "unsupported"}
+                for o in e.obligations
+            ]
+            blocking = not admission.ready
         out.append(FamilyVerdict(family=fam.name, admissible=not blocking and fam.name in status.surviving, needs=needs, concern=concern))
     return out
 
@@ -100,12 +112,31 @@ def fit(state: RouteState, runtime: Runtime[Context]) -> dict:
     needs = focused_needs(state)
     columns = V.in_play(memory, state.get("frame"), DS.dataset_entries().get(memory.name) or {})
     probes = probes_and_facts(memory, df, state.get("frame"), columns)
-    status = ops.fit(memory, probes, needs, columns=columns)
+    fr = state.get("frame")
+    status = ops.fit(
+        memory,
+        probes,
+        needs,
+        columns=columns,
+        target=fr.scope.target if fr else "average",
+        outcome=fr.outcome if fr else None,
+        selected_family=state.get("context_family"),
+        modifiers=fr.scope.modifiers if fr else [],
+    )
     verdicts = verdicts_from(memory, status, probes, _registry(runtime), focus=list(state.get("focus") or []))
     prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
-    matrix = prev.update(memory, probes, needs, columns=columns)  # the record the hand-off writes: as the memory (or the fork) stands now
+    matrix = prev.update(
+        memory,
+        probes,
+        needs,
+        columns=columns,
+        target=fr.scope.target if fr else "average",
+        outcome=fr.outcome if fr else None,
+        selected_family=state.get("context_family"),
+        modifiers=fr.scope.modifiers if fr else [],
+    )
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "admissible": [v.family for v in verdicts if v.admissible]}})
-    return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump(), "matrix": matrix}
+    return {"family_verdicts": verdicts, "probes": probes, "fit_status": status.model_dump(), "matrix": matrix, **saved(memory, state)}
 
 
 # ------------------------------------------------------------------ decide (judgement) and gate
@@ -154,6 +185,16 @@ def decide(state: RouteState, runtime: Runtime[Context]) -> dict:
             cites=[],
         )
         return {"decision": decision}
+    if not admissible:
+        return {
+            "decision": FamilyDecision(
+                admissible=[],
+                chosen="none",
+                chosen_assumption="context not admitted",
+                why_over_alternatives="no family has complete admitted context",
+                rejected=[Rejection(family=v.family, reason=v.concern or "endpoint requirements unresolved", cites=[]) for v in verdicts],
+            )
+        }
     errors = state.get("gate_errors") or []
     prev = ("PREVIOUS ATTEMPT FAILED THESE CHECKS; fix them:\n" + "\n".join(f"- {e}" for e in errors)) if errors else ""
     addresses = sorted(a for v in verdicts for n in v.needs for a in n.cites) + ["dataset.note", "change:1.note"]

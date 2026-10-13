@@ -66,11 +66,6 @@ support:
   bandwidth_support_points: 3
   source: ours; Extensions 4.2 says bandwidth selection is inappropriate when the number of mass points is very small and gives no number; three support points a side is the least a local linear fit with a quadratic bias term can use
 
-compliance:
-  # kind is sharp when take-up is 1.0 on the treated side and 0.0 on the other (or there is no take-up column); anything less is fuzzy
-  sharp_when: {treated_side_min: 1.0, other_side_max: 0.0}
-  source: Extensions figure 3.1, sharp means take-up jumps from 0 to 1
-
 first_stage:
   # for any design with a take-up column: the jump in take-up at the cutoff, sharp local linear
   no_first_stage_is_hard: true

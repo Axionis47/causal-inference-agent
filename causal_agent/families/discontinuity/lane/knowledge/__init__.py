@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
+import yaml
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts import load_endpoints
 from causal_agent.lane.knowledge import Knowledge, matches
 from causal_agent.lane.rungs import load_spec
+from causal_agent.lane.space import load_space
 
 _HERE = Path(__file__).parent
 SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once: the graph is built from it and held to it
@@ -20,16 +24,12 @@ class EstimatorEntry(BaseModel):
     engine: Literal["local_polynomial", "local_randomisation"] = "local_polynomial"
     params: dict[str, Any] = Field(default_factory=dict)
     fuzzy: Any = False  # True | False | "inherit"
-    covs: bool = False
-    pickable: bool = True
     applies_when: dict[str, Any] = Field(default_factory=dict)
-    runs_when: dict[str, Any] = Field(default_factory=dict)
     estimand: str
     assumes: str
     weak_when: str
     prefer_over: dict[str, str] = Field(default_factory=dict)
     rank: int = 99
-    also_run: list[str] = Field(default_factory=list)
 
     def applies(self, *, kind: str, first_stage: str | None, distinct_scores: int) -> bool:
         w = self.applies_when
@@ -57,10 +57,9 @@ class InferenceEntry(BaseModel):
         return matches(self.applies_when, facts)
 
 
-class PlaceboEntry(BaseModel):
+class DiagnosticEntry(BaseModel):
     name: str
     in_words: str
-    kind: Literal["falsification", "sensitivity"] = "falsification"
     source: str = ""
     spec: str = "primary"
     placement: str | None = None
@@ -77,6 +76,22 @@ class PlaceboEntry(BaseModel):
 
 # ------------------------------------------------------------------ the files, through the shared loader
 
-K = Knowledge(_HERE, estimator=EstimatorEntry, inference=InferenceEntry, placebo=PlaceboEntry)
-load_estimators, load_inference, load_placebos, load_checks, load_beliefs = K.estimators, K.inference, K.placebos, K.checks, K.beliefs
-estimator, placebo, pick_inference, render_preferences = K.estimator, K.placebo, K.pick_inference, K.render_preferences
+K = Knowledge(_HERE, estimator=EstimatorEntry, inference=InferenceEntry)
+load_estimators, load_inference, load_checks = K.estimators, K.inference, K.checks
+estimator, pick_inference, render_preferences = K.estimator, K.pick_inference, K.render_preferences
+CATALOGUE = load_endpoints(_HERE / "endpoints.yaml")
+SPACE = load_space(_HERE / "space.yaml")
+
+
+@lru_cache
+def _diagnostics(file: str) -> tuple[DiagnosticEntry, ...]:
+    entries = yaml.safe_load((_HERE / f"{file}.yaml").read_text()) or {}
+    return tuple(DiagnosticEntry(name=n, **v) for n, v in entries.items())
+
+
+def load_falsifications() -> list[DiagnosticEntry]:
+    return list(_diagnostics("falsifications"))
+
+
+def load_sensitivities() -> list[DiagnosticEntry]:
+    return list(_diagnostics("sensitivity"))

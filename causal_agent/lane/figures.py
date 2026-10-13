@@ -8,7 +8,7 @@ from pathlib import Path
 
 from causal_agent.common import trace
 from causal_agent.common.addresses import norm_address
-from causal_agent.common.contracts import Decline, Estimate, Handoff
+from causal_agent.common.contracts import CheckResult, Decline, Estimate, Falsification, Handoff, Sensitivity
 from causal_agent.viz.spec import FigureSpec
 
 
@@ -34,41 +34,47 @@ def check_spec(spec: FigureSpec, ok: set[str]) -> list[str]:
     return problems
 
 
-def ok_addresses(h: Handoff, state: dict, prefix: str = "refute") -> set[str]:
-    """What a figure of this run may draw on: the pack, the design, every check, estimate, refutation and decline."""
+def ok_addresses(h: Handoff, state: dict) -> set[str]:
+    """Addresses produced by this snapshot, ledger, designs and their own execution records."""
     ok = set(h.addresses())
-    ok.update(
-        {
-            "design",
-            "design.graph",
-            "design.dynamic",
-            "design.bandwidth",
-            "design.periods",
-            "design.controls",
-            "design.covariates",
-            "design.estimand",
-            "design.assumption",
-            "design.estimand.adjustment_set",
-        }
-    )
-    d = state.get("design")
-    if d is not None:
-        dd = d.model_dump() if hasattr(d, "model_dump") else dict(d)
-        ok.update(f"design.{k}" for k in dd)
+
+    def tree(prefix, value):
+        value = value.model_dump() if hasattr(value, "model_dump") else value
+        ok.add(prefix)
+        if isinstance(value, dict):
+            for k, v in value.items():
+                tree(f"{prefix}.{k}", v)
+        elif isinstance(value, (list, tuple)):
+            for i, v in enumerate(value):
+                tree(f"{prefix}.{i}", v)
+
+    for ident, design in (state.get("designs") or {}).items():
+        tree(f"design:{ident}", design)
+    ledger = state.get("ledger")
+    if ledger:
+        raw = ledger.model_dump() if hasattr(ledger, "model_dump") else ledger
+        for ident, entry in raw.get("entries", {}).items():
+            tree(ident, entry)
+        for change in raw.get("history", []):
+            tree(f"ledger:revision.{change['revision']}", change)
     for c in state.get("checks") or []:
-        addr = c.address if hasattr(c, "address") else f"check:{c.get('contrast')}.{c.get('name')}"
-        ok.update({addr, addr + ".value", addr + ".threshold"})
-    for k in state.get("check_facts") or {}:
-        ok.add(f"check_facts.{k}")
+        check = c if isinstance(c, CheckResult) else CheckResult.model_validate(c)
+        tree(check.address, check)
+    for k, v in (state.get("check_facts") or {}).items():
+        tree(f"check_facts.{k}", v)
     for e in state.get("estimates") or []:
         est = e if isinstance(e, Estimate) else Estimate.model_validate(e)
-        ok.update({f"{est.tag}.value", f"{est.tag}.ci", f"{est.tag}.n", f"{est.tag}.p", f"estimate:{est.contrast}.{est.method}.value"})
-    for r in state.get("refutations") or []:
-        r = r.model_dump() if hasattr(r, "model_dump") else r
-        tag = f"{prefix}:{r.get('contrast')}.{r.get('refuter')}"
-        ok.update({tag, f"{tag}.new_effect", f"{tag}.p_value", f"{tag}.passed", f"{tag}.detail"})
+        tree(est.tag, est)
+        ok.update({est.tag + ".ci", est.tag + ".n", est.tag + ".p"})
+    for field, cls in (("falsifications", Falsification), ("sensitivities", Sensitivity)):
+        for value in state.get(field) or []:
+            item = value if isinstance(value, cls) else cls.model_validate(value)
+            tree(item.address, item)
     for d in state.get("declines") or []:
         ok.add(d.address if hasattr(d, "address") else str(d.get("address")))
+    for episode in (state.get("episodes") or {}).values():
+        for fact in episode.facts:
+            ok.add(fact.address)
     return ok
 
 

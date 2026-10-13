@@ -27,10 +27,30 @@ class Candidate(Cited):
 
 
 class Scope(BaseModel):
-    population_filter: str | None = Field(default=None, description="a filter on rows the question implies, in words, or null")
-    window: str | None = Field(default=None, description="time window the question implies, or null")
+    population_filter: str | None = Field(
+        default=None,
+        description="explicit baseline row restriction: col == value, !=, >=, <=, >, <, or in [a,b], joined by and; null for the whole file",
+    )
+    window: str | None = Field(default=None, description="explicit time restriction: from A to B, A..B, >= A, <= B, after A, before B; null if unrestricted")
     contrast: Literal["switch", "dose", "level_vs_level", "none"] = "switch"
-    target: Literal["average", "on_treated", "on_untreated", "conditional", "counterfactual"] = "average"
+    target: Literal[
+        "average",
+        "on_treated",
+        "on_untreated",
+        "local",
+        "conditional",
+        "counterfactual",
+        "natural_direct",
+        "natural_indirect",
+        "horizon",
+        "horizon_profile",
+        "cohort",
+        "cohort_profile",
+        "cohort_horizon",
+    ] = "average"
+    horizon: int | None = None
+    cohort: str | None = None
+    modifiers: list[str] = Field(default_factory=list)
 
 
 class Thought(BaseModel):

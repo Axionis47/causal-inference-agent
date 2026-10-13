@@ -1,0 +1,17 @@
+leave_one_out:
+  in_words: remove each treated unit from a frozen static design
+  applies_when:
+    engine:
+    - feols
+    units_treated_min: 2
+    units_treated_max: 20
+unit_trends:
+  in_words: static design with unit-specific linear trends
+  applies_when:
+    periods_pre_min: 3
+    engine:
+    - feols
+twfe_naive:
+  in_words: naive staggered TWFE, a different estimand
+  applies_when:
+    cohorts_min: 2

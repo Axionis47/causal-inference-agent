@@ -28,7 +28,6 @@ def thoughts(debug: list[Thought]) -> list[dict]:
 def run_case(s: EvalSpec, inputs: dict) -> dict:
     if inputs.get("handoff"):
         raw = dict(inputs["handoff"])
-        raw.pop("question", None)
         h = Handoff.model_validate(raw)
         g = s.lane_graph()
         cfg = {

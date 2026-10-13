@@ -137,10 +137,10 @@ describe("graph layout", () => {
       { id: "reading", label: "reading score", role: "excluded" },
     ],
     edges: [
-      { src: "course", dst: "math", cites: [] },
-      { src: "lunch", dst: "course", cites: ["col:lunch.when"] },
-      { src: "lunch", dst: "math", cites: [] },
-      { src: "nope", dst: "math", cites: [] },
+      { status: "supported", src: "course", dst: "math", cites: [] },
+      { status: "supported", src: "lunch", dst: "course", cites: ["col:lunch.when"] },
+      { status: "supported", src: "lunch", dst: "math", cites: [] },
+      { status: "supported", src: "nope", dst: "math", cites: [] },
     ],
   };
   it("puts the treatment left of the outcome, drivers above, excluded below, and drops an arrow to a missing node", () => {

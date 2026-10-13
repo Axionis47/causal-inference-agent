@@ -16,6 +16,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from causal_agent.common.contracts import EndpointCatalogue
 from causal_agent.lane.ladder import HARD_THREATS
 from causal_agent.lane.space import Space, cells
 
@@ -284,11 +285,14 @@ def ends(
     refuters: list[Any] | None = None,
     checks: dict[str, Any] | None = None,
     beliefs: dict[str, Any] | None = None,
+    endpoints: EndpointCatalogue | None = None,
 ) -> Ends:
     """Every end state the declarations allow, in ladder order: the cells of the space that are served, the questions each rung
     can send back, and the typed stops each rung can raise. A lane without a space has no answers to enumerate yet."""
     out = Ends()
-    if space is not None:
+    if endpoints is not None:
+        out.answers = [Answer(point={"endpoint": e.id, **e.configuration}, estimators=e.estimators, refuters=[]) for e in endpoints.endpoints if e.executable]
+    elif space is not None:
         out.answers = [
             Answer(point=c.point, estimators=c.estimators, refuters=c.refuters) for c in cells(space, estimators or [], refuters or []) if c.unsupported is None
         ]

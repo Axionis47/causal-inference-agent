@@ -1,259 +1,334 @@
-"""The adjustment lane's artifacts: what the run leaves behind, read from the frozen design and the results. The interpretation
-per contrast (a judgement, gated on the numbers it copies and the addresses it cites), the figures, checked against the
-addresses the run produced, and the report and result the desk reads."""
+"""Reviewable adjustment evidence, reports and target-aware conversation material."""
 
 from __future__ import annotations
 
-from typing import Any
+import json
+import math
+import re
+from itertools import combinations
+from pathlib import Path
+from typing import Literal
 
-from langgraph.types import Send
+from pydantic import create_model
 
-from causal_agent.common.contracts import Feasibility, Interpretation
+from causal_agent.common import trace
+from causal_agent.families.adjustment import postviz
 from causal_agent.families.adjustment.lane import prompts as P
-from causal_agent.families.adjustment.lane.contracts import Design
-from causal_agent.families.adjustment.lane.knowledge import load_checks
-from causal_agent.families.adjustment.lane.state import InterpretTask, SpecialistState, episodes_of, ladder_of, latest_primary
+from causal_agent.families.adjustment.lane.contracts import ComparisonInterpretation
+from causal_agent.families.adjustment.lane.state import SpecialistState
+from causal_agent.families.adjustment.lane.support import primary_summaries, signature, summary_key
 from causal_agent.lane import figures as LF
-from causal_agent.lane import nodes as L
 from causal_agent.lane import records
-from causal_agent.lane.episode import EpisodeLog, run_episode
-from causal_agent.viz.postviz import common as PV
-
-_writer, _question = L.writer, L.question
+from causal_agent.lane.episode import run_episode
 
 
-# ------------------------------------------------------------------ interpret (judgement, fan-out per contrast)
+def _model_material(design):
+    estimand = design.estimand
+    record = {
+        "estimator": design.estimator.name,
+        "identification_adjustment_set": estimand.adjustment_set,
+        "provided_baseline_modifiers": design.modifiers,
+        "modifier_groups": design.modifier_groups,
+    }
+    if estimand.kind in {"frontdoor", "mediation"}:
+        record["stage_adjustment_sets"] = {"first": estimand.first_stage_set, "second": estimand.second_stage_set, "total": estimand.total_set}
+        record["mediator_variables"] = estimand.frontdoor_set if estimand.kind == "frontdoor" else [estimand.mediator]
+    else:
+        record["model_covariates"] = estimand.model_covariates if design.modifiers else estimand.adjustment_set
+        if estimand.kind == "iv":
+            record["excluded_instruments"] = estimand.instruments
+    if design.modifiers:
+        record["conditional_model_policy"] = (
+            "Estimation conditions on every model_covariate and includes treatment interactions with every provided baseline modifier. "
+            "An empty identification_adjustment_set means causal identification does not require covariate adjustment, not that the fitted model omits these covariates."
+        )
+    return record
 
 
-def _addresses(state: SpecialistState, contrast_key: str) -> list[str]:
-    d: Design = state["design"]
-    out = ["design.estimand.adjustment_set", "design.assumption"] + [b.address for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
-    if state["handoff"].brief is not None:
-        out += sorted(state["handoff"].brief.addresses())
-    out += [r.address for r in d.checks.results if r.contrast in (contrast_key, "all")]
-    out += [x.address for x in state.get("declines") or []]
-    out += sorted(ladder_of(state).addresses())
-    out += [f.address for log in episodes_of(state).values() for f in log.facts]
-    for e in state.get("estimates") or []:
-        if e.contrast == contrast_key and e.error is None:
-            out += [f"{e.tag}.value", f"{e.tag}.ci", f"{e.tag}.n"]
-    for r in state.get("refutations") or []:
-        if r.contrast == contrast_key:
-            out += [f"refute:{contrast_key}.{r.refuter}.p_value", f"refute:{contrast_key}.{r.refuter}.new_effect", f"refute:{contrast_key}.{r.refuter}.passed"]
-    return out
+def _material(state):
+    lines = []
+    numbers = {}
+    addresses = set()
 
+    def add(address, text, value=None, quantitative=False):
+        lines.append(f"[{address}] {text}")
+        addresses.add(address)
+        if quantitative:
+            numbers[address] = [float(raw) for raw in re.findall(r"(?<![\w:.])[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", text)]
+        if value is not None:
+            numbers.setdefault(address, []).append(float(value))
 
-def _required(state: SpecialistState, contrast_key: str) -> list[str]:
-    """What the interpretation must cite: every flagged check (the person's flags among them) and the estimate's interval."""
-    d: Design = state["design"]
-    out = [r.address for r in d.checks.results if r.contrast in (contrast_key, "all") and r.level != "pass"]
-    if any(e.contrast == contrast_key and e.error is None and not e.secondary and e.modifier is None for e in state.get("estimates") or []):
-        out.append(f"estimate:{contrast_key}.ci")
-    out += [f"{e.tag}.value" for e in state.get("estimates") or [] if e.contrast == contrast_key and e.modifier is not None and e.error is None]
-    out += [x.address for x in state.get("declines") or [] if x.about == "scope.target"]  # the target delivered is not the one asked
-    return out
-
-
-def _material(state: SpecialistState, contrast_key: str) -> str:
-    d: Design = state["design"]
-    c = next(x for x in d.contrasts if x.key == contrast_key)
-    names = state.get("columns") or {}
-    lines = [f"[design.assumption] the design bets on: {state['handoff'].chosen_assumption}"]
-    if state["handoff"].brief is not None:
-        lines.append(state["handoff"].brief.render())
-    lines += [b.render() for b in state["handoff"].beliefs.values() if b.known() or b.status == "unknown"]
-    lines += [
-        f"[design.estimand.adjustment_set] adjusted for: {', '.join(names.get(k, k) for k in d.estimand.adjustment_set) or 'nothing (no confounders in the graph)'}",
-        f"comparison: {names.get(d.graph.treatment, d.graph.treatment)} = {c.treated!r} versus {c.control!r}; outcome: {names.get(d.graph.outcome, d.graph.outcome)}",
-    ]
-    for r in d.checks.results:
-        if r.contrast in (contrast_key, "all"):
-            lines.append(f"[{r.address}] {r.level}: {r.detail}")
-    lines += [x.render() for x in state.get("declines") or []]
-    lines += [f"[{a}] {text}" for a, text in ladder_of(state).lines()]
-    lines += [f.render() for log in episodes_of(state).values() for f in log.facts]
-    for e in state.get("estimates") or []:
-        if e.contrast != contrast_key:
-            continue
-        tag = e.tag
-        if e.modifier is not None and e.error is not None:
-            lines.append(f"[{tag}.error] within {names.get(e.modifier, e.modifier)} = {e.level}: {e.error}")
-            continue
-        if e.error is not None:
-            continue
-        where = f"within {names.get(e.modifier, e.modifier)} = {e.level}, " if e.modifier is not None else ""
-        lines.append(f"[{tag}.value] {e.value:.4g} ({where}{'secondary' if e.secondary else 'primary'} estimator {e.method}, target {e.target_units})")
-        lines.append(f"[{tag}.ci] 95% interval {e.ci_low:.4g} to {e.ci_high:.4g}" if e.ci_low is not None else f"[{tag}.ci] no interval")
-        lines.append(f"[{tag}.n] {e.n_treated} treated, {e.n_control} control")
-    for r in state.get("refutations") or []:
-        if r.contrast == contrast_key:
-            lines.append(
-                f"[refute:{contrast_key}.{r.refuter}.passed] {r.passed}  [refute:{contrast_key}.{r.refuter}.new_effect] {r.new_effect}  "
-                f"[refute:{contrast_key}.{r.refuter}.p_value] {r.p_value}  ({r.detail})"
-            )
-    return "\n".join(lines)
-
-
-def fan_out_interpret(state: SpecialistState):
-    return [
-        Send(
-            "interpret",
-            InterpretTask(
-                question=_question(state),
-                frame=L.frame_text(state),
-                contrast=c.key,
-                material=_material(state, c.key),
-                addresses="\n".join(_addresses(state, c.key)),
-                required="\n".join(_required(state, c.key)),
-                primary_value=latest_primary(state)[c.key].value,
-                tolerance=state["design"].effect_tolerance,
+    for d in (state.get("designs") or {}).values():
+        add(f"design:{d.id}.target", json.dumps(d.target))
+        add(f"design:{d.id}.contrasts", json.dumps([c.model_dump(mode="json") for c in d.contrasts]), quantitative=True)
+        add(f"design:{d.id}.confidence_level", "95 percent confidence intervals when an interval is available", 95)
+        add(f"design:{d.id}.assumptions", d.estimand.symbolic + "; " + ", ".join(d.estimand.assumptions))
+        add(f"design:{d.id}.model", json.dumps(_model_material(d)))
+        add(
+            f"design:{d.id}.support",
+            json.dumps(
+                {
+                    "missingness_policy": d.support.get("missingness_policy"),
+                    "contrasts": {
+                        k: {"analysis_population_id": v["analysis_population_id"], "rows": len(v["source_row_ids"])}
+                        for k, v in d.support.get("by_contrast", {}).items()
+                    },
+                }
             ),
         )
-        for c in state["contrasts"]
-        if c.key in latest_primary(state)
+        numbers[f"design:{d.id}.support"] = [len(v["source_row_ids"]) for v in d.support.get("by_contrast", {}).values()]
+        for r in d.checks.results:
+            context = ""
+            if r.name == "stratification_support" and r.level != "pass":
+                context = "Unused stratification estimator EXCLUDED before freeze; this is a hypothetical support screen, not rows removed from the selected analysis. "
+            elif r.name.startswith("balance."):
+                context = "The flag grades unadjusted baseline imbalance. Diagnostic score weighting is hypothetical; its after-value is not final estimator balance or proof of remaining imbalance. "
+            elif r.name == "separation":
+                context = "AUC measures arm predictability, not common support. Larger AUC means more distinguishable arms. A pass means the hard separation threshold was not crossed; overlap must be read from its separate check. "
+            add(r.address, r.level + ": " + context + r.detail + (f"; value={r.value}" if r.value is not None else ""), r.value, quantitative=True)
+
+    def target_numbers(value):
+        if isinstance(value, dict):
+            return [n for v in value.values() for n in target_numbers(v)]
+        if isinstance(value, list):
+            return [n for v in value for n in target_numbers(v)]
+        return [float(value)] if isinstance(value, (int, float)) and not isinstance(value, bool) else []
+
+    for e in state.get("estimates") or []:
+        design = (state.get("designs") or {}).get(e.design_id)
+        contrast = next((c for c in design.contrasts if c.key == e.contrast), None) if design else None
+        definition = {"treated": contrast.treated, "control": contrast.control} if contrast else {}
+        label_numbers = []
+        for label in definition.values():
+            try:
+                value = float(label)
+                if math.isfinite(value):
+                    label_numbers.append(value)
+            except ValueError:
+                pass
+        add(e.tag + ".target", json.dumps({**e.target, "contrast_definition": definition}))
+        numbers[e.tag + ".target"] = target_numbers(e.target) + label_numbers
+        add(e.tag + ".role", "secondary reference or superseded attempt" if e.secondary else "primary requested target summary")
+        add(e.tag + ".counts", f"treated={e.n_treated}; control={e.n_control}", quantitative=True)
+        add(
+            e.tag + ".value",
+            str(e.value)
+            + ("; secondary reference or superseded attempt" if e.secondary else "; primary requested target summary")
+            + "; target "
+            + json.dumps(e.target)
+            + "; contrast "
+            + json.dumps(definition)
+            + "; method "
+            + e.method,
+            e.value,
+        )
+        numbers[e.tag + ".value"] = ([e.value] if e.value is not None else []) + target_numbers(e.target) + label_numbers
+        if e.ci_low is not None:
+            add(e.tag + ".ci", f"95 percent confidence interval: {e.ci_low}, {e.ci_high}")
+            numbers[e.tag + ".ci"] = [95, e.ci_low, e.ci_high]
+        add(e.tag + ".error", e.error or "none")
+    for f in state.get("falsifications") or []:
+        add(f.address + ".detail", f.detail, quantitative=True)
+        add(f.address + ".passed", str(f.passed))
+        if f.p_value is not None:
+            add(f.address + ".p_value", str(f.p_value), f.p_value)
+        if f.new_effect is not None:
+            add(f.address + ".new_effect", str(f.new_effect), f.new_effect)
+    for s in state.get("sensitivities") or []:
+        if s.points:
+            add(s.address + ".points", json.dumps(s.points), quantitative=True)
+        add(s.address + ".detail", s.detail or s.error or "", quantitative=True)
+        if s.range_low is not None:
+            add(s.address + ".range", f"{s.range_low}, {s.range_high}")
+            numbers[s.address + ".range"] = [s.range_low, s.range_high]
+    ledger = state.get("ledger")
+    if ledger:
+        for a, text in ledger.lines():
+            add(a, text)
+    add("run:design_count", str(len(state.get("designs") or {})), len(state.get("designs") or {}))
+    return "\n".join(lines), addresses, numbers
+
+
+def comparisons(state):
+    good = [e for e in state.get("estimates") or [] if e.error is None and e.value is not None]
+    return [
+        {
+            "left": a.tag + ".value",
+            "right": b.tag + ".value",
+            "comparable": signature(a) == signature(b),
+            "numerical_difference": a.value - b.value if signature(a) == signature(b) else None,
+            "same_direction": (a.value > 0) == (b.value > 0) if signature(a) == signature(b) else None,
+            "reason": "same complete target, contrast and frozen analysis population; no universal agreement threshold"
+            if signature(a) == signature(b)
+            else "full targets or frozen analysis populations differ",
+        }
+        for a, b in combinations(good, 2)
     ]
 
 
-def interpret(task: InterpretTask) -> dict:
-    """One episode per contrast, no tools. After three refusals the last answer still stands in the report, marked as having
-    failed its gate, so the reader sees what the model wrote and why it was refused."""
-    allowed = set(task["addresses"].splitlines())
-    required = [a for a in task["required"].splitlines() if a]
-    contrast = task["contrast"]
+def _interpret_errors(record, addresses, numbers, compatible):
+    errors = [f"not displayed: {a}" for a in record.cites if a not in addresses]
+    allowed = [v for a in record.cites for v in numbers.get(a, [])]
+    for raw in re.findall(r"(?<![\w:.])[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", record.answer + " " + " ".join(record.comparisons + record.caveats)):
+        v = float(raw)
+        if not any(abs(v - n) <= max(abs(n) * 0.01, 1e-8) for n in allowed):
+            errors.append(f"number {raw} does not match cited quantitative evidence within one percent")
+    for comparison in record.comparisons:
+        ids = set(re.findall(r"\bd[a-f0-9]{12}\b", comparison))
+        if len(ids) > 1 and not any(ids <= group for group in compatible):
+            errors.append("comparison crosses different targets or frozen analysis populations; explain their differences as caveats instead")
+    if not record.cites:
+        errors.append("at least one evidence citation required")
+    return errors
 
-    def gate(r: Interpretation, _log: EpisodeLog) -> list[str]:
-        errs = [f"{c} is not an address you may cite" for c in r.cites if c not in allowed]
-        if not r.cites:
-            errs.append("no citations given")
-        missing = [a for a in required if a not in r.cites]
-        if missing:
-            errs.append("these must be cited: " + ", ".join(missing))
-        v = task["primary_value"]
-        if v is not None and abs(r.effect_stated - v) > max(abs(v), 1e-9) * task["tolerance"]:
-            errs.append(f"effect_stated {r.effect_stated} does not match the primary estimate {v:.4g}")
-        return errs
 
-    user = P.INTERPRET_USER.format(
-        frame=task["frame"],
-        question=task["question"],
-        contrast=contrast,
-        material=task["material"],
-        addresses=task["addresses"],
-        required="\n".join(required) or "(none)",
-        errors="",
+def interpret(state: SpecialistState) -> dict:
+    material, addresses, numbers = _material(state)
+    question = state["handoff"].question
+    groups = {}
+    for e in state.get("estimates") or []:
+        if e.error is None:
+            groups.setdefault(signature(e), set()).add(e.design_id)
+    compatible = list(groups.values())
+    material += "\nNUMERICAL COMPARISON GROUPS (same contrast, full target and frozen analysis population):\n" + json.dumps([sorted(g) for g in compatible])
+
+    def gate(record, log):
+        return _interpret_errors(record, addresses, numbers, compatible)
+
+    AllowedCitation = Literal[tuple(sorted(addresses))]
+    Record = create_model("AddressedComparisonInterpretation", __base__=ComparisonInterpretation, cites=(list[AllowedCitation], ...))
+    rec, log, thoughts, errors = run_episode(
+        Record,
+        P.INTERPRET,
+        f"QUESTION: {question}\n\n{material}\n\nADDRESSES YOU MAY CITE\n" + "\n".join(sorted(addresses)),
+        tools=None,
+        budget=0,
+        gate=gate,
+        node="interpret_1",
+        notes=True,
     )
-    node = f"interpret:{contrast}"
-    parsed, log, thoughts, errors = run_episode(Interpretation, P.INTERPRET_SYSTEM, user, tools=None, budget=0, gate=gate, node=node)
-    if parsed is None:
-        parsed = Interpretation.model_validate(log.tries[-1].answer)
-    out: dict[str, Any] = {"interpretations": [parsed.model_copy(update={"contrast": contrast})], "debug": thoughts, "episodes": {node: log}}
-    if errors:
-        out["interpret_errors"] = {contrast: errors}
-    return out
-
-
-# ------------------------------------------------------------------ feasibility, figures, assemble (facts)
+    return {
+        "interpretations": [{"contrast": "all", **rec.model_dump()}]
+        if rec
+        else [{"contrast": "all", "answer": "Interpretation could not pass its evidence gate.", "caveats": errors, "cites": [], "comparisons": []}],
+        "episodes": {"interpret_1": log},
+        "debug": thoughts,
+        "comparisons": comparisons(state),
+        "reasoning_history": [
+            {"node": "interpret", "visit": log.visit, "view": material, "record": rec.model_dump() if rec else None, "log": log.model_dump(), "errors": errors}
+        ],
+    }
 
 
 def figures(state: SpecialistState) -> dict:
-    """What this run drew, checked against the addresses it produced: the graph it built, the balance of every adjustment
-    column before and after weighting on the score, and the estimate against its falsifications."""
-    from causal_agent.families.adjustment import postviz as PA
-
-    h = state["handoff"]
-    names = state.get("columns") or {}
-    g = state.get("graph")
-    specs = [PA.causal_graph(g.model_dump() if g is not None else {}, names)]
-    thr = float(load_checks()["balance"]["smd"]["soft"])
-    for c, facts in ((state.get("check_facts") or {}).get("balance") or {}).items():
-        specs.append(PA.balance(facts, c, thr, names))
-    ests = [e.model_dump() for e in state.get("estimates") or []]
-    specs.append(PV.effect_and_refutations([e for e in ests if e.get("modifier") is None], [r.model_dump() for r in state.get("refutations") or []], "refute"))
-    d = state.get("design")
-    for c in d.contrasts if d is not None else []:
-        specs.append(PV.effect_by_modifier(ests, c.key, names))
-    kept, declines = LF.write(state.get("run_dir"), specs, LF.ok_addresses(h, state, "refute"))
-    _writer()({"figures": [s.id for s in kept]})
+    _, addresses, _ = _material(state)
+    specs = [postviz.causal_graph(d.graph.model_dump(), state.get("columns") or {}, design_id=d.id) for d in (state.get("designs") or {}).values()]
+    specs += postviz.comparisons(state.get("estimates") or [])
+    addresses.update(f"design:{d}.graph" for d in state.get("designs") or {})
+    kept, declines = LF.write(state.get("run_dir"), specs, addresses)
     return {"figures": [s.model_dump() for s in kept], "declines": declines}
+
+
+def _dump(x):
+    if hasattr(x, "model_dump"):
+        return x.model_dump(mode="json")
+    if isinstance(x, dict):
+        return {k: _dump(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_dump(v) for v in x]
+    return x
+
+
+def _execution_summary(state):
+    summary = {}
+    for design_id, design in (state.get("designs") or {}).items():
+        obligations = primary_summaries(design.contrasts, design.modifier_groups if design.endpoint_id == "adjustment.linear_conditional" else {})
+        expected = {summary_key(**item) for item in obligations}
+        primary = [record for record in state.get("estimates") or [] if record.design_id == design_id and not record.secondary]
+        executed = {
+            summary_key(record.contrast, record.modifier, record.level) for record in primary if record.error is None and record.value is not None
+        } & expected
+        failed = {
+            summary_key(record.contrast, record.modifier, record.level) for record in primary if record.error is not None or record.value is None
+        } & expected
+        summary[design_id] = {
+            "expected": sorted(expected),
+            "executed": sorted(executed),
+            "failed": sorted(failed),
+            "missing": sorted(expected - executed - failed),
+            "complete": executed == expected and not failed,
+        }
+    return summary
 
 
 def assemble(state: SpecialistState) -> dict:
     h = state["handoff"]
-    names = state.get("columns") or {}
-    d: Design | None = state.get("design")
-    f: Feasibility | None = state.get("feasibility")
-    lines = [f"QUESTION     {_question(state)}", f"LANE         {h.family} → {h.specialist}", f"OUTCOME      {h.outcome}    TREATMENT   {h.treatment}", ""]
-    lad = ladder_of(state)
-    if lad.lines():
-        lines += ["THE LADDER"] + [f"  [{a}] {text}" for a, text in lad.lines()] + [""]
-    episodes = episodes_of(state)
-    if any(log.facts or log.refusals or any(t.errors for t in log.tries) for log in episodes.values()):
-        lines.append("WHAT THE EPISODES LOOKED AT")
-        for name, log in episodes.items():
-            lines.append(f"  {name}: {log.calls} call{'s' if log.calls != 1 else ''}, {len(log.tries)} tr{'ies' if len(log.tries) != 1 else 'y'}")
-            lines += [f"    {f.render()}" for f in log.facts]
-            lines += [f"    refused {r.tool}({', '.join(f'{k}={v!r}' for k, v in r.args.items())}): {r.reason}" for r in log.refusals]
-            lines += [f"    try {t.n} refused: " + "; ".join(t.errors) for t in log.tries if t.errors]
-        lines.append("")
-    if d:
-        lines += d.render().splitlines()
-        lines.append("")
-        lines.append("RESULTS")
-        for c in d.contrasts:
-            lines.append(f"  {names.get(d.graph.treatment, d.graph.treatment)} = {c.treated!r} vs {c.control!r}")
-            for e in state.get("estimates") or []:
-                if e.contrast == c.key:
-                    label = f"{e.method:34}" if e.modifier is None else f"  within {names.get(e.modifier, e.modifier)} = {e.level:<16}"[:34].ljust(34)
-                    if e.error:
-                        lines.append(f"    {label} FAILED: {e.error}")
-                    else:
-                        ci = f" [{e.ci_low:.3g}, {e.ci_high:.3g}]" if e.ci_low is not None else ""
-                        kind = "within a level" if e.modifier is not None else "secondary" if e.secondary else "primary"
-                        lines.append(f"    {label} {e.value:+.4g}{ci}  n={e.n_treated}/{e.n_control}  {kind}")
-            words = {rf.name: rf.in_words for rf in d.refuters}
-            for r in state.get("refutations") or []:
-                if r.contrast == c.key:
-                    lines.append(f"    refute {r.refuter:27} {r.detail}  ({words.get(r.refuter, '')})")
-            for i in state.get("interpretations") or []:
-                if i.contrast == c.key:
-                    lines.append(f"    ANSWER  {i.answer}")
-                    for cv in i.caveats:
-                        lines.append(f"    CAVEAT  {cv}")
-                    lines.append(f"    CITES   {', '.join(i.cites)}")
-            errs = (state.get("interpret_errors") or {}).get(c.key)
-            if errs:
-                lines.append(f"    INTERPRETATION GATE FAILED: {'; '.join(errs)}")
-    if f:
-        lines += ["", f"STOPPED AT   {f.stage}", f"REASON       {f.reason}"]
-        lines += [f"FACT         {x}" for x in f.facts]
-        lines.append(f"WOULD FIX    {f.what_would_fix}")
-    lines += records.report_tail(state)
-    debug = state.get("debug") or []
-    if any(t.text for t in debug):
-        lines += ["", "MODEL THOUGHTS (debug only)"]
-        for t in debug:
-            if t.text:
-                lines.append(f"  [{t.node}] {t.text.strip()[:2000]}")
-    report = "\n".join(lines)
-    g = state.get("graph")
-    records.write(state.get("run_dir"), records.artifacts(state, {"graph": g.model_dump() if g else None, "estimand": state.get("estimand")}), report)
-    result = records.result(
-        state,
-        report,
+    ledger = state.get("ledger")
+    episodes = state.get("episodes") or {}
+    report = [f"QUESTION {h.question}", f"CONTEXT {h.context_id}", "RELATIONSHIP LEDGER", ledger.render() if ledger else "none", "LEDGER HISTORY"]
+    report.extend(json.dumps(_dump(change), sort_keys=True) for change in (ledger.history if ledger else []))
+    report += [
+        "CANDIDATES",
+        json.dumps(_dump(state.get("candidates") or []), indent=2),
+        "IDENTIFICATION DIAGNOSTICS",
+        json.dumps(state.get("diagnostic_candidates") or [], indent=2),
+    ]
+    report.extend(d.render() for d in (state.get("designs") or {}).values())
+    material, _, _ = _material(state)
+    report += ["RESULTS BY DESIGN", material, "INTERPRETATION", json.dumps(state.get("interpretations") or [], indent=2)]
+    if state.get("feasibility"):
+        report += ["STOP", state["feasibility"].model_dump_json()]
+    report += ["EPISODE HISTORY", json.dumps(_dump(episodes), indent=2)]
+    text = "\n\n".join(report)
+    facts = []
+    for log in episodes.values():
+        facts += [{"address": f.address, "text": f.text, "value": f.value} for f in log.facts]
+    history = (
+        (state.get("reasoning_history") or []) + [{"node": change.by, "kind": "ledger_change", **change.model_dump(mode="json")} for change in ledger.history]
+        if ledger
+        else (state.get("reasoning_history") or [])
+    )
+    history += [{"node": c["stage"], "kind": "candidate_transition", **c} for c in state.get("candidate_history") or []]
+    extra = {
+        "candidates": _dump(state.get("candidates") or []) + (state.get("diagnostic_candidates") or []),
+        "reasoning_history": history,
+        "comparisons": comparisons(state),
+        "ladder": state["ladder"].lines() if state.get("ladder") else [],
+        "facts": facts,
+        "lead_selection": state.get("lead_selection") or {},
+    }
+    result = records.result(state, text, extra)
+    lead = state.get("lead_design_id")
+    completion = _execution_summary(state)
+    successes = {design_id for design_id, item in completion.items() if item["complete"]}
+    failures = set(completion) - successes
+    result["terminal"].update(
         {
-            "ladder": [[a, text] for a, text in lad.lines()],
-            "facts": [{"address": f.address, "text": f.render().split("] ", 1)[1], "value": f.value} for log in episodes.values() for f in log.facts],
-            "relations": [
-                {
-                    "column": x.column,
-                    "stands_for": x.stands_for,
-                    "redundant_with": x.redundant_with,
-                    "nested_in": x.nested_in,
-                    "modifier_candidate": x.modifier_candidate,
-                }
-                for x in (lad.roles.items if lad.roles is not None else [])
-            ],
+            "stage": state["feasibility"].stage if state.get("feasibility") else "assemble",
+            "lead_design_id": lead,
+            "lead_executed": lead in successes,
+            "failed_design_ids": sorted(failures),
+            "executed_design_ids": sorted(successes),
+            "contrast_completion": completion,
+        }
+    )
+    if lead and lead not in successes:
+        result["terminal"]["kind"] = "execution_failure"
+        result["status"] = "partial" if any(item["executed"] for item in completion.values()) else "execution_failed"
+        result["terminal"]["status"] = result["status"]
+    artifacts = records.artifacts(
+        state,
+        {
+            **extra,
+            "status": result["status"],
+            "terminal": result["terminal"],
+            "context_id": h.context_id,
+            "dataset_identity": h.dataset_identity,
+            "context_admission": h.admission,
+            "context_facts": h.facts,
         },
     )
-    _writer()({"report": report})
-    return {"report": report, "specialist_result": result}
+    records.write(state.get("run_dir"), artifacts, text)
+    if state.get("run_dir"):
+        trace.write(Path(state["run_dir"]) / "result.json", json.dumps(result, indent=2))
+    return {"report": text, "specialist_result": result}

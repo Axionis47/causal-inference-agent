@@ -3,7 +3,7 @@ change, the controls that may enter, and the beliefs as they stand. Never a cons
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 from causal_agent.common.addresses import key
 from causal_agent.families.base import BlockInputs
@@ -11,7 +11,7 @@ from causal_agent.families.diff_in_diff.design import DidDesign
 
 
 def design_block(i: BlockInputs) -> DidDesign:
-    a, ch, g, briefs, beliefs, entry, treatment = i.claims["assignment"], i.claims["change"], i.claims["grain"], i.briefs, i.beliefs, i.entry, i.treatment
+    a, ch, g, briefs, entry, treatment = i.claims["assignment"], i.claims["change"], i.claims["grain"], i.briefs, i.entry, i.treatment
     time = ch.get("date_column") or entry.get("time")
     tkey = key(time) if time else None
     units = [c for c in (g.get("key_columns") or []) if key(c) != tkey] if g.get("panel") is True else []
@@ -25,22 +25,28 @@ def design_block(i: BlockInputs) -> DidDesign:
     )
     if ch.get("adoption_column"):
         treated_group = {**treated_group, "cohort_column": key(ch["adoption_column"])}
-    pre = next((p for p in i.probes if p.family == "diff_in_diff" and p.name == "pre_periods"), None)
-    controls = [
-        b.key
-        for b in briefs
-        if b.role == "candidate" and b.moved_by_change is not True and (b.when == "before" or b.facts.varies_over in ("entity", "time", "both"))
-    ]
+    target = i.claims.get("target", {})
+    before = g.get("before_column") or next((b.key for b in briefs if b.when == "before" and b.measures_outcome is True), None)
+    aggregation = target.get("aggregation") or (
+        i.scope.target if i.scope.target in {"horizon", "horizon_profile", "cohort", "cohort_profile", "cohort_horizon"} else "pooled"
+    )
     return DidDesign(
         unit=key(unit) if unit else None,
+        before_column=before if not tkey else None,
+        after_column=g.get("after_column") or next((b.key for b in briefs if b.role == "outcome"), None) if not tkey else None,
+        aggregation=cast(Literal["pooled", "horizon", "horizon_profile", "cohort", "cohort_profile", "cohort_horizon"], aggregation),
+        target_weighting=target.get("weighting"),
+        horizons=target.get("horizons") or [],
+        cohorts=[str(c) for c in (target.get("cohorts") or [])],
+        prefix_scope_accepted=target.get("prefix_scope_accepted") is True,
+        adoption_representation="cohort_column"
+        if ch.get("adoption_column")
+        else "indicator"
+        if any(b.key == key(treatment or "") and b.facts.switch and b.facts.switch.get("entities_that_switch", 0) for b in briefs)
+        else "label",
         time=tkey,
         period_kind=period_kind,
         change_period=str(ch["period_value"]) if ch.get("period_value") is not None else None,
         treated_group=treated_group,
-        staggered=True if ch.get("adoption_column") else None,
-        pre_periods=int(pre.value) if pre and pre.value is not None else None,
-        controls_allowed=controls,
         cluster_level=key(a["level_column"]) if a.get("level_column") else (key(unit) if unit else None),
-        trend_belief=beliefs.get("trend_continues"),
-        spillover=beliefs.get("spillover"),
     )

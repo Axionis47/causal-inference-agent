@@ -1,0 +1,499 @@
+{
+  "family": "diff_in_diff",
+  "specialist": "pyfixest",
+  "supported_now": true,
+  "outcome": "total_emp_nov",
+  "treatment": "state",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "on_treated",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "card_krueger",
+  "relevant_columns": [
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:total_emp_nov.note"
+      ],
+      "column": "total_emp_nov"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:state.note"
+      ],
+      "column": "state"
+    },
+    {
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:total_emp_feb.note"
+      ],
+      "column": "total_emp_feb"
+    }
+  ],
+  "chosen_assumption": "parallel untreated paths",
+  "reasons": [],
+  "question": "Did the New Jersey minimum wage rise change restaurant employment?",
+  "story": "# Card and Krueger Minimum Wage\n\n## About the dataset\nEach row is one fast food restaurant surveyed twice in 1992: once in February and March, before New Jersey raised its minimum wage, and once in November and December, after. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border. This file is a trimmed version of the original survey, 384 restaurants with the two employment counts and the state. There is no restaurant identifier, and 18 rows repeat exactly, which is plausible with only three columns but means individual restaurants cannot be told apart. Restaurants compete locally but the study treats each as its own unit. [docs/card_krueger/readme.md]\n\n## What changed\n**New Jersey minimum wage rise, 1 April 1992.** New Jersey raised its state minimum wage from 4.25 to 5.05 dollars an hour. Every employer in New Jersey was covered, and none in Pennsylvania, where the minimum stayed at 4.25. The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on. Both waves of the survey bracket the change. [docs/card_krueger/readme.md]\n\n## About each column\n**state** — 1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it. Fixed. About 80 percent of rows are New Jersey. [readme.md]\n\n**total_emp_feb** — Full-time equivalent employment in February and March 1992, before the change. Counted as full-time staff plus managers plus half of part-time staff. [readme.md]\n\n**total_emp_nov** — The same count in November and December 1992, after the change. [readme.md]\n",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "791e9b746b5364585e575696",
+  "dataset_identity": "83e0bb08dfab7707cd01db8ece557f083ca086382ada78b8325cb2067c1225ca",
+  "admission": {
+    "family": "diff_in_diff",
+    "contract": "370efe79b5ea9893ec80",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "paired_two_wave_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "before_measurement",
+            "address": "claim:grain.before_column",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:grain.before_column"
+            ]
+          },
+          {
+            "id": "after_measurement",
+            "address": "claim:grain.after_column",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.study_account",
+            "cites": [
+              "claim:grain.after_column"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:card_krueger.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "common_adoption_projection_effect",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "untreated_imputation_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "untreated_prefix_imputation_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "never_cohort_cell_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "clean_projection_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "data/raw/card-krueger-minimum-wage/employment.csv",
+  "dataset_facts": {},
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "total_emp_nov",
+      "key": "total_emp_nov",
+      "role": "outcome",
+      "meaning": "total_emp_nov: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:card_krueger.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 90,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "state",
+      "key": "state",
+      "role": "treatment",
+      "meaning": "state: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:card_krueger.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "total_emp_feb",
+      "key": "total_emp_feb",
+      "role": "candidate",
+      "meaning": "total_emp_feb: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:card_krueger.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 101,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {},
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "# Card and Krueger Minimum Wage\n\n## About the dataset\nEach row is one fast food restaurant surveyed twice in 1992: once in February and March, before New Jersey raised its minimum wage, and once in November and December, after. Restaurants are Burger King, KFC, Wendy's, and Roy Rogers outlets in New Jersey and in eastern Pennsylvania just across the border. This file is a trimmed version of the original survey, 384 restaurants with the two employment counts and the state. There is no restaurant identifier, and 18 rows repeat exactly, which is plausible with only three columns but means individual restaurants cannot be told apart. Restaurants compete locally but the study treats each as its own unit. [docs/card_krueger/readme.md]\n\n## What changed\n**New Jersey minimum wage rise, 1 April 1992.** New Jersey raised its state minimum wage from 4.25 to 5.05 dollars an hour. Every employer in New Jersey was covered, and none in Pennsylvania, where the minimum stayed at 4.25. The change was a state law, decided by the legislature; which restaurants got it was decided entirely by which side of the state line they sat on. Both waves of the survey bracket the change. [docs/card_krueger/readme.md]\n\n## About each column\n**state** — 1 for New Jersey, 0 for Pennsylvania. Where the restaurant is, and therefore whether the wage rise applied to it. Fixed. About 80 percent of rows are New Jersey. [readme.md]\n\n**total_emp_feb** — Full-time equivalent employment in February and March 1992, before the change. Counted as full-time staff plus managers plus half of part-time staff. [readme.md]\n\n**total_emp_nov** — The same count in November and December 1992, after the change. [readme.md]\n",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "one restaurant surveyed twice"
+    },
+    "claim:grain.layout": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "time representation in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "wide"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "study assignment account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "date_by_others"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "record of exposure or group",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "state"
+    },
+    "claim:assignment.treated_level": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "treated group or on indicator",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "1"
+    },
+    "claim:assignment.level_column": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "assignment level in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "state"
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "benchmark population only",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "benchmark supplied units"
+    },
+    "claim:trend_continues.believed": {
+      "status": "unknown",
+      "source": "fixture:card_krueger.study_account",
+      "said": "not asserted by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:spillover.possible": {
+      "status": "unknown",
+      "source": "fixture:card_krueger.study_account",
+      "said": "not established by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:target.population": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "effect on treated units in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "treated"
+    },
+    "claim:assignment.never_treated_exists": {
+      "status": "confirmed",
+      "source": "data",
+      "said": "unit-level exposure histories have never-treated units",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": true
+    },
+    "claim:grain.before_column": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "before outcome measure",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "total_emp_feb"
+    },
+    "claim:grain.after_column": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "after outcome measure",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "total_emp_nov"
+    },
+    "col:total_emp_nov.when": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "after"
+    },
+    "col:state.when": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
+    },
+    "col:total_emp_feb.when": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
+    },
+    "claim:target.weighting": {
+      "status": "confirmed",
+      "source": "fixture:card_krueger.requested_target",
+      "said": "Requested summary gives each treated unit-period equal weight within its requested cohort or horizon.",
+      "reason": "explicit benchmark target policy",
+      "value": "treated_cell_shares"
+    }
+  },
+  "beliefs": {},
+  "said": [],
+  "probes": [],
+  "design": {
+    "kind": "diff_in_diff",
+    "unit": null,
+    "time": null,
+    "period_kind": null,
+    "change_period": null,
+    "treated_group": {
+      "column": "state",
+      "level": "1"
+    },
+    "before_column": "total_emp_feb",
+    "after_column": "total_emp_nov",
+    "adoption_representation": "label",
+    "aggregation": "pooled",
+    "target_weighting": "treated_cell_shares",
+    "horizons": [],
+    "cohorts": [],
+    "prefix_scope_accepted": false,
+    "cluster_level": "state"
+  },
+  "brief": null
+}

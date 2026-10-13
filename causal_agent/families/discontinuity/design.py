@@ -27,6 +27,9 @@ class RdDesign(Design):
     cluster: str | None = None
     sampled_by_side: bool = False
     cutoff_only: Belief | None = None
+    exclusion: Belief | None = None
+    monotonicity: Belief | None = None
+    local_randomisation: Belief | None = None
 
     def columns(self) -> list[str]:
         return [n for n in [self.score, (self.takeup or {}).get("column"), self.cluster, *self.covariates_allowed] if n]

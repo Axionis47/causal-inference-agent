@@ -40,6 +40,24 @@ fig.savefig("figure.png")
 json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
 """
 EXPLORED = Exploration(summary="Mean math score by lunch, standard against free or reduced.", step=1, facts=["mean_standard", "mean_free_reduced"], figure=True)
+BASELINE_DRAW_SCRIPT = """
+import json, os
+import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+df = pd.read_csv(os.environ["DATA_CSV"])
+counts = df["lunch"].value_counts()
+fig, ax = plt.subplots()
+ax.bar(counts.index, counts.values)
+ax.set_ylabel("students")
+fig.savefig("figure.png")
+json.dump({"count_standard": int(counts["standard"]), "count_free_reduced": int(counts["free/reduced"])}, open("facts.json", "w"))
+"""
+BASELINE_EXPLORED = Exploration(
+    summary="Student counts by lunch, standard against free or reduced.", step=1, facts=["count_standard", "count_free_reduced"], figure=True
+)
 TABLE_SCRIPT = """
 import json, os
 import pandas as pd
@@ -140,11 +158,10 @@ def brief_by_rule(human: str) -> DesignBrief:
     lists a road, one cite every memory holds once the assignment is settled."""
     block = human.split("THE FAMILY (its decisions are the ones to fill, by name)\n")[1].split("\n\nTHE MEMORY")[0]
     family = re.search(r"family: (\S+)", block).group(1)
-    names = re.findall(r"^\s+- ([a-z_]+): ", block, flags=re.M)
+    names = re.findall(r"^\s+- ([a-z_.]+): ", block, flags=re.M)
     cite = "claim:assignment.kind"
     return DesignBrief(
         family=family,
-        road="backdoor" if "road" in names else None,
         target="average",
         decisions=[DecisionMade(name=n, choice=f"{n} decided from the file", rests_on=[cite], reason="scripted") for n in names],
         threats=[Cited(reason="something outside the file could have driven both", cites=[cite])],
@@ -301,11 +318,14 @@ class DeskFake:
         if schema is RunCodeStep:  # the agent's look: one script (a picture, or a new table when one is asked for), then done
             ran = "WHAT YOU RAN SO FAR" in human
             table = "new version of the whole table" in human
-            return RunCodeStep(done=True) if ran else RunCodeStep(code=TABLE_SCRIPT if table else DRAW_SCRIPT)
+            fenced = "is not in the table you were given" in human
+            return RunCodeStep(done=True) if ran else RunCodeStep(code=TABLE_SCRIPT if table else BASELINE_DRAW_SCRIPT if fenced else DRAW_SCRIPT)
         if schema is Exploration:
             if self.explore:
                 return self.explore.pop(0)
-            return TRANSFORMED if "new version of the whole table" in human else EXPLORED
+            if "new version of the whole table" in human:
+                return TRANSFORMED
+            return BASELINE_EXPLORED if "is not in the table you were given" in human else EXPLORED
         raise AssertionError(schema)
 
 
@@ -340,9 +360,11 @@ def read_by_rule(msg: str, addrs: list[str]) -> Reading:
         return Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="after", said=msg)])
     if "lunch was before" in low:
         return Reading(kind="update", updates=[FieldUpdate(address="col:lunch.when", value="before", said=msg)])
-    m = re.search(r"((?:claim|col):[a-z_.]+) = (.+)", msg)  # "I'd say claim:sampling.how = whole" (a bare `address = value` line never reaches a reader)
-    if m:
-        return Reading(kind="update", updates=[FieldUpdate(address=m.group(1), value=m.group(2), said=msg)])
+    matches = list(
+        re.finditer(r"((?:claim|col):[a-z_.]+) = ([^\n]+)", msg)
+    )  # "I'd say claim:sampling.how = whole" (a bare `address = value` line never reaches a reader)
+    if matches:
+        return Reading(kind="update", updates=[FieldUpdate(address=m.group(1), value=m.group(2), said=msg) for m in matches])
     if msg.rstrip().endswith("?"):
         return Reading(kind="ask", question=msg)
     return Reading(kind="update")
@@ -361,6 +383,9 @@ def answer_ask(payload: dict) -> str:
         return STORY_ANSWER
     if a.get("kind") == "confirm":
         return "yes, all right"
+    known = {"claim:sampling.how": "whole", "claim:unobserved.exists": "false", "claim:spillover.possible": "false"}
+    if len(addrs) > 1 and all(addr in known for addr in addrs):
+        return "\n".join(f"{addr} = {known[addr]}" for addr in addrs)
     if addrs and "unobserved" in addrs[0]:
         return "nothing hidden"
     if addrs and "spillover" in addrs[0]:

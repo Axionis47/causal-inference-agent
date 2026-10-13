@@ -1,0 +1,3576 @@
+[
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/atc_protocol.json",
+    "context_id": "8cd31eb9ce0696f578b260cd",
+    "dataset_identity": "decefb01e8db3bc0159796292104c173e95b5417c7f0125751e96ae190c2e6e6",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_atc-dowhy-5ec3b3f8",
+    "trace_id": "01a13721-700e-7cd2-9fd6-c3e65cfb39c8",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d21c730a57c38",
+        "d73feb26425bc"
+      ],
+      "executed_design_ids": [
+        "d21c730a57c38",
+        "d73feb26425bc"
+      ]
+    },
+    "endpoints": [
+      "total.backdoor"
+    ],
+    "estimates": [
+      {
+        "design_id": "d21c730a57c38",
+        "endpoint_id": "total.backdoor",
+        "value": 5.072393255057278,
+        "error": null,
+        "target": {
+          "type": "atc",
+          "population": "untreated units within scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "on_untreated",
+          "analysis_population_ids": {
+            "1_vs_0": "2fd3a346e349657215fe2b4d"
+          },
+          "analysis_population_id": "2fd3a346e349657215fe2b4d"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "propensity_score_weighting"
+      },
+      {
+        "design_id": "d73feb26425bc",
+        "endpoint_id": "total.backdoor",
+        "value": 5.096703269207348,
+        "error": null,
+        "target": {
+          "type": "atc",
+          "population": "untreated units within scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "on_untreated",
+          "analysis_population_ids": {
+            "1_vs_0": "2fd3a346e349657215fe2b4d"
+          },
+          "analysis_population_id": "2fd3a346e349657215fe2b4d"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "propensity_score_weighting"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:5d55fc3a36ba",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [
+            "c"
+          ],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment uptake (t) was determined by the individual's own choice, which was caused by baseline variable c. There is no mention of a separate offer being made; c directly causes treatment uptake.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.depends_on",
+            "claim:story.text",
+            "claim:assignment.rule"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:f75c686b29ee",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": "null",
+              "status": "supported",
+              "reason": "The story states that treatment may affect outcome additively.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "c",
+            "x"
+          ],
+          "reason": "The causal structure is derived from the provided story, which describes the relationships between c, x, t, and y.",
+          "cites": [
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "pick_estimator_1:5cf0c2f47368",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "items": [
+            {
+              "design_id": "d21c730a57c38",
+              "name": "propensity_score_weighting",
+              "reason": "Propensity score weighting is suitable because the checks indicate good overlap and a valid propensity score model, which are key assumptions for this estimator. The 'soft' balance for 'c' before adjustment is effectively addressed by weighting, as shown by the improved balance after weighting.",
+              "cites": [
+                "estimator:propensity_score_weighting",
+                "check:d21c730a57c38.1_vs_0.overlap",
+                "check:d21c730a57c38.1_vs_0.separation",
+                "check:d21c730a57c38.1_vs_0.balance.c",
+                "check:d21c730a57c38.1_vs_0.balance.x"
+              ]
+            },
+            {
+              "design_id": "d73feb26425bc",
+              "name": "propensity_score_weighting",
+              "reason": "Propensity score weighting is appropriate as the checks demonstrate good overlap and a valid propensity score model. The initial imbalance in 'c' is well-handled by weighting, leading to improved balance, which aligns with the estimator's assumptions.",
+              "cites": [
+                "estimator:propensity_score_weighting",
+                "check:d73feb26425bc.1_vs_0.overlap",
+                "check:d73feb26425bc.1_vs_0.separation",
+                "check:d73feb26425bc.1_vs_0.balance.c"
+              ]
+            }
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:e6028898cc45",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y for untreated units is 5.07 (95% CI: 4.83, 5.41) outcome units for design d21c730a57c38, and 5.10 (95% CI: 4.83, 5.44) outcome units for design d73feb26425bc. Both designs estimate a positive effect of t on y. The primary difference between the designs is that d21c730a57c38 assumes unconfoundedness given c and x, while d73feb26425bc assumes unconfoundedness given only c.",
+          "caveats": [
+            "Both designs show substantial imbalance in covariate c (standardized mean difference 1.32) before adjustment, though balance improved to 0.01 after weighting on the propensity score for both designs (check:d21c730a57c38.1_vs_0.balance.c, check:d73feb26425bc.1_vs_0.balance.c).",
+            "Design d21c730a57c38 also shows good balance for covariate x (standardized mean difference 0.04 before, 0.02 after) (check:d21c730a57c38.1_vs_0.balance.x).",
+            "Overlap is high for both designs, with 96% of rows inside the score range (check:d21c730a57c38.1_vs_0.overlap, check:d73feb26425bc.1_vs_0.overlap).",
+            "All falsification tests (placebo treatment, data subset, and graph independences) passed for both designs with high p-values (e.g., placebo p=1.00 for d21c730a57c38 (falsification:d21c730a57c38.1_vs_0.placebo_treatment_refuter.p_value) and p=0.90 for d73feb26425bc (falsification:d73feb26425bc.1_vs_0.placebo_treatment_refuter.p_value)).",
+            "Sensitivity analysis for design d21c730a57c38 indicates the effect could range from -0.202 to 4.942 under simulated unobserved confounders (sensitivity:d21c730a57c38.1_vs_0.add_unobserved_common_cause.range).",
+            "Sensitivity analysis for design d73feb26425bc indicates the effect could range from -0.179 to 4.968 under simulated unobserved confounders (sensitivity:d73feb26425bc.1_vs_0.add_unobserved_common_cause.range)."
+          ],
+          "cites": [
+            "design:d21c730a57c38.target",
+            "design:d21c730a57c38.contrasts",
+            "design:d21c730a57c38.confidence_level",
+            "design:d21c730a57c38.assumptions",
+            "estimate:d21c730a57c38.1_vs_0.value",
+            "estimate:d21c730a57c38.1_vs_0.ci",
+            "design:d73feb26425bc.target",
+            "design:d73feb26425bc.contrasts",
+            "design:d73feb26425bc.confidence_level",
+            "design:d73feb26425bc.assumptions",
+            "estimate:d73feb26425bc.1_vs_0.value",
+            "estimate:d73feb26425bc.1_vs_0.ci",
+            "check:d21c730a57c38.1_vs_0.balance.c",
+            "check:d73feb26425bc.1_vs_0.balance.c",
+            "check:d21c730a57c38.1_vs_0.balance.x",
+            "check:d21c730a57c38.1_vs_0.overlap",
+            "check:d73feb26425bc.1_vs_0.overlap",
+            "falsification:d21c730a57c38.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d73feb26425bc.1_vs_0.placebo_treatment_refuter.p_value",
+            "sensitivity:d21c730a57c38.1_vs_0.add_unobserved_common_cause.range",
+            "sensitivity:d73feb26425bc.1_vs_0.add_unobserved_common_cause.range"
+          ],
+          "comparisons": [
+            "Design d21c730a57c38 estimates an effect of 5.07 outcome units (estimate:d21c730a57c38.1_vs_0.value).",
+            "Design d73feb26425bc estimates an effect of 5.10 outcome units (estimate:d73feb26425bc.1_vs_0.value)."
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 85,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_atc-dowhy-5ec3b3f8.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/att_protocol.json",
+    "context_id": "596aded76027fa3a1ba9fb49",
+    "dataset_identity": "decefb01e8db3bc0159796292104c173e95b5417c7f0125751e96ae190c2e6e6",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_att-dowhy-41944f1c",
+    "trace_id": "01a1371d-c32d-7783-8ef0-f5709f7ca4b5",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "dea5015ab951a",
+        "df534e09fb2e0"
+      ],
+      "executed_design_ids": [
+        "dea5015ab951a",
+        "df534e09fb2e0"
+      ]
+    },
+    "endpoints": [
+      "total.backdoor"
+    ],
+    "estimates": [
+      {
+        "design_id": "dea5015ab951a",
+        "endpoint_id": "total.backdoor",
+        "value": 5.110513676073474,
+        "error": null,
+        "target": {
+          "type": "att",
+          "population": "treated units within scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "on_treated",
+          "analysis_population_ids": {
+            "1_vs_0": "bcbf7e52caf4f8464f136956"
+          },
+          "analysis_population_id": "bcbf7e52caf4f8464f136956"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "propensity_score_weighting"
+      },
+      {
+        "design_id": "df534e09fb2e0",
+        "endpoint_id": "total.backdoor",
+        "value": 5.131083165899974,
+        "error": null,
+        "target": {
+          "type": "att",
+          "population": "treated units within scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "on_treated",
+          "analysis_population_ids": {
+            "1_vs_0": "bcbf7e52caf4f8464f136956"
+          },
+          "analysis_population_id": "bcbf7e52caf4f8464f136956"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "propensity_score_weighting"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:65088968aa44",
+        "tries": 1,
+        "refusals": [],
+        "calls": 2,
+        "record": {
+          "drivers": [
+            "c"
+          ],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Individuals self-selected into treatment. Baseline c causes treatment uptake.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.depends_on",
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:3d1cb63a9c8a",
+        "tries": 2,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The story states that treatment may affect outcome additively.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "c",
+            "x"
+          ],
+          "reason": "Based on the provided story, treatment 't' has an additive effect on outcome 'y'.",
+          "cites": [
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "pick_estimator_1:0e61823cdefc",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "items": [
+            {
+              "design_id": "dea5015ab951a",
+              "name": "propensity_score_weighting",
+              "reason": "This design uses a maximal adjustment set of 'c' and 'x' to address unconfoundedness. The checks confirm good overlap and separation, indicating a valid propensity score model and sufficient common support. The balance checks show that weighting on the propensity score effectively balances the covariates 'c' and 'x' between the treatment and control groups. Propensity score weighting is suitable here because it directly uses the propensity scores to create a pseudo-population where treatment assignment is unconfounded, aligning with the design's identification strategy and the successful balance achieved.",
+              "cites": [
+                "design:dea5015ab951a.identification",
+                "estimator:propensity_score_weighting",
+                "check:dea5015ab951a.1_vs_0.overlap",
+                "check:dea5015ab951a.1_vs_0.separation",
+                "check:dea5015ab951a.1_vs_0.balance.c",
+                "check:dea5015ab951a.1_vs_0.balance.x"
+              ]
+            },
+            {
+              "design_id": "df534e09fb2e0",
+              "name": "propensity_score_weighting",
+              "reason": "This design uses a minimal adjustment set of 'c' to address unconfoundedness. The checks confirm good overlap and separation, indicating a valid propensity score model and sufficient common support. The balance check for 'c' shows that weighting on the propensity score effectively balances this covariate between the treatment and control groups. Propensity score weighting is suitable here because it directly uses the propensity scores to create a pseudo-population where treatment assignment is unconfounded, aligning with the design's identification strategy and the successful balance achieved.",
+              "cites": [
+                "design:df534e09fb2e0.identification",
+                "estimator:propensity_score_weighting",
+                "check:df534e09fb2e0.1_vs_0.overlap",
+                "check:df534e09fb2e0.1_vs_0.separation",
+                "check:df534e09fb2e0.1_vs_0.balance.c"
+              ]
+            }
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:71958b958a09",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y for treated units is 5.11 (95% CI: 4.76, 5.39) based on design dea5015ab951a, and 5.13 (95% CI: 4.77, 5.49) based on design df534e09fb2e0. Both designs assume unconfoundedness given their respective adjustment sets, consistency, and no interference. All falsification tests passed for both designs, suggesting robustness to tested threats, but sensitivity analyses indicate that unobserved confounding could significantly alter the estimated effects.",
+          "caveats": [
+            "Both designs assume that all relevant graph relationships are explicit and that every omitted identification-relevant edge is a conditional graph assumption, not an observed absence.",
+            "Design dea5015ab951a assumes unconfoundedness given c and x, while design df534e09fb2e0 assumes unconfoundedness given only c.",
+            "The sensitivity analysis for design dea5015ab951a shows the effect could range from -0.154 to 4.677 under simulated confounders of declared strengths.",
+            "The sensitivity analysis for design df534e09fb2e0 shows the effect could range from -0.126 to 4.699 under simulated confounders of declared strengths.",
+            "The balance for covariate c was initially high (SMD 1.32) for both designs, but improved to 0.01 after weighting.",
+            "The separation AUC for design dea5015ab951a was 0.83, and for design df534e09fb2e0 was 0.82."
+          ],
+          "cites": [
+            "estimate:dea5015ab951a.1_vs_0.value",
+            "estimate:dea5015ab951a.1_vs_0.ci",
+            "design:dea5015ab951a.confidence_level",
+            "estimate:df534e09fb2e0.1_vs_0.value",
+            "estimate:df534e09fb2e0.1_vs_0.ci",
+            "design:df534e09fb2e0.confidence_level",
+            "design:dea5015ab951a.assumptions",
+            "design:df534e09fb2e0.assumptions",
+            "falsification:dea5015ab951a.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:dea5015ab951a.1_vs_0.data_subset_refuter.passed",
+            "falsification:dea5015ab951a.1_vs_0.graph_independences.passed",
+            "falsification:df534e09fb2e0.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:df534e09fb2e0.1_vs_0.data_subset_refuter.passed",
+            "falsification:df534e09fb2e0.1_vs_0.graph_independences.passed",
+            "sensitivity:dea5015ab951a.1_vs_0.add_unobserved_common_cause.detail",
+            "sensitivity:df534e09fb2e0.1_vs_0.add_unobserved_common_cause.detail",
+            "check:dea5015ab951a.1_vs_0.balance.c",
+            "check:df534e09fb2e0.1_vs_0.balance.c",
+            "check:dea5015ab951a.1_vs_0.separation",
+            "check:df534e09fb2e0.1_vs_0.separation"
+          ],
+          "comparisons": [
+            "Design dea5015ab951a, which adjusts for c and x, estimates an effect of 5.110513676073474, while design df534e09fb2e0, which adjusts only for c, estimates an effect of 5.131083165899974."
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 96,
+    "trace_gates": [
+      {
+        "name": "gate",
+        "errors": [
+          "structured record could not be parsed: relate_1: structured output failed to parse: 1 validation error for Relationships\nentries.1.dst\n  Field required [type=missing, input_value={'reason': \"The column 'y..., 'status': 'supported'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+        ]
+      }
+    ],
+    "readback": "readbacks/protocol_att-dowhy-41944f1c.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/backdoor_protocol.json",
+    "context_id": "908503c7de7540308f4349fe",
+    "dataset_identity": "decefb01e8db3bc0159796292104c173e95b5417c7f0125751e96ae190c2e6e6",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_backdoor-dowhy-86d3cf46",
+    "trace_id": "01a13759-7c29-7600-9d9b-f10eef6c07cc",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "status": "done",
+      "stage": "assemble",
+      "lead_design_id": "d1e8ae99c4041",
+      "lead_executed": true,
+      "failed_design_ids": [],
+      "executed_design_ids": [
+        "d1e8ae99c4041",
+        "dd19897b8bbe5",
+        "dd268c9025c41"
+      ],
+      "contrast_completion": {
+        "d1e8ae99c4041": {
+          "expected": [
+            "1_vs_0"
+          ],
+          "executed": [
+            "1_vs_0"
+          ],
+          "failed": [],
+          "missing": [],
+          "complete": true
+        },
+        "dd19897b8bbe5": {
+          "expected": [
+            "1_vs_0"
+          ],
+          "executed": [
+            "1_vs_0"
+          ],
+          "failed": [],
+          "missing": [],
+          "complete": true
+        },
+        "dd268c9025c41": {
+          "expected": [
+            "1_vs_0"
+          ],
+          "executed": [
+            "1_vs_0"
+          ],
+          "failed": [],
+          "missing": [],
+          "complete": true
+        }
+      }
+    },
+    "endpoints": [
+      "total.backdoor",
+      "total.general_adjustment"
+    ],
+    "estimates": [
+      {
+        "design_id": "d1e8ae99c4041",
+        "endpoint_id": "total.backdoor",
+        "value": 5.137751952370555,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "998ea98e0b2b80e7612d054e"
+          },
+          "analysis_population_id": "998ea98e0b2b80e7612d054e"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "propensity_score_weighting"
+      },
+      {
+        "design_id": "dd19897b8bbe5",
+        "endpoint_id": "total.backdoor",
+        "value": 5.1596960800161975,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "998ea98e0b2b80e7612d054e"
+          },
+          "analysis_population_id": "998ea98e0b2b80e7612d054e"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "propensity_score_weighting"
+      },
+      {
+        "design_id": "dd268c9025c41",
+        "endpoint_id": "total.general_adjustment",
+        "value": 4.936558041190057,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "998ea98e0b2b80e7612d054e"
+          },
+          "analysis_population_id": "998ea98e0b2b80e7612d054e"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "general_linear"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:370cde4d27a7",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [
+            "c"
+          ],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment uptake is caused by baseline c, which also causes the outcome. This is a self-selection mechanism.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:assignment.depends_on",
+            "claim:story.text",
+            "change:1.note"
+          ]
+        },
+        "errors": []
+      },
+      {
+        "node": "relate_1:54b448861956",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": null,
+              "status": "supported",
+              "reason": "The story states that 'Treatment may affect outcome additively', indicating a direct causal link from treatment to outcome.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "c",
+            "x"
+          ],
+          "reason": "Based on the provided story, treatment (t) is stated to affect the outcome (y) additively. Baseline c causes treatment uptake and outcome, and baseline x causes outcome only. No other common causes exist, and c and x are measured before treatment and cannot be changed by it. Outcome is measured afterwards. No interference or selection on outcomes.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists"
+          ]
+        },
+        "errors": []
+      },
+      {
+        "node": "pick_estimator_1:3d080b1f3669",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "items": [
+            {
+              "design_id": "d1e8ae99c4041",
+              "name": "propensity_score_weighting",
+              "reason": "This design uses a maximal adjustment set including 'c' and 'x' to identify the ATE. The 'balance.c' check indicates a significant imbalance in 'c' between the treated and control groups before adjustment, which is effectively corrected after weighting. Propensity score weighting is well-suited for handling such imbalances by reweighting observations to achieve covariate balance, thus satisfying the unconfoundedness assumption. The 'overlap' and 'separation' checks also support the validity of the propensity score model.",
+              "cites": [
+                "design:d1e8ae99c4041.identification",
+                "check:d1e8ae99c4041.1_vs_0.balance.c",
+                "check:d1e8ae99c4041.1_vs_0.overlap",
+                "check:d1e8ae99c4041.1_vs_0.separation",
+                "estimator:propensity_score_weighting"
+              ]
+            },
+            {
+              "design_id": "dd19897b8bbe5",
+              "name": "propensity_score_weighting",
+              "reason": "This design uses 'c' as the adjustment set to identify the ATE. Similar to the other design, the 'balance.c' check shows a significant imbalance in 'c' before adjustment that is corrected after weighting. Propensity score weighting is an appropriate choice to address this imbalance and achieve covariate balance, which is crucial for satisfying the unconfoundedness assumption. The 'overlap' and 'separation' checks confirm the suitability of a propensity score approach.",
+              "cites": [
+                "design:dd19897b8bbe5.identification",
+                "check:dd19897b8bbe5.1_vs_0.balance.c",
+                "check:dd19897b8bbe5.1_vs_0.overlap",
+                "check:dd19897b8bbe5.1_vs_0.separation",
+                "estimator:propensity_score_weighting"
+              ]
+            }
+          ]
+        },
+        "errors": []
+      },
+      {
+        "node": "interpret_1:a1ec7cf61259",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y for the scoped dataset is 5.137751952370555 (95% CI: 4.934846069047842, 5.3601749844607784) according to design d1e8ae99c4041, 5.1596960800161975 (95% CI: 4.933498908594317, 5.434866464881059) according to design dd19897b8bbe5, and 4.936558041190057 (95% CI: 4.74666920946521, 5.122205819274052) according to design dd268c9025c41. All designs assume unconfoundedness, consistency, and no interference, with graph relationships explicitly assumed and omitted identification-relevant edges as conditional graph assumptions. All three designs passed falsification tests, but sensitivity analysis indicates potential variability under unobserved confounding.",
+          "caveats": [
+            "Design d1e8ae99c4041 and dd19897b8bbe5 used propensity score weighting, while dd268c9025c41 used a general linear model.",
+            "Balance for covariate c was soft for all designs, with a standardized mean difference of 1.322 before adjustment and 0.01 after adjustment for d1e8ae99c4041, dd19897b8bbe5, and dd268c9025c41.",
+            "Propensity stratification support was soft for d1e8ae99c4041 and dd19897b8bbe5, retaining 642 and 879 of 1200 rows respectively.",
+            "Sensitivity analysis for d1e8ae99c4041 shows the effect ranging from -1.2859603531902886 to 4.843333286454968 under simulated confounders.",
+            "Sensitivity analysis for dd19897b8bbe5 shows the effect ranging from -1.2536657911141564 to 4.86707761384074 under simulated confounders."
+          ],
+          "cites": [
+            "design:d1e8ae99c4041.target",
+            "estimate:d1e8ae99c4041.1_vs_0.value",
+            "estimate:d1e8ae99c4041.1_vs_0.ci",
+            "design:dd19897b8bbe5.target",
+            "estimate:dd19897b8bbe5.1_vs_0.value",
+            "estimate:dd19897b8bbe5.1_vs_0.ci",
+            "design:dd268c9025c41.target",
+            "estimate:dd268c9025c41.1_vs_0.value",
+            "estimate:dd268c9025c41.1_vs_0.ci",
+            "design:d1e8ae99c4041.assumptions",
+            "design:dd19897b8bbe5.assumptions",
+            "design:dd268c9025c41.assumptions",
+            "falsification:d1e8ae99c4041.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:d1e8ae99c4041.1_vs_0.data_subset_refuter.passed",
+            "falsification:d1e8ae99c4041.1_vs_0.graph_independences.passed",
+            "falsification:dd19897b8bbe5.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:dd19897b8bbe5.1_vs_0.data_subset_refuter.passed",
+            "falsification:dd19897b8bbe5.1_vs_0.graph_independences.passed",
+            "falsification:dd268c9025c41.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:dd268c9025c41.1_vs_0.data_subset_refuter.passed",
+            "falsification:dd268c9025c41.1_vs_0.graph_independences.passed",
+            "sensitivity:d1e8ae99c4041.1_vs_0.add_unobserved_common_cause.detail",
+            "sensitivity:dd19897b8bbe5.1_vs_0.add_unobserved_common_cause.detail",
+            "design:d1e8ae99c4041.model",
+            "design:dd19897b8bbe5.model",
+            "design:dd268c9025c41.model",
+            "check:d1e8ae99c4041.1_vs_0.balance.c",
+            "check:dd19897b8bbe5.1_vs_0.balance.c",
+            "check:dd268c9025c41.1_vs_0.balance.c",
+            "check:d1e8ae99c4041.1_vs_0.stratification_support",
+            "check:dd19897b8bbe5.1_vs_0.stratification_support",
+            "sensitivity:d1e8ae99c4041.1_vs_0.add_unobserved_common_cause.range",
+            "sensitivity:dd19897b8bbe5.1_vs_0.add_unobserved_common_cause.range"
+          ],
+          "comparisons": [
+            "Design d1e8ae99c4041 and dd19897b8bbe5 both used propensity score weighting, but d1e8ae99c4041 adjusted for c and x, while dd19897b8bbe5 and dd268c9025c41 adjusted only for c."
+          ]
+        },
+        "errors": []
+      }
+    ],
+    "trace_spans": 87,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_backdoor-dowhy-86d3cf46.txt",
+    "lead_selection": {
+      "policy": "hard failures, soft support flags, minimum overlap, minimum arm size, assumption burden, endpoint catalogue order, stable candidate ID",
+      "ranking": [
+        {
+          "design_id": "d1e8ae99c4041",
+          "rank": [
+            0,
+            1,
+            -0.958,
+            -581.0,
+            5,
+            1,
+            "d1e8ae99c4041"
+          ]
+        },
+        {
+          "design_id": "dd19897b8bbe5",
+          "rank": [
+            0,
+            1,
+            -0.955,
+            -581.0,
+            5,
+            1,
+            "dd19897b8bbe5"
+          ]
+        },
+        {
+          "design_id": "dd268c9025c41",
+          "rank": [
+            0,
+            1,
+            -0.955,
+            -581.0,
+            5,
+            2,
+            "dd268c9025c41"
+          ]
+        }
+      ],
+      "selected_before_effect_fitting": true
+    }
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/conditional_protocol.json",
+    "context_id": "3269649eae5a52e519fc2aed",
+    "dataset_identity": "d0085e27dfe64b84a700b3e42a642ac199ea8e032ad69d0e4726e3b3b9b27647",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_conditional-dowhy-2fc77fdb",
+    "trace_id": "01a13780-5fd9-7553-9854-c3b0ab075bee",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "status": "done",
+      "stage": "assemble",
+      "lead_design_id": "dcf7a62deb559",
+      "lead_executed": true,
+      "failed_design_ids": [],
+      "executed_design_ids": [
+        "d8e18cc42fb7d",
+        "dcf7a62deb559"
+      ],
+      "contrast_completion": {
+        "d8e18cc42fb7d": {
+          "expected": [
+            "1_vs_0.x.0_0719542_to_0_566655",
+            "1_vs_0.x.0_566655_to_2_57167",
+            "1_vs_0.x.0_703383_to_0_0719542",
+            "1_vs_0.x.3_25144_to_0_703383"
+          ],
+          "executed": [
+            "1_vs_0.x.0_0719542_to_0_566655",
+            "1_vs_0.x.0_566655_to_2_57167",
+            "1_vs_0.x.0_703383_to_0_0719542",
+            "1_vs_0.x.3_25144_to_0_703383"
+          ],
+          "failed": [],
+          "missing": [],
+          "complete": true
+        },
+        "dcf7a62deb559": {
+          "expected": [
+            "1_vs_0.x.0_0719542_to_0_566655",
+            "1_vs_0.x.0_566655_to_2_57167",
+            "1_vs_0.x.0_703383_to_0_0719542",
+            "1_vs_0.x.3_25144_to_0_703383"
+          ],
+          "executed": [
+            "1_vs_0.x.0_0719542_to_0_566655",
+            "1_vs_0.x.0_566655_to_2_57167",
+            "1_vs_0.x.0_703383_to_0_0719542",
+            "1_vs_0.x.3_25144_to_0_703383"
+          ],
+          "failed": [],
+          "missing": [],
+          "complete": true
+        }
+      }
+    },
+    "endpoints": [
+      "adjustment.linear_conditional"
+    ],
+    "estimates": [
+      {
+        "design_id": "d8e18cc42fb7d",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d"
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 1.9822081125169304,
+        "ci_low": 1.8759427902676427,
+        "ci_high": 2.085857590131169,
+        "n_treated": 611,
+        "n_control": 589,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": true,
+        "modifier": null,
+        "level": null,
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "d8e18cc42fb7d",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "-3.25144 to -0.703383",
+              "low": -3.2514384154965383,
+              "high": -0.7033826256874236,
+              "include_low": true
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 1.3553106108791146,
+        "ci_low": 1.1961219557926503,
+        "ci_high": 1.4953558887700351,
+        "n_treated": 152,
+        "n_control": 148,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "-3.25144 to -0.703383",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "d8e18cc42fb7d",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "-0.703383 to -0.0719542",
+              "low": -0.7033826256874236,
+              "high": -0.071954192057328,
+              "include_low": false
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 1.8319707715169735,
+        "ci_low": 1.723360426001869,
+        "ci_high": 1.9280034894720053,
+        "n_treated": 161,
+        "n_control": 139,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "-0.703383 to -0.0719542",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "d8e18cc42fb7d",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "-0.0719542 to 0.566655",
+              "low": -0.071954192057328,
+              "high": 0.5666552402464478,
+              "include_low": false
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 2.1224060110679974,
+        "ci_low": 2.003168819209194,
+        "ci_high": 2.22775028794443,
+        "n_treated": 148,
+        "n_control": 152,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "-0.0719542 to 0.566655",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "d8e18cc42fb7d",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "0.566655 to 2.57167",
+              "low": 0.5666552402464478,
+              "high": 2.5716688829102927,
+              "include_low": false
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 2.619145056603636,
+        "ci_low": 2.408427078704728,
+        "ci_high": 2.7891810942528465,
+        "n_treated": 150,
+        "n_control": 150,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "0.566655 to 2.57167",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "dcf7a62deb559",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d"
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 1.9822081125169304,
+        "ci_low": 1.8759427902676427,
+        "ci_high": 2.085857590131169,
+        "n_treated": 611,
+        "n_control": 589,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": true,
+        "modifier": null,
+        "level": null,
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "dcf7a62deb559",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "-3.25144 to -0.703383",
+              "low": -3.2514384154965383,
+              "high": -0.7033826256874236,
+              "include_low": true
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 1.3553106108791146,
+        "ci_low": 1.1961219557926503,
+        "ci_high": 1.4953558887700351,
+        "n_treated": 152,
+        "n_control": 148,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "-3.25144 to -0.703383",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "dcf7a62deb559",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "-0.703383 to -0.0719542",
+              "low": -0.7033826256874236,
+              "high": -0.071954192057328,
+              "include_low": false
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 1.8319707715169735,
+        "ci_low": 1.723360426001869,
+        "ci_high": 1.9280034894720053,
+        "n_treated": 161,
+        "n_control": 139,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "-0.703383 to -0.0719542",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "dcf7a62deb559",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "-0.0719542 to 0.566655",
+              "low": -0.071954192057328,
+              "high": 0.5666552402464478,
+              "include_low": false
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 2.1224060110679974,
+        "ci_low": 2.003168819209194,
+        "ci_high": 2.22775028794443,
+        "n_treated": 148,
+        "n_control": 152,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "-0.0719542 to 0.566655",
+        "p_value": null,
+        "p_value_source": null
+      },
+      {
+        "design_id": "dcf7a62deb559",
+        "endpoint_id": "adjustment.linear_conditional",
+        "target": {
+          "type": "conditional",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "conditional",
+          "analysis_population_ids": {
+            "1_vs_0": "f0c6ea79acea37553ff35b6d"
+          },
+          "primary_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-3.25144 to -0.703383"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.703383 to -0.0719542"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "-0.0719542 to 0.566655"
+            },
+            {
+              "contrast": "1_vs_0",
+              "modifier": "x",
+              "level": "0.566655 to 2.57167"
+            }
+          ],
+          "reference_summaries": [
+            {
+              "contrast": "1_vs_0",
+              "modifier": null,
+              "level": null
+            }
+          ],
+          "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+          "subgroup": {
+            "column": "x",
+            "definition": {
+              "label": "0.566655 to 2.57167",
+              "low": 0.5666552402464478,
+              "high": 2.5716688829102927,
+              "include_low": false
+            }
+          }
+        },
+        "confidence_set": null,
+        "contrast": "1_vs_0",
+        "method": "linear_interaction",
+        "value": 2.619145056603636,
+        "ci_low": 2.408427078704728,
+        "ci_high": 2.7891810942528465,
+        "n_treated": 150,
+        "n_control": 150,
+        "target_units": "conditional",
+        "error": null,
+        "secondary": false,
+        "modifier": "x",
+        "level": "0.566655 to 2.57167",
+        "p_value": null,
+        "p_value_source": null
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:3ee0b5bfc439",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": null,
+          "uptake_column": "col:t",
+          "self_selection": null,
+          "reason": "Treatment 't' was assigned randomly, as if by a lottery. The study account does not distinguish between the offer of treatment and its actual uptake, implying that assignment is equivalent to uptake. The assignment was independent of any observed variables.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:story.text",
+            "change:1.note",
+            "col:t.when",
+            "claim:assignment.depends_on"
+          ]
+        },
+        "errors": []
+      },
+      {
+        "node": "relate_1:62440d7d4f19",
+        "tries": 2,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": null,
+              "status": "supported",
+              "reason": "The story describes a linear outcome model where the treatment effect changes linearly with x, implying a direct causal effect of t on y, modified by x.",
+              "cites": [
+                "claim:story.text",
+                "pair.treatment",
+                "pair.outcome",
+                "pair.target"
+              ]
+            }
+          ],
+          "considered": [
+            "x"
+          ],
+          "reason": "The story explicitly states that the treatment effect on y changes linearly with x, and that t is randomized. This supports a direct causal edge from t to y, with x acting as a modifier.",
+          "cites": [
+            "claim:story.text",
+            "pair.target",
+            "pair.treatment",
+            "pair.outcome"
+          ]
+        },
+        "errors": []
+      },
+      {
+        "node": "interpret_1:4bc6107eab4a",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The treatment effect on y varies across different ranges of x, showing an increasing trend as x increases. Both designs, d8e18cc42fb7d and dcf7a62deb559, yield identical estimates and confidence intervals for the treatment effect across all specified subgroups of x. This suggests that the choice of identification adjustment set (whether x is included or not) does not alter the numerical results in this specific analysis.",
+          "caveats": [
+            "Design dcf7a62deb559 assumes unconfoundedness without requiring covariate adjustment for identification, while design d8e18cc42fb7d assumes unconfoundedness conditional on x for identification.",
+            "The graph independence falsification test passed for both designs with a p-value of 0.13247359957227944, indicating no significant evidence against the assumed graph independences.",
+            "The data subset refuter passed for both designs with a new effect of 1.9845607242600856 and a p-value of 0.92, suggesting robustness to random subsets of data.",
+            "Design d8e18cc42fb7d reports a soft baseline imbalance check for x with a standardized mean difference of 0.01 before adjustment and 0.00 after hypothetical weighting, indicating good balance.",
+            "Design d8e18cc42fb7d reports 100% overlap of rows within the score range both arms cover (0.50 to 0.52).",
+            "Design d8e18cc42fb7d reports an AUC of 0.506 for arm separation, indicating weak distinguishability between arms."
+          ],
+          "cites": [
+            "design:d8e18cc42fb7d.assumptions",
+            "design:dcf7a62deb559.assumptions",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+            "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+            "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci",
+            "design:d8e18cc42fb7d.confidence_level",
+            "design:dcf7a62deb559.confidence_level",
+            "falsification:d8e18cc42fb7d.1_vs_0.graph_independences.p_value",
+            "falsification:dcf7a62deb559.1_vs_0.graph_independences.p_value",
+            "falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.p_value",
+            "falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.p_value",
+            "check:d8e18cc42fb7d.1_vs_0.balance.x",
+            "check:d8e18cc42fb7d.1_vs_0.overlap",
+            "check:d8e18cc42fb7d.1_vs_0.separation"
+          ],
+          "comparisons": []
+        },
+        "errors": []
+      }
+    ],
+    "trace_spans": 86,
+    "trace_gates": [
+      [
+        "consider exactly these non-pair raw column keys: ['x']"
+      ]
+    ],
+    "readback": "readbacks/protocol_conditional-dowhy-2fc77fdb.txt",
+    "primary_summaries": {
+      "d8e18cc42fb7d": [
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "-3.25144 to -0.703383"
+        },
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "-0.703383 to -0.0719542"
+        },
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "-0.0719542 to 0.566655"
+        },
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "0.566655 to 2.57167"
+        }
+      ],
+      "dcf7a62deb559": [
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "-3.25144 to -0.703383"
+        },
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "-0.703383 to -0.0719542"
+        },
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "-0.0719542 to 0.566655"
+        },
+        {
+          "contrast": "1_vs_0",
+          "modifier": "x",
+          "level": "0.566655 to 2.57167"
+        }
+      ]
+    },
+    "acceptance_history": [
+      "readbacks/protocol_conditional-dowhy-a349a942.acceptance.json",
+      "readbacks/conditional-primary-interpretation.json"
+    ]
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/frontdoor_protocol.json",
+    "context_id": "1805fb788d5152d12bec7b2d",
+    "dataset_identity": "4ea16317764eb0bed34fa60f45fb39feb8caa42f0672c9d67f9ccff1c4cf23f2",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_frontdoor-dowhy-648368ba",
+    "trace_id": "01a1371b-0175-72c3-97a2-82cd53b2fd0e",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d69c66d0cdf6c"
+      ],
+      "executed_design_ids": [
+        "d69c66d0cdf6c"
+      ]
+    },
+    "endpoints": [
+      "frontdoor.linear_total"
+    ],
+    "estimates": [
+      {
+        "design_id": "d69c66d0cdf6c",
+        "endpoint_id": "frontdoor.linear_total",
+        "value": 3.126809598078934,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "532964153d9036238a2f5eca"
+          },
+          "analysis_population_id": "532964153d9036238a2f5eca"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "frontdoor_two_stage"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:aa0920ee889b",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment assignment is due to self-selection, driven by a hidden unobserved confounder \"u\" that influences both treatment and outcome through the mediator \"m\".",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:1de256e4738c",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "no_edge",
+              "src": "t",
+              "dst": "y",
+              "value": false,
+              "status": "supported",
+              "reason": "The story explicitly states that every directed treatment-outcome path passes through the mediator 'm', with no direct bypass from 't' to 'y'.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "m"
+          ],
+          "reason": "Based on the provided story, the effect of 't' on 'y' is fully mediated by 'm', implying no direct causal path from 't' to 'y'.",
+          "cites": [
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:34c8a281febd",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y, mediated through m, is 3.126809598078934 (95 percent CI: 2.8413990310368584, 3.3693124704588517) for the comparison of treated level 1 versus control level 0. This estimate is based on a front-door criterion identification strategy, assuming full mediation by m, first-stage unconfoundedness, and second-stage unconfoundedness. The analysis used 1200 rows in the common complete-case population, with 572 treated and 628 control observations.",
+          "caveats": [
+            "The placebo treatment refuter failed, indicating that the model might be sensitive to unmeasured confounding or misspecification, as a new effect of 3.13 was observed with a p-value of 0.00.",
+            "The graph independence test could not make a validity claim due to a lack of suitable independences.",
+            "The analysis assumes linear additive stages for the mediation model.",
+            "The analysis assumes that m intercepts all directed paths from t to y, meaning there is no direct effect of t on y.",
+            "The analysis assumes that there are no unmeasured confounders for the t to m relationship (First-stage-unconfoundedness) and for the m to y relationship (Second-stage-unconfoundedness)."
+          ],
+          "cites": [
+            "estimate:d69c66d0cdf6c.1_vs_0.value",
+            "estimate:d69c66d0cdf6c.1_vs_0.ci",
+            "design:d69c66d0cdf6c.confidence_level",
+            "design:d69c66d0cdf6c.target",
+            "design:d69c66d0cdf6c.contrasts",
+            "estimate:d69c66d0cdf6c.1_vs_0.counts",
+            "design:d69c66d0cdf6c.support",
+            "design:d69c66d0cdf6c.assumptions",
+            "rel:no_edge.t.y",
+            "falsification:d69c66d0cdf6c.1_vs_0.placebo_treatment_refuter.detail",
+            "falsification:d69c66d0cdf6c.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d69c66d0cdf6c.1_vs_0.graph_independences.detail",
+            "check:d69c66d0cdf6c.1_vs_0.linear_assumption"
+          ],
+          "comparisons": []
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 69,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_frontdoor-dowhy-648368ba.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/iv_conditional_protocol.json",
+    "context_id": "511ea793f333438fbc6462d9",
+    "dataset_identity": "36d6de06189bcbd21764d7a5bd38c22a9d60c1b7c8ef2e15b947d79c2ac20ab7",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_iv_conditional-dowhy-34ee2e71",
+    "trace_id": "01a13722-a884-71e1-a61e-c975cbb66e4f",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d425fad67735d",
+        "d2d0a3d4c55a4"
+      ],
+      "executed_design_ids": [
+        "d2d0a3d4c55a4",
+        "d425fad67735d"
+      ]
+    },
+    "endpoints": [
+      "iv.linear_conditional",
+      "iv.linear_single"
+    ],
+    "estimates": [
+      {
+        "design_id": "d425fad67735d",
+        "endpoint_id": "iv.linear_conditional",
+        "value": 4.091292153294413,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "ab53f02d4d62b20b81d81df2"
+          },
+          "analysis_population_id": "ab53f02d4d62b20b81d81df2"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "iv_2sls"
+      },
+      {
+        "design_id": "d2d0a3d4c55a4",
+        "endpoint_id": "iv.linear_single",
+        "value": 4.26618709030428,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "ab53f02d4d62b20b81d81df2"
+          },
+          "analysis_population_id": "ab53f02d4d62b20b81d81df2"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "instrumental_variable"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:fa54ad4b1fe4",
+        "tries": 2,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [
+            "z1",
+            "z2",
+            "c"
+          ],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Individuals self-selected into treatment 't'. Their decision to take treatment was influenced by z1, z2, c, and an unobserved factor u.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:story.text",
+            "claim:assignment.depends_on",
+            "change:1.note"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:cefec4f23039",
+        "tries": 3,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "t",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives uptake",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives outcome",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "c",
+              "dst": "z1",
+              "value": true,
+              "status": "supported",
+              "reason": "Baseline c causes z1",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "no_edge",
+              "src": "c",
+              "dst": "z2",
+              "value": false,
+              "status": "supported",
+              "reason": "c is independent of z2",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "no_edge",
+              "src": "c",
+              "dst": "hidden:unmeasured",
+              "value": false,
+              "status": "supported",
+              "reason": "c is independent of hidden u",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The outcome follows an additive linear model with an unknown constant treatment effect",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "z1",
+            "z2",
+            "c"
+          ],
+          "reason": "The story describes a causal structure including a hidden confounder (u), instrumental variables (z1, z2), and a baseline covariate (c) that influences z1, treatment (t), and outcome (y). The primary effect of interest is t on y.",
+          "cites": [
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:efa6b302412e",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "Design d425fad67735d estimates the average treatment effect of t on y as 4.091292153294413 outcome_units (95 percent CI: 3.6664684682867485, 4.584319977203847) based on assumptions including consistency, no interference, and conditional exogeneity. Design d2d0a3d4c55a4 estimates the average treatment effect of t on y as 4.26618709030428 outcome_units (95 percent CI: 3.3087805739508322, 5.0527881177979985) under similar assumptions but with an explicit estimand for instrumental variables and additional exclusion and as-if-random assumptions related to z2. Both designs used 1200 rows for the 1_vs_0 contrast, with 547 treated and 653 control units.",
+          "caveats": [
+            "The designs differ in their specific identification assumptions, with d2d0a3d4c55a4 explicitly using z2 as an instrumental variable and stating related exclusion and as-if-random assumptions, which are not explicitly detailed in d425fad67735d.",
+            "Both designs passed graph independence checks, indicating no obvious violations of the assumed causal graph structure (d425fad67735d: p=0.7222984612486316; d2d0a3d4c55a4: p=0.7222984612486321).",
+            "Design d2d0a3d4c55a4 passed placebo treatment (new effect -0.0719, p=0.94) and data subset refuters (new effect 4.28, p=0.88), suggesting robustness to these specific falsification tests.",
+            "Both designs show strong relevance with first-stage F-statistics well above the weak instrument heuristic of ten (d425fad67735d: 180.6311305774334; d2d0a3d4c55a4: 107.90903033670726).",
+            "The confidence intervals for both designs overlap, indicating no statistically significant difference between their estimates at the 95 percent confidence level.",
+            "The causal validity of these estimates relies on the correctness of all stated assumptions, including the graph relationships and the absence of unmeasured confounders not accounted for by the instrumental variable approach."
+          ],
+          "cites": [
+            "design:d425fad67735d.target",
+            "design:d425fad67735d.contrasts",
+            "design:d425fad67735d.confidence_level",
+            "design:d425fad67735d.assumptions",
+            "design:d425fad67735d.support",
+            "estimate:d425fad67735d.1_vs_0.value",
+            "estimate:d425fad67735d.1_vs_0.ci",
+            "estimate:d425fad67735d.1_vs_0.counts",
+            "design:d2d0a3d4c55a4.target",
+            "design:d2d0a3d4c55a4.contrasts",
+            "design:d2d0a3d4c55a4.confidence_level",
+            "design:d2d0a3d4c55a4.assumptions",
+            "design:d2d0a3d4c55a4.support",
+            "estimate:d2d0a3d4c55a4.1_vs_0.value",
+            "estimate:d2d0a3d4c55a4.1_vs_0.ci",
+            "estimate:d2d0a3d4c55a4.1_vs_0.counts",
+            "falsification:d425fad67735d.1_vs_0.graph_independences.passed",
+            "falsification:d425fad67735d.1_vs_0.graph_independences.p_value",
+            "falsification:d2d0a3d4c55a4.1_vs_0.graph_independences.passed",
+            "falsification:d2d0a3d4c55a4.1_vs_0.graph_independences.p_value",
+            "falsification:d2d0a3d4c55a4.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:d2d0a3d4c55a4.1_vs_0.placebo_treatment_refuter.new_effect",
+            "falsification:d2d0a3d4c55a4.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d2d0a3d4c55a4.1_vs_0.data_subset_refuter.passed",
+            "falsification:d2d0a3d4c55a4.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d2d0a3d4c55a4.1_vs_0.data_subset_refuter.p_value",
+            "check:d425fad67735d.1_vs_0.relevance",
+            "check:d425fad67735d.1_vs_0.weak_instrument",
+            "check:d2d0a3d4c55a4.1_vs_0.relevance",
+            "check:d2d0a3d4c55a4.1_vs_0.weak_instrument"
+          ],
+          "comparisons": [
+            "Design d425fad67735d estimates an ATE of 4.091292153294413, while design d2d0a3d4c55a4 estimates an ATE of 4.26618709030428."
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 119,
+    "trace_gates": [
+      {
+        "name": "gate",
+        "errors": [
+          "unknown driver u"
+        ]
+      },
+      {
+        "name": "gate",
+        "errors": [
+          "structured record could not be parsed: relate_1: structured output failed to parse: 1 validation error for Relationships\nentries.1.dst\n  Field required [type=missing, input_value={'cites': ['claim:story.t...rted', 'kind': 'hidden'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+        ]
+      },
+      {
+        "name": "gate",
+        "errors": [
+          "destination must be a raw column key, not an address: None"
+        ]
+      }
+    ],
+    "readback": "readbacks/protocol_iv_conditional-dowhy-34ee2e71.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/iv_protocol.json",
+    "context_id": "2fda434bb7ee6e7a8315d00b",
+    "dataset_identity": "f1146651c0c58f8bcaff135b829591abe8714391e50a7b750a7d734049da87ea",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_iv-dowhy-6ea8f484",
+    "trace_id": "01a1371c-c21a-7613-bc3f-cc62dba5d20d",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d900885d3a308"
+      ],
+      "executed_design_ids": [
+        "d900885d3a308"
+      ]
+    },
+    "endpoints": [
+      "iv.linear_multiple"
+    ],
+    "estimates": [
+      {
+        "design_id": "d900885d3a308",
+        "endpoint_id": "iv.linear_multiple",
+        "value": 4.082211110979413,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "5492acb6f36b581a49252166"
+          },
+          "analysis_population_id": "5492acb6f36b581a49252166"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "iv_2sls"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:832d7b8e20ef",
+        "tries": 2,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [
+            "z1",
+            "z2"
+          ],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment t is assigned through self-selection, where individuals choose whether to take the treatment. This decision or the offer of treatment depends on z1 and z2. A hidden confounder u also drives the uptake of treatment.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:assignment.depends_on",
+            "claim:story.text",
+            "col:t.note",
+            "col:z1.note",
+            "col:z2.note"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:683cd75b5b47",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "proposed",
+              "reason": "The question asks for the effect of t on y, and the story implies a direct effect with an unknown constant treatment effect.",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "t",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives uptake of treatment t.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives outcome y.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            }
+          ],
+          "considered": [
+            "z1",
+            "z2",
+            "c"
+          ],
+          "reason": "Establishing the causal structure including the direct effect of treatment on outcome and the role of the hidden confounder, based on the provided study description.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "probe_1:6a05a8c3936d",
+        "tries": 1,
+        "refusals": [
+          {
+            "tool": "association",
+            "args": {
+              "a": "t",
+              "b": "y"
+            },
+            "reason": "refused: that would join the outcome 'y' with the treatment before the design is frozen; the effect is the run's to find, not a fact to choose the design by"
+          }
+        ],
+        "calls": 4,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The story describes a setup with instruments z1 and z2 that affect treatment t only, with no outcome route except through treatment. These instruments are randomized independently of unobserved confounders and outcome disturbances. The probes confirm associations between z1 and t, z1 and y, and z2 and t, which are consistent with z1 and z2 being valid instruments for estimating the effect of t on y.",
+              "cites": [
+                "claim:story.text",
+                "probe:probe_1.6a05a8c3936d.1",
+                "probe:probe_1.6a05a8c3936d.2",
+                "probe:probe_1.6a05a8c3936d.3"
+              ]
+            }
+          ],
+          "considered": [
+            "z1",
+            "z2",
+            "c"
+          ],
+          "reason": "The presence of valid instruments z1 and z2, as described in the story and supported by the probes, allows for the identification of the causal effect of t on y, despite the presence of hidden confounder u.",
+          "cites": [
+            "claim:story.text",
+            "probe:probe_1.6a05a8c3936d.1",
+            "probe:probe_1.6a05a8c3936d.2",
+            "probe:probe_1.6a05a8c3936d.3"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:d2812c774817",
+        "tries": 2,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y is 4.082211110979413 outcome_units (95 percent confidence interval: 3.7551339531173813, 4.451727300697057) when comparing treated (1) to control (0) in the scoped dataset. This estimate is based on 591 treated and 609 control observations, totaling 1200 rows.",
+          "caveats": [
+            "The graph independence falsification test failed with a p-value of 0.01247440858255544, rejecting 6 constraints, which suggests potential issues with the assumed causal graph or underlying data. The estimand relies on assumptions including \"As-if-random: If U\u2192\u2192y then \u00ac(U \u2192\u2192{z1,z2})\" and \"Exclusion: If we remove {z1,z2}\u2192{treated}, then \u00ac({z1,z2}\u2192y)\", along with consistency, no interference, exogeneity, and homogeneous additive effects. The first-stage F-statistic of 242.98746593999084 indicates strong relevance of the instruments, but the weak instrument check is a heuristic and not evidence of IV validity. The analysis population for the comparison has 591 treated and 609 control rows, satisfying the requirement of at least twenty rows per arm."
+          ],
+          "cites": [
+            "estimate:d900885d3a308.1_vs_0.value",
+            "estimate:d900885d3a308.1_vs_0.ci",
+            "design:d900885d3a308.confidence_level",
+            "design:d900885d3a308.target",
+            "design:d900885d3a308.contrasts",
+            "estimate:d900885d3a308.1_vs_0.counts",
+            "design:d900885d3a308.support",
+            "falsification:d900885d3a308.1_vs_0.graph_independences.passed",
+            "falsification:d900885d3a308.1_vs_0.graph_independences.p_value",
+            "falsification:d900885d3a308.1_vs_0.graph_independences.detail",
+            "design:d900885d3a308.assumptions",
+            "check:d900885d3a308.1_vs_0.relevance",
+            "check:d900885d3a308.1_vs_0.weak_instrument",
+            "check:d900885d3a308.1_vs_0.arms"
+          ],
+          "comparisons": []
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 107,
+    "trace_gates": [
+      {
+        "name": "gate",
+        "errors": [
+          "unresolved citation change:1.note"
+        ]
+      },
+      {
+        "name": "gate",
+        "errors": [
+          "number 1 does not match cited quantitative evidence within one percent",
+          "number 0 does not match cited quantitative evidence within one percent",
+          "number 1 does not match cited quantitative evidence within one percent",
+          "number 0 does not match cited quantitative evidence within one percent",
+          "number 1200 does not match cited quantitative evidence within one percent"
+        ]
+      }
+    ],
+    "readback": "readbacks/protocol_iv-dowhy-6ea8f484.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/iv_single_protocol.json",
+    "context_id": "45f07644dc79938db6d6588e",
+    "dataset_identity": "cd580cf21748a9f392ff53499f95dc6a8e49774ab68e9be622c9fe0074a4cc78",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_iv_single-dowhy-1e5c8ef5",
+    "trace_id": "01a13722-2446-78a0-89a3-c2d1efe74c4b",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d05350ff92198"
+      ],
+      "executed_design_ids": [
+        "d05350ff92198"
+      ]
+    },
+    "endpoints": [
+      "iv.linear_single"
+    ],
+    "estimates": [
+      {
+        "design_id": "d05350ff92198",
+        "endpoint_id": "iv.linear_single",
+        "value": 3.8202927347103692,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "0f203d0af877138a8c272ea5"
+          },
+          "analysis_population_id": "0f203d0af877138a8c272ea5"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "instrumental_variable"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:f506d35bb2c2",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [
+            "z1"
+          ],
+          "offer_column": "z1",
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment was self-selected. The decision or offer of treatment depended on the randomized instrument z1. However, the actual uptake of treatment was driven by hidden factor u, which also drives the outcome.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.depends_on",
+            "claim:story.text",
+            "change:1.note"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:a79da4c6b385",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "t",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives treatment.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives outcome.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "proposed",
+              "reason": "The question asks for the effect of t on y, implying a potential causal link.",
+              "cites": [
+                "pair.target"
+              ]
+            }
+          ],
+          "considered": [
+            "z1",
+            "c"
+          ],
+          "reason": "Proposing causal relationships based on the provided story and the question about the effect of t on y, including the role of the hidden confounder u.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists",
+            "pair.target"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "probe_1:ada891a32395",
+        "tries": 1,
+        "refusals": [],
+        "calls": 2,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "z1 acts as a valid instrumental variable for t on y. The story states z1 causes t, has no other route to y, and is independent of hidden u and outcome disturbances. The observed associations between z1 and t (0.50) and z1 and y (0.35) provide empirical support for the relevance of z1.",
+              "cites": [
+                "claim:story.text",
+                "rel:edge.z1.t",
+                "rel:no_edge.z1.y",
+                "probe:probe_1.ada891a32395.1",
+                "probe:probe_1.ada891a32395.2"
+              ]
+            }
+          ],
+          "considered": [
+            "z1"
+          ],
+          "reason": "The causal effect of t on y is identifiable because z1 serves as a valid instrumental variable, satisfying the conditions of relevance, exclusion, and exogeneity as described in the story and supported by observed associations.",
+          "cites": [
+            "claim:story.text",
+            "rel:edge.z1.t",
+            "rel:no_edge.z1.y",
+            "probe:probe_1.ada891a32395.1",
+            "probe:probe_1.ada891a32395.2"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:517d7693e7e4",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y for the scoped dataset is 3.8202927347103692 outcome_units, with a 95 percent confidence interval of [3.5014438002307093, 4.146861053499547]. This estimate is derived from an instrumental variable approach, relying on the assumptions that the instrument z1 is as-if-random with respect to the outcome y given unmeasured confounders, and satisfies the exclusion restriction that z1 only affects y through t. The analysis included 586 treated and 614 control units.",
+          "caveats": [
+            "The instrumental variable approach relies on several strong assumptions, including consistency, no interference, exogeneity, and homogeneous additive effects, which are not directly verifiable from the data.",
+            "The weak instrument check, while passing with an F-statistic of 402.0050240773976, is a heuristic and does not definitively validate the instrument.",
+            "The graph independences test passed, but this is a diagnostic only and does not attribute causal edges or justify post-outcome redesign."
+          ],
+          "cites": [
+            "estimate:d05350ff92198.1_vs_0.value",
+            "estimate:d05350ff92198.1_vs_0.ci",
+            "design:d05350ff92198.confidence_level",
+            "design:d05350ff92198.target",
+            "design:d05350ff92198.assumptions",
+            "estimate:d05350ff92198.1_vs_0.counts",
+            "check:d05350ff92198.1_vs_0.weak_instrument",
+            "falsification:d05350ff92198.1_vs_0.graph_independences.passed",
+            "falsification:d05350ff92198.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:d05350ff92198.1_vs_0.data_subset_refuter.passed",
+            "falsification:d05350ff92198.1_vs_0.placebo_treatment_refuter.new_effect",
+            "falsification:d05350ff92198.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d05350ff92198.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d05350ff92198.1_vs_0.data_subset_refuter.p_value",
+            "falsification:d05350ff92198.1_vs_0.graph_independences.detail"
+          ],
+          "comparisons": []
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 88,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_iv_single-dowhy-1e5c8ef5.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/nde_protocol.json",
+    "context_id": "909f0bcfca542048a08946aa",
+    "dataset_identity": "8321d830f052d6eb6a7f7a37d8470a6009b74fedf404711e278c24a7afb25799",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_nde-dowhy-5c911084",
+    "trace_id": "01a13719-fec2-7d33-85ba-9af73e29bb67",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d6ff539bdcf4e"
+      ],
+      "executed_design_ids": [
+        "d6ff539bdcf4e"
+      ]
+    },
+    "endpoints": [
+      "mediation.linear_nde"
+    ],
+    "estimates": [
+      {
+        "design_id": "d6ff539bdcf4e",
+        "endpoint_id": "mediation.linear_nde",
+        "value": 1.9224196924634969,
+        "error": null,
+        "target": {
+          "type": "nde",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "natural_direct",
+          "mediator": "m",
+          "analysis_population_ids": {
+            "1_vs_0": "f3eb395c5395f067802d27fa"
+          },
+          "analysis_population_id": "f3eb395c5395f067802d27fa"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "mediation_two_stage"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:25264c39e2f6",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": null,
+          "uptake_column": null,
+          "self_selection": null,
+          "reason": "Treatment was assigned by a lottery. The rule for assignment is that rows are independently sampled people, and treatment t precedes numeric mediator m, which precedes continuous outcome y. All stages are additive and linear, with no treatment-mediator interaction. t may change m, and m may change y; the effect magnitudes are unknown. No hidden factors confound treatment-mediator or mediator-outcome after conditioning on treatment, and no treatment-induced mediator-outcome confounder exists. Treatment is randomized. Treatment may also directly change outcome. No hidden common causes exist. The natural direct and indirect effect magnitudes are unknown. No spillovers or missingness.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "col:t.when"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:b7b9fc7400fe",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The story explicitly states that treatment may directly change the outcome.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "m"
+          ],
+          "reason": "The causal structure includes a direct path from treatment (t) to outcome (y), in addition to the mediated path through m, as explicitly stated in the story. Treatment is randomized, and there are no unobserved confounders for the t-m or m-y relationships.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists",
+            "claim:mediator.sequential_ignorability",
+            "claim:mediator.no_treatment_confounder"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:b4887a6e07d2",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The natural direct effect of t on y, with m as the mediator, is estimated to be 1.9224196924634969 outcome_units [estimate:d6ff539bdcf4e.1_vs_0.value]. The 95 percent confidence interval for this effect is [1.7905766107400762, 2.0665170501368277] [estimate:d6ff539bdcf4e.1_vs_0.ci]. This estimate relies on assumptions including that m blocks all directed paths from t to y except the direct path, and sequential ignorability [design:d6ff539bdcf4e.assumptions].",
+          "caveats": [
+            "The graph independence falsification test did not provide a validity claim as no independences with zero or one conditioning variable were available [falsification:d6ff539bdcf4e.1_vs_0.graph_independences.detail]."
+          ],
+          "cites": [
+            "design:d6ff539bdcf4e.target",
+            "design:d6ff539bdcf4e.contrasts",
+            "design:d6ff539bdcf4e.confidence_level",
+            "design:d6ff539bdcf4e.assumptions",
+            "design:d6ff539bdcf4e.support",
+            "check:d6ff539bdcf4e.1_vs_0.arms",
+            "check:d6ff539bdcf4e.1_vs_0.mediator_numeric",
+            "check:d6ff539bdcf4e.1_vs_0.mediator_variation",
+            "estimate:d6ff539bdcf4e.1_vs_0.target",
+            "estimate:d6ff539bdcf4e.1_vs_0.counts",
+            "estimate:d6ff539bdcf4e.1_vs_0.value",
+            "estimate:d6ff539bdcf4e.1_vs_0.ci",
+            "estimate:d6ff539bdcf4e.1_vs_0.error",
+            "falsification:d6ff539bdcf4e.1_vs_0.data_subset_refuter.detail",
+            "falsification:d6ff539bdcf4e.1_vs_0.data_subset_refuter.passed",
+            "falsification:d6ff539bdcf4e.1_vs_0.data_subset_refuter.p_value",
+            "falsification:d6ff539bdcf4e.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d6ff539bdcf4e.1_vs_0.graph_independences.detail",
+            "falsification:d6ff539bdcf4e.1_vs_0.graph_independences.passed",
+            "rel:edge.m.y",
+            "rel:edge.t.m",
+            "rel:edge.t.y",
+            "rel:modifies.m.value",
+            "rel:modifies.t.value",
+            "rel:modifies.y.value",
+            "rel:no_edge.m.t",
+            "rel:outcome_measure.m.value",
+            "rel:when.m.value",
+            "rel:when.t.value",
+            "rel:when.y.value",
+            "run:design_count"
+          ],
+          "comparisons": []
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 69,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_nde-dowhy-5c911084.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/nie_protocol.json",
+    "context_id": "8c27c4ef1ef04b40810356d9",
+    "dataset_identity": "8321d830f052d6eb6a7f7a37d8470a6009b74fedf404711e278c24a7afb25799",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_nie-dowhy-862bf873",
+    "trace_id": "01a13718-e089-7ba0-bff1-fc4f211566e7",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d8044d73733a9"
+      ],
+      "executed_design_ids": [
+        "d8044d73733a9"
+      ]
+    },
+    "endpoints": [
+      "mediation.linear_nie"
+    ],
+    "estimates": [
+      {
+        "design_id": "d8044d73733a9",
+        "endpoint_id": "mediation.linear_nie",
+        "value": 3.0246726777940545,
+        "error": null,
+        "target": {
+          "type": "nie",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "natural_indirect",
+          "mediator": "m",
+          "analysis_population_ids": {
+            "1_vs_0": "20e5745fdf1ba77c89f5e9eb"
+          },
+          "analysis_population_id": "20e5745fdf1ba77c89f5e9eb"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "mediation_two_stage"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:c3651dbdb7f6",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": "t",
+          "uptake_column": "t",
+          "self_selection": false,
+          "reason": "Treatment was assigned randomly.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:assignment.depends_on"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:838444b64794",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The story explicitly states that treatment may also directly change the outcome.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "m"
+          ],
+          "reason": "The problem describes a mediation scenario where treatment (t) precedes mediator (m), which in turn precedes outcome (y). The story explicitly states that t may also directly affect y, and that there are no unobserved confounders for any of the relationships.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists",
+            "claim:mediator.exists",
+            "claim:mediator.column",
+            "claim:mediator.linear_additive",
+            "claim:mediator.sequential_ignorability",
+            "claim:mediator.no_treatment_confounder",
+            "col:t.when",
+            "col:m.when",
+            "col:y.when"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:7c27a7d0cf9c",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The natural indirect effect of t through m on y is 3.0246726777940545 outcome_units (95% CI: 2.7924292479350075, 3.2322956256323305). This estimate relies on assumptions including mediation, first-stage unconfoundedness, and second-stage unconfoundedness. The design passed a data subset refuter test, but the graph independences test did not provide a validity claim.",
+          "caveats": [
+            "The graph independences falsification test did not provide a validity claim because no independences with zero or one conditioning variable were available.",
+            "Causal validity is not established by passing falsification tests.",
+            "The confidence interval is at a 95 percent confidence level."
+          ],
+          "cites": [
+            "estimate:d8044d73733a9.1_vs_0.value",
+            "estimate:d8044d73733a9.1_vs_0.ci",
+            "design:d8044d73733a9.confidence_level",
+            "design:d8044d73733a9.assumptions",
+            "falsification:d8044d73733a9.1_vs_0.data_subset_refuter.passed",
+            "falsification:d8044d73733a9.1_vs_0.graph_independences.detail"
+          ],
+          "comparisons": []
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 69,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_nie-dowhy-862bf873.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/randomized_protocol.json",
+    "context_id": "25279ec8eb042d681b8dc8dc",
+    "dataset_identity": "3c1f8ce1f4614c313e9f82db0e5b5e289fd18f1835d18fbdd3458942d555e934",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_randomized-dowhy-88f6862f",
+    "trace_id": "01a1371a-3513-7dd1-b297-418a3fc69a4d",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "dd3bfed5a0db6",
+        "d37b44838e2db",
+        "d55df8376a6b0"
+      ],
+      "executed_design_ids": [
+        "d37b44838e2db",
+        "d55df8376a6b0",
+        "dd3bfed5a0db6"
+      ]
+    },
+    "endpoints": [
+      "total.backdoor",
+      "total.general_adjustment",
+      "total.unadjusted"
+    ],
+    "estimates": [
+      {
+        "design_id": "dd3bfed5a0db6",
+        "endpoint_id": "total.backdoor",
+        "value": 4.910054682184841,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "8c183b97cf107b5ac45feefa"
+          },
+          "analysis_population_id": "8c183b97cf107b5ac45feefa"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "linear_regression"
+      },
+      {
+        "design_id": "d37b44838e2db",
+        "endpoint_id": "total.general_adjustment",
+        "value": 4.91218994902056,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "8c183b97cf107b5ac45feefa"
+          },
+          "analysis_population_id": "8c183b97cf107b5ac45feefa"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "general_linear"
+      },
+      {
+        "design_id": "d55df8376a6b0",
+        "endpoint_id": "total.unadjusted",
+        "value": 4.91218994902056,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "8c183b97cf107b5ac45feefa"
+          },
+          "analysis_population_id": "8c183b97cf107b5ac45feefa"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "linear_regression"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:d622f32383e9",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": null,
+          "uptake_column": null,
+          "self_selection": null,
+          "reason": "Treatment was randomly assigned.",
+          "cites": [
+            "claim:story.text",
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:assignment.depends_on",
+            "col:t.note",
+            "col:t.when"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:5e11ba1dc33d",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "Treatment is randomly assigned and explicitly stated to have an additive effect on the outcome.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "c",
+            "x"
+          ],
+          "reason": "The study design specifies random assignment of treatment and explicitly states that treatment may affect the outcome additively. Baseline covariates c and x are also stated to cause the outcome.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "pick_estimator_1:09d3194ea284",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "items": [
+            {
+              "design_id": "dd3bfed5a0db6",
+              "name": "linear_regression",
+              "reason": "The design identifies the average treatment effect (ATE) using an efficient adjustment method with covariates 'c' and 'x'. A linear regression model including the treatment 't' and the adjustment set ['c', 'x'] can directly estimate this ATE, assuming an additive linear outcome model. The checks confirm sufficient data and balance for this approach.",
+              "cites": [
+                "design:dd3bfed5a0db6.identification",
+                "estimator:linear_regression",
+                "check:dd3bfed5a0db6.1_vs_0.arms",
+                "check:dd3bfed5a0db6.1_vs_0.dimensionality"
+              ]
+            }
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:dd0df5661cf4",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y is consistently positive across all three designs, ranging from 4.910 to 4.912 outcome units. All designs assume unconfoundedness, consistency, and no interference, with a 95 percent confidence level for interval estimates. The designs differ in their adjustment sets for unconfoundedness, leading to slightly different estimates and sensitivity to unobserved confounders.",
+          "caveats": [
+            "The graph independence test is for diagnostic purposes only and does not attribute causal edges or justify redesign (falsification:dd3bfed5a0db6.1_vs_0.graph_independences.detail, falsification:d37b44838e2db.1_vs_0.graph_independences.detail, falsification:d55df8376a6b0.1_vs_0.graph_independences.detail).",
+            "Sensitivity analysis indicates that the estimated effects could be reduced by unobserved common causes (sensitivity:dd3bfed5a0db6.1_vs_0.add_unobserved_common_cause.detail, sensitivity:d55df8376a6b0.1_vs_0.add_unobserved_common_cause.detail)."
+          ],
+          "cites": [
+            "design:dd3bfed5a0db6.target",
+            "design:dd3bfed5a0db6.contrasts",
+            "design:dd3bfed5a0db6.confidence_level",
+            "design:dd3bfed5a0db6.assumptions",
+            "design:dd3bfed5a0db6.support",
+            "check:dd3bfed5a0db6.1_vs_0.arms",
+            "check:dd3bfed5a0db6.1_vs_0.overlap",
+            "check:dd3bfed5a0db6.1_vs_0.separation",
+            "check:dd3bfed5a0db6.1_vs_0.balance.c",
+            "check:dd3bfed5a0db6.1_vs_0.balance.x",
+            "check:dd3bfed5a0db6.1_vs_0.dimensionality",
+            "estimate:dd3bfed5a0db6.1_vs_0.value",
+            "estimate:dd3bfed5a0db6.1_vs_0.ci",
+            "falsification:dd3bfed5a0db6.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:dd3bfed5a0db6.1_vs_0.placebo_treatment_refuter.new_effect",
+            "falsification:dd3bfed5a0db6.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:dd3bfed5a0db6.1_vs_0.data_subset_refuter.passed",
+            "falsification:dd3bfed5a0db6.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:dd3bfed5a0db6.1_vs_0.data_subset_refuter.p_value",
+            "falsification:dd3bfed5a0db6.1_vs_0.graph_independences.passed",
+            "falsification:dd3bfed5a0db6.1_vs_0.graph_independences.p_value",
+            "sensitivity:dd3bfed5a0db6.1_vs_0.add_unobserved_common_cause.range",
+            "design:d37b44838e2db.target",
+            "design:d37b44838e2db.contrasts",
+            "design:d37b44838e2db.confidence_level",
+            "design:d37b44838e2db.assumptions",
+            "design:d37b44838e2db.support",
+            "check:d37b44838e2db.1_vs_0.arms",
+            "check:d37b44838e2db.1_vs_0.overlap",
+            "check:d37b44838e2db.1_vs_0.dimensionality",
+            "estimate:d37b44838e2db.1_vs_0.value",
+            "estimate:d37b44838e2db.1_vs_0.ci",
+            "falsification:d37b44838e2db.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:d37b44838e2db.1_vs_0.placebo_treatment_refuter.new_effect",
+            "falsification:d37b44838e2db.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d37b44838e2db.1_vs_0.data_subset_refuter.passed",
+            "falsification:d37b44838e2db.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d37b44838e2db.1_vs_0.data_subset_refuter.p_value",
+            "falsification:d37b44838e2db.1_vs_0.graph_independences.passed",
+            "falsification:d37b44838e2db.1_vs_0.graph_independences.p_value",
+            "design:d55df8376a6b0.target",
+            "design:d55df8376a6b0.contrasts",
+            "design:d55df8376a6b0.confidence_level",
+            "design:d55df8376a6b0.assumptions",
+            "design:d55df8376a6b0.support",
+            "check:d55df8376a6b0.1_vs_0.arms",
+            "check:d55df8376a6b0.1_vs_0.overlap",
+            "check:d55df8376a6b0.1_vs_0.dimensionality",
+            "estimate:d55df8376a6b0.1_vs_0.value",
+            "estimate:d55df8376a6b0.1_vs_0.ci",
+            "falsification:d55df8376a6b0.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:d55df8376a6b0.1_vs_0.placebo_treatment_refuter.new_effect",
+            "falsification:d55df8376a6b0.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d55df8376a6b0.1_vs_0.data_subset_refuter.passed",
+            "falsification:d55df8376a6b0.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d55df8376a6b0.1_vs_0.data_subset_refuter.p_value",
+            "falsification:d55df8376a6b0.1_vs_0.graph_independences.passed",
+            "falsification:d55df8376a6b0.1_vs_0.graph_independences.p_value",
+            "sensitivity:d55df8376a6b0.1_vs_0.add_unobserved_common_cause.range",
+            "rel:edge.c.y",
+            "rel:edge.x.y",
+            "rel:edge.t.y",
+            "rel:when.c.value",
+            "rel:when.x.value",
+            "rel:when.t.value",
+            "rel:when.y.value",
+            "rel:no_edge.c.t",
+            "rel:no_edge.t.c",
+            "rel:no_edge.x.t",
+            "rel:no_edge.t.x",
+            "rel:modifies.c.value",
+            "rel:modifies.x.value",
+            "rel:modifies.t.value",
+            "rel:modifies.y.value",
+            "rel:outcome_measure.c.value",
+            "rel:outcome_measure.x.value"
+          ],
+          "comparisons": [
+            "Design dd3bfed5a0db6, which adjusts for c and x, estimates an effect of 4.910 outcome units [estimate:dd3bfed5a0db6.1_vs_0.value].",
+            "Design d37b44838e2db, which does not adjust for c or x, estimates an effect of 4.912 outcome units [estimate:d37b44838e2db.1_vs_0.value].",
+            "Design d55df8376a6b0, which does not adjust for c or x, estimates an effect of 4.912 outcome units [estimate:d55df8376a6b0.1_vs_0.value]."
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 87,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_randomized-dowhy-88f6862f.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/unidentified_protocol.json",
+    "context_id": "7909bb480ca162c17cc63d26",
+    "dataset_identity": "e122e5dd1e449ce50a469a63ac0636ee84f34f458ec40cf98616205f99a8d6ca",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_unidentified-dowhy-9e8fb9d6",
+    "trace_id": "01a13720-36d9-7010-9ffa-f2353bf6b2de",
+    "status": "infeasible",
+    "terminal": {
+      "kind": "unidentified_effect",
+      "stage": "rivals",
+      "reason": "no executable endpoint identifies the requested target"
+    },
+    "endpoints": [],
+    "estimates": [],
+    "episodes": [
+      {
+        "node": "mechanism_1:e9f2b5bd4950",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": "None",
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. No measured common cause, instrument or mediator is available.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:story.text",
+            "col:t.note",
+            "col:t.when"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:a80e37c2223c",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "t",
+              "value": true,
+              "status": "supported",
+              "reason": "An unobserved common cause drives both uptake and outcome.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "An unobserved common cause drives both uptake and outcome.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "proposed",
+              "reason": "Treatment may affect outcome; its magnitude is unknown.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [],
+          "reason": "Hypotheses derived from the explicit statement of an unobserved common cause affecting both treatment and outcome, and the possibility of a direct treatment effect on the outcome.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "probe_1:0001fb2f9028",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "contested",
+              "reason": "An unobserved common cause drives both uptake and outcome, confounding the direct effect of t on y.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists",
+                "rel:edge.hidden:unmeasured.t",
+                "rel:edge.hidden:unmeasured.y"
+              ]
+            }
+          ],
+          "considered": [
+            "hidden:unmeasured"
+          ],
+          "reason": "The proposed direct edge from t to y is contested due to the presence of an unobserved common cause that influences both t and y, making a direct causal interpretation problematic.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists",
+            "rel:edge.hidden:unmeasured.t",
+            "rel:edge.hidden:unmeasured.y"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 64,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_unidentified-dowhy-9e8fb9d6.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/wald_protocol.json",
+    "context_id": "3120f84b3d68da74ec639853",
+    "dataset_identity": "a5d2448de8546c8b958ecee62c8cc572276ed7105a9e735cf8fa939fe60d002a",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_wald-dowhy-381a90f1",
+    "trace_id": "01a1371b-7f2b-7e83-9a46-f83e081ba08a",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "d97fec9709de0"
+      ],
+      "executed_design_ids": [
+        "d97fec9709de0"
+      ]
+    },
+    "endpoints": [
+      "iv.wald_late"
+    ],
+    "estimates": [
+      {
+        "design_id": "d97fec9709de0",
+        "endpoint_id": "iv.wald_late",
+        "value": 3.8621297274359936,
+        "error": null,
+        "target": {
+          "type": "late",
+          "population": "compliers for the stated instrument",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "local",
+          "instruments": [
+            "z"
+          ],
+          "analysis_population_ids": {
+            "1_vs_0": "3275270b93e4ebb06e247aec"
+          },
+          "analysis_population_id": "3275270b93e4ebb06e247aec"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "wald"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:28cde0b68fc7",
+        "tries": 1,
+        "refusals": [
+          {
+            "tool": "cells",
+            "args": {
+              "columns": [
+                "z",
+                "y"
+              ]
+            },
+            "reason": "refused: that would join the outcome 'y' with the treatment before the design is frozen; the effect is the run's to find, not a fact to choose the design by"
+          }
+        ],
+        "calls": 4,
+        "record": {
+          "drivers": [
+            "z"
+          ],
+          "offer_column": "z",
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment (t) is assigned based on a randomized binary offer (z). The offer is fixed before uptake, and no one takes treatment without an offer. There are compliers and never-takers, but no defiers, indicating self-selection into treatment based on the offer.",
+          "cites": [
+            "claim:assignment.depends_on",
+            "claim:assignment.kind",
+            "claim:story.text",
+            "col:t.note",
+            "col:z.note",
+            "col:z.when"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:68b9dc476e24",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The problem asks for the effect of t on y, and z is established as a valid instrument for t, implying a causal effect of t on y for the complier subpopulation.",
+              "cites": [
+                "claim:story.text",
+                "rel:edge.z.t",
+                "rel:no_edge.z.y"
+              ]
+            }
+          ],
+          "considered": [
+            "z"
+          ],
+          "reason": "The instrumental variable setup with z as an instrument for t, and t affecting y, supports a causal edge from t to y for the complier subpopulation.",
+          "cites": [
+            "claim:story.text",
+            "rel:edge.z.t",
+            "rel:no_edge.z.y"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:44ff780a580d",
+        "tries": 3,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "For compliers whose uptake of treatment t changes with instrument z, the Local Average Treatment Effect (LATE) of t on y is 3.8621297274359936 outcome_units (estimate:d97fec9709de0.1_vs_0.value). This estimate has a 95 percent confidence interval of [3.688783996059244, 4.073152188329196] (estimate:d97fec9709de0.1_vs_0.ci). The analysis relies on assumptions including \"As-if-random\" (If U\u2192\u2192y then \u00ac(U \u2192\u2192{z})) and \"Exclusion\" (If we remove {z}\u2192{treated}, then \u00ac({z}\u2192y)) (design:d97fec9709de0.assumptions).",
+          "caveats": [
+            "The instrument z is considered weak, as the first-stage F-statistic of 1671.5992872117374 (check:d97fec9709de0.1_vs_0.weak_instrument) is below the heuristic threshold of ten, which makes current percentile inference unsupported.",
+            "The graph independences test passed (falsification:d97fec9709de0.1_vs_0.graph_independences.passed) with a p-value of 0.09539705562488487 (falsification:d97fec9709de0.1_vs_0.graph_independences.p_value), indicating some potential for unexamined constraints.",
+            "The analysis population for the 1_vs_0 contrast consists of 1200 rows (design:d97fec9709de0.support), with 452 treated and 748 control observations (estimate:d97fec9709de0.1_vs_0.counts)."
+          ],
+          "cites": [
+            "estimate:d97fec9709de0.1_vs_0.value",
+            "estimate:d97fec9709de0.1_vs_0.ci",
+            "design:d97fec9709de0.assumptions",
+            "design:d97fec9709de0.target",
+            "check:d97fec9709de0.1_vs_0.weak_instrument",
+            "falsification:d97fec9709de0.1_vs_0.placebo_treatment_refuter.passed",
+            "falsification:d97fec9709de0.1_vs_0.placebo_treatment_refuter.new_effect",
+            "falsification:d97fec9709de0.1_vs_0.placebo_treatment_refuter.p_value",
+            "falsification:d97fec9709de0.1_vs_0.data_subset_refuter.passed",
+            "falsification:d97fec9709de0.1_vs_0.data_subset_refuter.new_effect",
+            "falsification:d97fec9709de0.1_vs_0.data_subset_refuter.p_value",
+            "falsification:d97fec9709de0.1_vs_0.graph_independences.passed",
+            "falsification:d97fec9709de0.1_vs_0.graph_independences.p_value",
+            "design:d97fec9709de0.confidence_level",
+            "design:d97fec9709de0.support",
+            "estimate:d97fec9709de0.1_vs_0.counts"
+          ],
+          "comparisons": [
+            "Design d97fec9709de0 estimates a LATE of 3.8621297274359936 outcome_units. The placebo treatment refuter passed with a new effect of 0.000682 (falsification:d97fec9709de0.1_vs_0.placebo_treatment_refuter.new_effect) and p-value of 0.98 (falsification:d97fec9709de0.1_vs_0.placebo_treatment_refuter.p_value), and the data subset refuter passed with a new effect of 3.87 (falsification:d97fec9709de0.1_vs_0.data_subset_refuter.new_effect) and p-value of 0.92 (falsification:d97fec9709de0.1_vs_0.data_subset_refuter.p_value)."
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 101,
+    "trace_gates": [
+      {
+        "name": "gate",
+        "errors": [
+          "number 20 does not match cited quantitative evidence within one percent"
+        ]
+      },
+      {
+        "name": "gate",
+        "errors": [
+          "number 1 does not match cited quantitative evidence within one percent"
+        ]
+      }
+    ],
+    "readback": "readbacks/protocol_wald-dowhy-381a90f1.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/weak_iv_protocol.json",
+    "context_id": "aa589d073564d7d513a3933b",
+    "dataset_identity": "2ae1a4142dca613e370549e9b5e7c26413d4e4b30c8968ad99c1f57753ae4b9a",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_weak_iv-dowhy-2e670f77",
+    "trace_id": "01a13721-db11-73f0-ae56-c7a1e7f1b488",
+    "status": "infeasible",
+    "terminal": {
+      "kind": "inadequate_support",
+      "stage": "check_design",
+      "reason": "every identified design failed a support, assumption or estimator check"
+    },
+    "endpoints": [],
+    "estimates": [],
+    "episodes": [
+      {
+        "node": "mechanism_1:82eba08d1c39",
+        "tries": 2,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [
+            "z1"
+          ],
+          "offer_column": null,
+          "uptake_column": "t",
+          "self_selection": true,
+          "reason": "Treatment `t` is self-selected. It is driven by a hidden, unobserved factor `u` and influenced by the randomized numeric instrument `z1`. The column `t` represents the actual uptake of the treatment.",
+          "cites": [
+            "claim:story.text",
+            "claim:assignment.kind",
+            "claim:assignment.depends_on",
+            "change:1.note"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:f480203c8523",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [
+            {
+              "kind": "edge",
+              "src": "t",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "The question asks for the effect of t on y, implying a causal link.",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "t",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives treatment.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "edge",
+              "src": "hidden:unmeasured",
+              "dst": "y",
+              "value": true,
+              "status": "supported",
+              "reason": "Hidden u drives outcome.",
+              "cites": [
+                "claim:story.text",
+                "claim:unobserved.exists"
+              ]
+            },
+            {
+              "kind": "no_edge",
+              "src": "hidden:unmeasured",
+              "dst": "z1",
+              "value": false,
+              "status": "supported",
+              "reason": "z1 is independent of hidden u.",
+              "cites": [
+                "claim:story.text",
+                "claim:exclusion.exogenous"
+              ]
+            },
+            {
+              "kind": "no_edge",
+              "src": "z1",
+              "dst": "hidden:unmeasured",
+              "value": false,
+              "status": "supported",
+              "reason": "z1 is independent of hidden u.",
+              "cites": [
+                "claim:story.text",
+                "claim:exclusion.exogenous"
+              ]
+            },
+            {
+              "kind": "no_edge",
+              "src": "c",
+              "dst": "z1",
+              "value": false,
+              "status": "supported",
+              "reason": "c is an unrelated baseline measurement.",
+              "cites": [
+                "claim:story.text"
+              ]
+            },
+            {
+              "kind": "no_edge",
+              "src": "z1",
+              "dst": "c",
+              "value": false,
+              "status": "supported",
+              "reason": "c is an unrelated baseline measurement.",
+              "cites": [
+                "claim:story.text"
+              ]
+            }
+          ],
+          "considered": [
+            "z1",
+            "c"
+          ],
+          "reason": "Established causal graph based on the provided story, including the hidden confounder 'u' and the instrument 'z1'.",
+          "cites": [
+            "claim:story.text",
+            "claim:unobserved.exists",
+            "claim:exclusion.exists",
+            "claim:exclusion.column",
+            "claim:exclusion.why",
+            "claim:exclusion.exogenous"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 64,
+    "trace_gates": [
+      {
+        "name": "gate",
+        "errors": [
+          "unknown driver u"
+        ]
+      }
+    ],
+    "readback": "readbacks/protocol_weak_iv-dowhy-2e670f77.txt"
+  },
+  {
+    "fixture": "causal_agent/families/adjustment/evals/handoffs/zero_protocol.json",
+    "context_id": "e6845b1ddef03c4e6afce23b",
+    "dataset_identity": "7b8c4add4a5b3ef4a7ca7aa061f088b53c98a959d1fbeffc7a10aa55fbddb1b5",
+    "admission_contract": "b6f1e723569374947b89",
+    "run_dir": ".artifacts/runs/protocol_zero-dowhy-dbd6b605",
+    "trace_id": "01a1371f-1987-7091-b2f2-b83de0867be5",
+    "status": "done",
+    "terminal": {
+      "kind": "valid_design",
+      "stage": "assemble",
+      "design_ids": [
+        "dee7ee6c5fc42"
+      ],
+      "executed_design_ids": [
+        "dee7ee6c5fc42"
+      ]
+    },
+    "endpoints": [
+      "structural.zero"
+    ],
+    "estimates": [
+      {
+        "design_id": "dee7ee6c5fc42",
+        "endpoint_id": "structural.zero",
+        "value": 0.0,
+        "error": null,
+        "target": {
+          "type": "ate",
+          "population": "scoped dataset",
+          "outcome": "y",
+          "scale": "outcome_units",
+          "scope": "average",
+          "analysis_population_ids": {
+            "1_vs_0": "cc1e272dc0d3d11dc8d610b3"
+          },
+          "analysis_population_id": "cc1e272dc0d3d11dc8d610b3"
+        },
+        "modifier": null,
+        "level": null,
+        "method": "structural_zero"
+      }
+    ],
+    "episodes": [
+      {
+        "node": "mechanism_1:229f49c2ab17",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "drivers": [],
+          "offer_column": null,
+          "uptake_column": null,
+          "self_selection": null,
+          "reason": "Treatment t was assigned randomly, as a lottery. There are no specific drivers for the assignment.",
+          "cites": [
+            "claim:assignment.kind",
+            "claim:assignment.rule",
+            "claim:assignment.depends_on",
+            "col:t.when"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "relate_1:797967edf612",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "entries": [],
+          "considered": [
+            "c"
+          ],
+          "reason": "All causal relationships and their absence, as described in the story, are already confirmed in the ledger.",
+          "cites": [
+            "claim:story.text"
+          ]
+        },
+        "errors": [],
+        "look_notes": null
+      },
+      {
+        "node": "interpret_1:f55c223275fe",
+        "tries": 1,
+        "refusals": [],
+        "calls": 0,
+        "record": {
+          "answer": "The estimated average treatment effect of t on y is 0.0 outcome units, based on a structural zero estimate. This estimate is derived from the explicit assumption that there is no direct causal path from t to y, as confirmed by the relationship information.",
+          "caveats": [
+            "The zero effect is a structural assumption, not an empirically measured value that happened to be zero. It relies on the explicit assumption of no direct edge from t to y.",
+            "The causal validity relies on the explicit graph assumptions, including consistency, no interference, and the supported absence of all directed treatment-outcome paths, not merely omitted edges."
+          ],
+          "cites": [
+            "design:dee7ee6c5fc42.target",
+            "design:dee7ee6c5fc42.contrasts",
+            "design:dee7ee6c5fc42.confidence_level",
+            "design:dee7ee6c5fc42.assumptions",
+            "design:dee7ee6c5fc42.support",
+            "check:dee7ee6c5fc42.1_vs_0.arms",
+            "estimate:dee7ee6c5fc42.1_vs_0.target",
+            "estimate:dee7ee6c5fc42.1_vs_0.counts",
+            "estimate:dee7ee6c5fc42.1_vs_0.value",
+            "estimate:dee7ee6c5fc42.1_vs_0.error",
+            "rel:no_edge.t.y"
+          ],
+          "comparisons": []
+        },
+        "errors": [],
+        "look_notes": null
+      }
+    ],
+    "trace_spans": 69,
+    "trace_gates": [],
+    "readback": "readbacks/protocol_zero-dowhy-dbd6b605.txt"
+  }
+]

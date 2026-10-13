@@ -1,9 +1,9 @@
 """Data facts about the columns in play, computed by code before any run so the pack carries the numbers a reasoning would
 otherwise have to ask for: each candidate by arm, the associations among candidates, which pairs are redundant or nested, how
-each candidate stands to the outcome, and every column's timing in one line. Each fact is a `ProbeResult` under the family
+every column's timing in one line. Each fact is a `ProbeResult` under the family
 name `data`, addressed `probe:data.<name>`, with no threshold and no verdict.
 
-One rule, kept here and not in a prompt: no fact joins the outcome with the treatment. The effect is the run's to find.
+Outcome associations belong to the lane's permitted diagnostic phase, never to shared context preparation.
 """
 
 from __future__ import annotations
@@ -138,10 +138,6 @@ def facts(df: pd.DataFrame, memory: Memory, table: ClaimTable, *, outcome: str |
     for c in cands:
         if treated is not None:
             out.append(_by_arm(df[c], treated, c))
-        if oc is not None:
-            v, how = association(df[c], df[oc])
-            if v is not None:
-                out.append(_fact(f"with_outcome.{_key(c)}", f"{c!r} against the outcome {oc!r}: {how} {v:.2f}", v))
     quiet: list[str] = []
     for a, b in combinations(cands[:MAX_COVARIATES], 2):  # the pairwise facts stop here; every column gets its own
         v, how = association(df[a], df[b])

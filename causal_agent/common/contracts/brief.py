@@ -9,8 +9,6 @@ from pydantic import BaseModel, Field
 
 from causal_agent.common.contracts.base import Cited
 
-Road = Literal["backdoor", "frontdoor", "iv"]
-
 
 class DecisionMade(BaseModel):
     """One of the family's decisions, decided for this dataset."""
@@ -29,11 +27,10 @@ class DecisionMade(BaseModel):
 
 
 class DesignBrief(BaseModel):
-    """What the design rests on: the family, the road when the family has roads, the target, every decision the family lists,
+    """What the design rests on: the family, the requested target, every decision the family lists,
     the threats with their cites, the checks that would show them, and the one sentence the design bets on."""
 
     family: str
-    road: Road | None = Field(default=None, description="the identification road, for a family that has roads; null otherwise")
     target: Literal["average", "treated"] = "average"
     decisions: list[DecisionMade]
     threats: list[Cited] = Field(default_factory=list, description="what would break the design, each cited")
@@ -44,14 +41,10 @@ class DesignBrief(BaseModel):
         return next((d for d in self.decisions if d.name == name), None)
 
     def lines(self) -> list[tuple[str, str]]:
-        """Every line with its address, in the order the brief reads. A family with a decision named road says the road on that
-        decision's line, first; one without gets a road line of its own only when a road is set."""
+        """Every endpoint decision with its context addresses, followed by target, checks and assumptions."""
         out = []
         for d in self.decisions:
-            head = f"{self.road}: " if d.name == "road" and self.road is not None else ""
-            out.append((d.address, f"{head}{d.choice} (rests on {', '.join(f'[{a}]' for a in d.rests_on)}): {d.reason}"))
-        if self.road is not None and self.decision("road") is None:
-            out.append(("design.brief.road", self.road))
+            out.append((d.address, f"{d.choice} (rests on {', '.join(f'[{a}]' for a in d.rests_on)}): {d.reason}"))
         out.append(("design.brief.target", self.target))
         for i, t in enumerate(self.threats, start=1):
             out.append((f"design.brief.threat:{i}", f"{t.reason} (cites {', '.join(f'[{a}]' for a in t.cites)})"))

@@ -24,5 +24,6 @@ FAMILY = FamilyDef(
     design_cls=design.DidDesign,
     design_block=handoff.design_block,
     probes=probes.probes,
+    context_facts=probes.context_facts,
     lane=_lane,
 )

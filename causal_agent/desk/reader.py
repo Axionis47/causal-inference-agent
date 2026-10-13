@@ -45,6 +45,8 @@ def kind_errors(out: Reading, *, from_note: bool) -> list[str]:
     errors = []
     if out.kind != "update" and (out.updates or out.confirms or out.unknown):
         errors.append(f"kind is {out.kind} but the reading carries writes; a message that says anything about the data is update")
+    if out.kind == "run" and out.focus is not None:
+        errors.append("a run instruction cannot also change family restrictions; record the focus change before authorizing the new snapshot")
     if out.kind == "explore" and not (out.explore or "").strip():
         errors.append("kind is explore but explore is empty; say what to look at, in the person's words")
     if out.kind == "ask" and not (out.question or "").strip():

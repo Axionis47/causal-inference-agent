@@ -1,113 +1,38 @@
-# families/discontinuity: the rdrobust lane
+# Discontinuity
 
-Effect of a change that a line on a measured score decided. The desk hands the lane a pack; the lane builds a canonical cutoff
-table, freezes a design, fits it on rdrobust, runs the falsifications, and writes a report or an honest stop.
+The desk admits a fixed context against `lane/knowledge/endpoints.yaml`. The lane validates the admitted context identity and CSV digest, reasons about the admitted account and diagnostics, freezes every surviving supported design, then executes and explains each one.
 
-```
-load ─ case ─ score ─ shape_table ─ line ─ covariates ─ merge_covariates ─ verify ─ heterogeneity ─ threats ─ check_design
-     ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret ─ figures ─ assemble
-any typed stop, or a question back to the desk ────────────────────────────▶ feasibility ─ figures ─ assemble
-```
+## Endpoints
 
-K is the placebos the catalogue declares. `score`, `shape_table`, `line`, `covariates`, `heterogeneity` and `threats` are the rungs
-of the ladder (`lane/contracts.py`, `Ladder`), and `freeze_design` adds the window rung by code: the score and the line, the shape
-of the two sides, whether the line is clean and what could break it, the candidate covariates placed together, where the effect
-at the cutoff could differ, the risks, how wide the window is. A rung is code where the pack settles it and a bounded episode where
-it does not, with the data tools and the budgets `knowledge/checks.yaml` declares.
+| Endpoint | Target |
+|---|---|
+| sharp_local_polynomial | assignment effect at the cutoff |
+| fuzzy_local_polynomial | receipt effect for compliers at the cutoff |
+| eligibility_local_polynomial | eligibility ITT at the cutoff |
+| sharp_local_randomisation | assignment effect inside the fixed window |
+| fuzzy_local_randomisation | complier effect inside the fixed window |
+| eligibility_local_randomisation | eligibility ITT inside the fixed window |
 
-## How it sits on rdrobust and rddensity
+A covariate adjustment is a design specification. Kernel, polynomial order, bandwidth, variance and conventional/BC/RBC row changes are sensitivity records. They are not different causal endpoints. Cutoff effects, window effects, receipt effects and eligibility effects are never pooled as interchangeable agreement.
 
-- **Canonical inputs.** `lane/shape.py` produces `y, x, side`, plus `t` when a column records receipt, `cluster` when the pack declares
-  an entity, and every numeric candidate covariate. `x` is the score recentred on the cutoff and flipped so the treated side is
-  positive, so every fit, check and placebo is written for one geometry. When the notes say a unit exactly at the cutoff is control,
-  the effective cutoff moves to the midpoint before the next distinct treated score, and the shift is a recorded fact.
-- **Local polynomial spec.** `knowledge/estimators.yaml` holds named specs with the standard defaults pinned: local linear,
-  triangular kernel, mass points adjusted. How far from the line the fit reaches is the window rung's judgement, not a parameter of
-  the spec.
-- **The window.** After the estimator is picked, code builds the table of every width selector the library offers
-  (`checks.yaml window.selectors`), the width each gives on each side and the rows it leaves inside; a judgement picks one by
-  name, the default (`mserd`) unless the density, the balance or the sides argue for another, and the gate holds the floor on
-  rows a side and the citation a departure needs. When the score has fewer distinct values than `checks.yaml` declares there is
-  nothing to judge: `h` keeps three support points a side and the design says so. The primary fits in the chosen window on both
-  sides; a refit on other rows re-selects with the same selector, or keeps the pinned window when the rule has no selector.
-- **Local randomisation.** For a score with few distinct values (below `checks.yaml support.distinct_min`) the catalogue offers
-  `local_randomisation` on rdlocrand: the window rung takes the largest window in which the predetermined covariates stay
-  balanced (or the support-points window when there are none), the estimate is the difference in means inside it (the
-  Anderson-Rubin statistic and the Wald ratio when take-up is partial), the p-value comes from reshuffling the sides and the
-  interval from inverting that test over a grid. Its own sensitivities run instead of the polynomial falsifications: the estimate
-  across narrower and wider windows, and Rosenbaum bounds on the p-value.
-- **Inference.** `knowledge/inference.yaml`, by facts: the point estimate from the conventional row, the interval from the
-  robust bias-corrected row; clustered by the entity column when one exists, with the Bell-McCaffrey correction (cr2) when
-  there are fewer clusters than `checks.yaml` trusts, which the `few_clusters` check also flags. Take-up that varies on one side
-  only is passed to the library as `sharpbw`, so it selects the width as for a sharp design, and the `one_sided_takeup` check
-  says so. No model call.
-- **Evidence before the judgement.** The density rung (`checks.density_evidence`) runs rddensity once with the settings
-  `checks.yaml` declares, splits the rows in nested windows either side of the line and tests each split as a coin toss, and
-  writes the histogram; the line rung reads it from the ladder and its gate holds a clean verdict to it.
-- **Balance before placement.** The balance rung (`checks.balance_evidence`) fits every numeric candidate's jump at the line and
-  every category's share difference within the density's window before the covariates rung places them; the continuity check
-  reads the rung for the columns the design keeps.
-- **Validation.** `lane/checks.py` computes the pre-estimate facts: rows and effective rows a side, the density flag (read off the rung;
-  the score's recorded orientation), mass points, support, compliance and the first stage, and continuity of every predetermined
-  covariate at the cutoff. `knowledge/placebos.yaml` declares what runs after the estimate: placebo cutoffs on each side's own rows,
-  the bandwidth grid, donuts, and two sensitivities with a range and no verdict, the polynomial order and the kernel at the
-  design's window. Each reports its effective rows and counts as uninformative below the declared floor. A placebo entry applies by
-  facts of the frozen design (the engine, the kind, the window rule), and every field it declares is read by code: a test greps
-  for it, so no yaml line is a promise the lane does not keep.
-- **The plot.** `rdplot`'s bins are written to `bins.csv`; `postviz.py` draws the outcome against the score from them.
+## Boundaries
 
-## The rule every node follows
+- `reason/` reads decision-specific views and writes the evidence ledger, endpoint judgements, candidates and immutable designs. It never imports effect-fitting or post-estimate modules.
+- `engine/` owns canonical tables, diagnostics, selectors and installed library operations. Diagnostics cannot certify causal assumptions.
+- `execute.py` reads only one frozen design and canonical table, verifies its fingerprint and row set, then fits and runs declared falsifications/sensitivities. It cannot return to reasoning.
+- `artifacts.py` reads the recorded context/ledger/designs/results, gates explanations, groups target-equivalent results and writes reports and figures.
+- `nodes.py` is the registry used by the declared ladder.
 
-- **Facts**: `load`, `case`, `shape_table`, `merge_covariates`, `verify`, `threats`, `check_design`, `freeze_design`, `estimate`, `placebo`,
-  `figures`, `assemble`. Declared inputs; a failed assumption is a typed stop.
-- **Judgements**, bounded episodes or single calls, cited and gated: `score`, `line`, `covariates`, `heterogeneity` (episodes,
-  each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung never asks the person beyond an
-  incomplete rule; what it would not guess is a flag.
-- **Gates that end a judgement on a fact**: a side the take-up shares contradict stops at `score`; a take-up jump that covers zero is
-  a hard `no_first_stage` flag; `assess` cannot proceed without citing every flag, nor over a density or continuity flag without citing
-  a note; `interpret` must state the estimand, bandwidth, effective rows and interval the design holds.
-- **The pack is weighed first** by the harness's `case`; the person's beliefs become flags by `knowledge/beliefs.yaml`.
-- **The model never touches the libraries.** `lane/adapter.py` is the only file that imports them.
+Score, cutoff, side and equality are human-context requirements. The lane cannot invent them or interview the person. Missing admitted facts are a typed context deficiency returned to the desk. The score can be fixed at assignment, provided it precedes the causal treatment period; a score established after treatment is invalid.
 
-## Files
+The desk also confirms the requested cutoff or window locality and, under fuzzy compliance, the receipt or eligibility comparison. Lead selection records exact target alignment, assumption support, support flags, declared estimator rank and stable design ID before any effect fit. A different target remains a companion. If no surviving design matches the request, there is no replacement lead and the requested target is explicitly unidentified.
 
-```
-family.yaml  design.py  handoff.py  probes.py  postviz.py
-lane/        graph.py, nodes.py, prompts.py, contracts.py, state.py, adapter.py, checks.py, shape.py
-lane/knowledge  estimators.yaml, inference.yaml, placebos.yaml, checks.yaml, beliefs.yaml
-evals/  tests/
-```
+Local randomisation can apply to dense or coarse scores, when the person has admitted its identifying account. Its window uses predetermined covariates and score support only. Passing balance does not prove random assignment. Clustered observations are unsupported by the row-permutation adapter.
 
-A run leaves `table.csv`, `canon.csv`, `scores.csv`, `design.json`, `design.md`, `bins.csv`, `artifacts.json`, `figures.json` and
-`report.md` under `.artifacts/runs/<dataset>-rd-<id>/`.
+Polynomial bandwidth selection is deterministic under a predeclared specification. Its engine may use the outcome to compute bandwidths, but the reasoning sees only selected widths, counts and diagnostics. Covariate continuity and uptake first-stage selectors use their own diagnostic response, never outcome-derived diagnostic bandwidths.
 
-## Run it
+The primary polynomial result pairs the robust bias-corrected estimate, standard error, interval and p-value. Clustering uses explicit CR1/CR2/CR3 capabilities. The randomisation result preserves connected components of its grid-inverted confidence set. An accepted outer grid point is an unresolved tail, never a falsely finite bound. Weak uptake can leave receipt unresolved while eligibility remains estimable.
 
-```bash
-uv run python -m causal_agent.evals.lane discontinuity gov_transfers "Did receiving the transfer raise support for the government?"
-```
+The result contains `designs`, `lead_design_id`, `ledger`, `candidates`, `candidate_history`, `terminal`, `estimates`, `falsifications`, `sensitivities`, `interpretations`, `checks`, `feasibility`, `context_deficiency`, `figures`, `ladder` and addressed `facts`. Every execution record carries its design identity. Every accepted ledger change and every episode attempt remains available.
 
-```bash
-uv run pytest causal_agent/families/discontinuity -q
-```
-
-## Library facts the code leans on (rdrobust 2.0.0, rddensity 3.0)
-
-- `rdbwselect` takes no `level` argument; called with the same settings as the fit, its `mserd` row equals the fit's bandwidths.
-- Passing `h` and `b` together keeps `b`; passing `h` alone resets `b = h`. The grid holds `b`.
-- A cutoff not strictly inside the scores raises a plain `Exception`; fewer than 20 rows raises a `TypeError`; an empty side raises a
-  `LinAlgError`. The adapter maps every exception to a typed fit error.
-- "Mass points detected" is printed, not warned; the adapter captures stdout. Spurious matmul warnings on macOS are silenced and
-  finiteness checked instead.
-- `rddensity` fills only `t_jk` and `p_jk` under its default variance; its `p` underflows to 0 for large statistics; `repr` prints
-  and warns, so it is never called. Its regularisation floor is 23 rows a side.
-- A take-up column that is a step function of the side cannot be fitted as a first stage; the lane records it from the shares.
-- `rdlocrand` 2.0 (local randomisation): `rdwinselect`, `rdrandinf` and `rdrbounds` return dicts; `rdwinselect` recommends no
-  window without covariates; `rdrandinf` takes a fuzzy design as `[take_up, "ar"]` (a bare array breaks it) and its own `ci`
-  option and `rdsensitivity` do not run in this port, so the adapter inverts the randomisation test over a grid itself; window
-  lists must be numpy arrays; a window needs `wl < wr`.
-
-## Known limits
-
-- One cutoff. Many cutoffs (`rdmulti`), a kink design (`deriv=1`) and sampling weights each need a claim the interview does not ask.
-- Rows with a missing outcome, score or take-up value are dropped at `shape_table` and counted.
+Regression kink and multiple cutoffs are explicitly unsupported: the installed derivative option does not supply the missing continuous-dose policy context, identification contract or benchmark.

@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from causal_agent.explore.tools import CodeTools
 
 RESERVED = ("table", "figure")  # address segments the artifact keeps for its own products
+COLUMN_METHODS = {"groupby", "get", "pop", "drop", "dropna", "sort_values", "set_index", "filter", "pivot", "pivot_table", "melt"}
+COLUMN_KEYWORDS = {"by", "columns", "subset", "on", "index", "values", "id_vars", "value_vars", "x", "y", "hue"}
 
 
 def not_a_script(code: str) -> str:
@@ -31,8 +33,37 @@ def not_a_script(code: str) -> str:
 
 
 def names_dropped_column(code: str, name: str | None) -> str:
-    """Why the script may not run: it names the column held back until the design has run."""
-    if name and mentions(code, name):
+    """Reject exact column literals or attributes, not substrings of Python names. Projection is the data fence."""
+    if not name:
+        return ""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return not_a_script(code)
+
+    def literal(node: ast.AST) -> bool:
+        return any(isinstance(part, ast.Constant) and isinstance(part.value, str) and part.value == name for part in ast.walk(node))
+
+    def selects(node: ast.AST) -> bool:
+        if isinstance(node, ast.Subscript):
+            return literal(node.slice)
+        if isinstance(node, ast.Attribute):
+            return node.attr == name
+        if not isinstance(node, ast.Call):
+            return False
+        if any(keyword.arg in COLUMN_KEYWORDS and literal(keyword.value) for keyword in node.keywords):
+            return True
+        if isinstance(node.func, ast.Attribute):
+            if node.func.attr in COLUMN_METHODS:
+                return any(literal(arg) for arg in node.args)
+            if node.func.attr in {"query", "eval"}:
+                return any(isinstance(arg, ast.Constant) and isinstance(arg.value, str) and mentions(arg.value, name) for arg in node.args)
+        if isinstance(node.func, ast.Name) and node.func.id == "getattr" and len(node.args) > 1:
+            return literal(node.args[1])
+        return False
+
+    named = any(selects(node) for node in ast.walk(tree))
+    if named:
         return f"the script names {name!r}, which is not in the table you were given: it is held back until the design has run"
     return ""
 

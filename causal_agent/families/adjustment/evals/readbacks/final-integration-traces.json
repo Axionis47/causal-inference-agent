@@ -1,0 +1,88 @@
+[
+  {
+    "label": "protocol_backdoor-dowhy-86d3cf46",
+    "trace_id": "01a13759-7c29-7600-9d9b-f10eef6c07cc",
+    "span_count": 87,
+    "errors": [],
+    "gate_refusals": []
+  },
+  {
+    "label": "corrected-result-interpretation",
+    "trace_id": "01a13759-6af8-7e00-85c1-0e515c306dac",
+    "span_count": 16,
+    "errors": [],
+    "gate_refusals": []
+  },
+  {
+    "label": "final-support-interpretation",
+    "trace_id": "01a1375d-911b-7aa0-b610-4ab3275f3f71",
+    "span_count": 16,
+    "errors": [],
+    "gate_refusals": []
+  },
+  {
+    "label": "endpoint_policy_release-dowhy-a7c7a7b9",
+    "trace_id": "01a13766-2216-72d1-ad6b-4c441b27e193",
+    "span_count": 103,
+    "errors": [],
+    "gate_refusals": []
+  },
+  {
+    "label": "protocol_conditional-dowhy-9b8731d3",
+    "trace_id": "01a13774-4823-7ed3-8af0-2ac048fd1006",
+    "span_count": 76,
+    "errors": [
+      {
+        "name": "episode:relate_1",
+        "error": "no record passed the gate in 3 tries: modifies value must be true or false; cannot overwrite the confirmed source assertion rel:modifies.x.value; retain it and name a separate conflict; rel:modifies.x.value: a model or statistical test cannot erase a confirmed account"
+      }
+    ],
+    "gate_refusals": [
+      [
+        "modifies value must be true or false"
+      ],
+      [
+        "modifies value must be true or false",
+        "cannot overwrite the confirmed source assertion rel:modifies.x.value; retain it and name a separate conflict",
+        "rel:modifies.x.value: a model or statistical test cannot erase a confirmed account"
+      ],
+      [
+        "modifies value must be true or false",
+        "cannot overwrite the confirmed source assertion rel:modifies.x.value; retain it and name a separate conflict",
+        "rel:modifies.x.value: a model or statistical test cannot erase a confirmed account"
+      ]
+    ]
+  },
+  {
+    "label": "protocol_conditional-dowhy-a349a942",
+    "trace_id": "01a13776-813a-7f01-94bc-9b7201388481",
+    "span_count": 89,
+    "errors": [],
+    "gate_refusals": []
+  },
+  {
+    "label": "conditional-primary-interpretation",
+    "trace_id": "01a13779-5077-7bb0-b96a-0de1cc9fcf1c",
+    "span_count": 16,
+    "errors": [],
+    "gate_refusals": []
+  },
+  {
+    "label": "protocol_conditional-dowhy-2fc77fdb",
+    "trace_id": "01a13780-5fd9-7553-9854-c3b0ab075bee",
+    "span_count": 86,
+    "errors": [],
+    "gate_refusals": [
+      [
+        "consider exactly these non-pair raw column keys: ['x']"
+      ]
+    ]
+  },
+  {
+    "label": "backdoor-model-interpretation",
+    "trace_id": "01a13783-8c4b-70b0-aa52-0778eab2358f",
+    "span_count": 16,
+    "errors": [],
+    "gate_refusals": []
+  }
+]

@@ -70,7 +70,7 @@ def test_a_unit_that_leaves_the_treatment_is_a_typed_stop():
 
 def test_an_adoption_column_from_the_pack_sets_the_cohorts():
     df = one_shot(n_units=9)
-    adopt = {"u0": 3, "u1": 3, "u2": 5, "u3": 5, "u4": 0, "u5": np.nan, "u6": 99, "u7": 0, "u8": 0}  # 99 lies after the span: never within it
+    adopt = {"u0": 3, "u1": 3, "u2": 5, "u3": 5, "u4": 0, "u5": 0, "u6": 99, "u7": 0, "u8": 0}  # 99 lies after the span: never within it
     df["adopt"] = df["unit"].map(adopt)
     df["arm"] = "no"
     panel, f = SH.canonical(df, GROUPS, PERIODS, "y", [], unit_column="unit", cohort_column="adopt")
@@ -106,3 +106,10 @@ def test_everyone_treated_at_once_leaves_nothing_to_compare_and_a_wide_table_kee
         and set(panel.loc[panel["treated"] == 1, "cohort"]) == {2}
         and set(panel.loc[panel["treated"] == 0, "rel_time"]) == {-1}
     )
+
+
+def test_missing_adoption_is_not_invented_as_never_treated():
+    df = one_shot(n_units=9)
+    df["adopt"] = df["unit"].map({"u0": 3, "u1": 3, "u2": 5, "u3": 5, "u4": 0, "u5": np.nan, "u6": 99, "u7": 0, "u8": 0})
+    with pytest.raises(SH.ShapeError, match="missing assignment"):
+        SH.canonical(df, GROUPS, PERIODS, "y", [], unit_column="unit", cohort_column="adopt")

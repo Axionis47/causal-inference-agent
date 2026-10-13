@@ -29,7 +29,8 @@ def test_brief_renders_every_field_with_status_source_and_said():
     assert {b.key for b in h.columns} >= {"reading_score", "writing_score", "race_ethnicity"}
     assert h.facts["col:lunch.set_by"].status == "confirmed" and h.facts["col:lunch.set_by"].value == "the district"
     assert h.facts["col:gender.stands_for"].status == "drafted" and h.status("col:gender.feeds_treatment") == "empty"
-    assert any(p.name == "with_outcome.reading_score" for p in h.probes), "the data facts cover every carried column"
+    assert not any(p.name.startswith("with_outcome.") for p in h.probes)
+    assert any(p.name == "timing" for p in h.probes)
 
 
 def test_unknowns_and_contradictions_reach_the_lane():
@@ -74,9 +75,8 @@ def test_a_forced_handoff_has_no_brief_and_a_built_one_bets_on_the_briefs_senten
     assert h.brief is None and "DESIGN BRIEF\n(no design brief)" in h.render_context() and not h.resolve("design.brief.bets_on")
     brief = DesignBrief(
         family="adjustment",
-        road="backdoor",
         decisions=[
-            DecisionMade(name="who_is_treated", choice="completed against none", rests_on=["claim:assignment.treated_level"], reason="the file says so")
+            DecisionMade(name="total.backdoor", choice="completed against none", rests_on=["claim:assignment.treated_level"], reason="the file says so")
         ],
         threats=[Cited(reason="a hidden driver of both", cites=["claim:unobserved.exists"])],
         checks=["balance on lunch"],
@@ -88,7 +88,7 @@ def test_a_forced_handoff_has_no_brief_and_a_built_one_bets_on_the_briefs_senten
     h2 = H.build(question="q", frame=fr, decision=decision, family=R.family("adjustment"), memory=m, brief=brief)
     assert h2.chosen_assumption == "nothing beyond lunch drove both" and h2.brief == brief
     ctx = h2.render_context()
-    assert "DESIGN BRIEF\n[design.brief.who_is_treated] completed against none (rests on [claim:assignment.treated_level]): the file says so" in ctx
-    assert "[design.brief.road] backdoor" in ctx and "[design.brief.threat:1] a hidden driver of both (cites [claim:unobserved.exists])" in ctx
+    assert "DESIGN BRIEF\n[design.brief.total.backdoor] completed against none (rests on [claim:assignment.treated_level]): the file says so" in ctx
+    assert "[design.brief.threat:1] a hidden driver of both (cites [claim:unobserved.exists])" in ctx
     assert "[design.brief.check:1] balance on lunch" in ctx and ctx.index("FAMILY BLOCK") < ctx.index("DESIGN BRIEF") < ctx.index("WHAT THE PERSON SAID")
     assert h2.resolve("design.brief.bets_on") and h2.resolve("design.brief.threat:1") and h2.resolve("design.brief")

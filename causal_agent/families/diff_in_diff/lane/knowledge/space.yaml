@@ -1,0 +1,15 @@
+dimensions:
+  endpoint:
+    values:
+    - paired_two_wave_att
+    - common_adoption_projection_effect
+    - untreated_imputation_att
+    - untreated_prefix_imputation_att
+    - never_cohort_cell_att
+    - clean_projection_att
+    decided_by: rivals
+  modifiers:
+    range:
+    - 0
+    - 3
+    decided_by: controls

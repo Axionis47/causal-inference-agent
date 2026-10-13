@@ -1,114 +1,32 @@
-"""Post-run figures every lane can draw, pure over plain dicts: the estimate against its falsifications and sensitivity
-ranges, and the effect by period relative to a change. A lane's figures node calls these on its own artifacts; the desk's
-fallback (`postviz.figures`) calls them on a run record."""
+"""Pure, design-qualified figures from recorded execution artifacts."""
 
 from __future__ import annotations
 
-from causal_agent.common.contracts.base import _slug
+from causal_agent.common.contracts import Estimate, Falsification
 from causal_agent.viz.spec import FigureSpec, Mark, Series
 
 
-def primary(estimates: list[dict]) -> dict | None:
-    return next((e for e in estimates if not e.get("secondary") and e.get("error") is None and e.get("value") is not None), None)
-
-
-def effect_and_refutations(estimates: list[dict], refutations: list[dict], prefix: str) -> FigureSpec | None:
-    """The estimate with its interval beside every falsification's new effect and every sensitivity range, on one axis.
-    `prefix` is how the lane addresses its falsifications (refute:<c>.<name> or placebo:<c>.<name>)."""
-    est = primary(estimates)
-    if est is None:
+def effect_plot(estimates: list[dict], falsifications: list[dict], design_id: str) -> FigureSpec | None:
+    est = next((Estimate.model_validate(e) for e in estimates if e.get("design_id") == design_id and not e.get("secondary") and not e.get("modifier")), None)
+    if est is None or est.error or est.value is None:
         return None
-    contrast = est.get("contrast") or "all"
-    refs = [r for r in refutations if r.get("contrast") in (contrast, None)]
-    x: list[str | float] = [str(est.get("method") or "estimate")]
-    y: list[float | None] = [float(est["value"])]
-    lo: list[float | None] = [est.get("ci_low")]
-    hi: list[float | None] = [est.get("ci_high")]
-    for r in refs:
-        name = str(r.get("refuter") or r.get("name") or "check")
-        if r.get("kind") == "sensitivity" and r.get("range_low") is not None and r.get("range_high") is not None:
-            x.append(name)
-            y.append((float(r["range_low"]) + float(r["range_high"])) / 2)
-            lo.append(float(r["range_low"]))
-            hi.append(float(r["range_high"]))
-        elif r.get("new_effect") is not None:
-            x.append(name + ("" if r.get("passed") is None else (" ✓" if r.get("passed") else " ✗")))
-            y.append(float(r["new_effect"]))
-            lo.append(None)
-            hi.append(None)
-    failed = [r.get("refuter") for r in refs if r.get("passed") is False]
+    fs = [
+        Falsification.model_validate(f)
+        for f in falsifications
+        if f.get("design_id") == design_id and f.get("contrast") == est.contrast and f.get("new_effect") is not None
+    ]
+    x: list[str | float] = [est.method]
+    x.extend(f.refuter for f in fs)
+    values: list[float | None] = [est.value]
+    values.extend(f.new_effect for f in fs)
+    passed, failed = sum(f.passed is True for f in fs), sum(f.passed is False for f in fs)
     return FigureSpec(
-        id=f"effect_{contrast}",
+        id=f"effect_{design_id}_{est.contrast}",
         kind="interval",
-        title=f"The estimate and what was thrown at it ({contrast})",
-        x_label="",
+        title=f"{est.endpoint_id}: estimate and falsifications",
+        series=[Series(name="effect", x=x, y=values, lo=[est.ci_low] + [None] * len(fs), hi=[est.ci_high] + [None] * len(fs))],
+        marks=[Mark(kind="hline", at=0.0, label="zero")],
         y_label="effect",
-        series=[Series(name="effect", x=x, y=y, lo=lo, hi=hi)],
-        marks=[Mark(kind="hline", at=0.0, label="no effect")],
-        note=("every falsification passed" if refs and not failed else f"failed: {', '.join(map(str, failed))}" if failed else "no falsification ran"),
-        draws_on=[f"estimate:{contrast}.value", f"estimate:{contrast}.ci"]
-        + [f"{prefix}:{contrast}.{r.get('refuter')}.new_effect" for r in refs if r.get("new_effect") is not None],
-    )
-
-
-def event_study(dynamic: dict, contrast: str | None = None, draws_on: list[str] | None = None) -> FigureSpec | None:
-    """The effect by period relative to the change, with the change marked; leads near zero are the parallel-paths check."""
-    if not dynamic:
-        return None
-    keys = sorted(dynamic, key=lambda k: int(k))
-    vals = [dynamic[k] for k in keys]
-    return FigureSpec(
-        id="dynamic_effects" if contrast is None else f"event_study_{contrast}",
-        kind="interval",
-        title="The effect by period relative to the change",
-        x_label="periods from the change",
-        y_label="effect",
-        series=[
-            Series(
-                name="effect", x=[float(int(k)) for k in keys], y=[float(v[0]) for v in vals], lo=[float(v[1]) for v in vals], hi=[float(v[2]) for v in vals]
-            )
-        ],
-        marks=[Mark(kind="vline", at=-0.5, label="the change"), Mark(kind="hline", at=0.0, label="no effect")],
-        note="before the change the effect should sit at zero; after it, the estimate",
-        draws_on=list(draws_on or ["design.dynamic"]),
-    )
-
-
-def effect_by_modifier(estimates: list[dict], contrast: str, names: dict[str, str] | None = None) -> FigureSpec | None:
-    """The effect within each level of each modifier the design named, with its interval, beside the primary estimate."""
-    names = names or {}
-    within = [e for e in estimates if e.get("contrast") == contrast and e.get("modifier") is not None and e.get("error") is None and e.get("value") is not None]
-    if not within:
-        return None
-    prim = next(
-        (e for e in estimates if e.get("contrast") == contrast and e.get("modifier") is None and not e.get("secondary") and e.get("error") is None), None
-    )
-    x: list[str | float] = []
-    y: list[float | None] = []
-    lo: list[float | None] = []
-    hi: list[float | None] = []
-    draws_on: list[str] = []
-    if prim is not None:
-        x.append("all rows")
-        y.append(float(prim["value"]))
-        lo.append(prim.get("ci_low"))
-        hi.append(prim.get("ci_high"))
-        draws_on += [f"estimate:{contrast}.value", f"estimate:{contrast}.ci"]
-    for e in within:
-        x.append(f"{names.get(e['modifier'], e['modifier'])} = {e['level']}")
-        y.append(float(e["value"]))
-        lo.append(e.get("ci_low"))
-        hi.append(e.get("ci_high"))
-        draws_on.append(f"estimate:{contrast}.by.{_slug(e['modifier'])}.{_slug(str(e['level']))}.value")
-    spread = max(float(e["value"]) for e in within) - min(float(e["value"]) for e in within)
-    return FigureSpec(
-        id=f"effect_by_modifier_{contrast}",
-        kind="interval",
-        title="The effect within each level of the modifiers",
-        x_label="",
-        y_label="effect",
-        series=[Series(name="effect", x=x, y=y, lo=lo, hi=hi)],
-        marks=[Mark(kind="hline", at=0.0, label="no effect")],
-        note=f"the effect ranges {spread:.3g} across the levels shown",
-        draws_on=draws_on,
+        note=f"{passed} falsifications passed; {failed} failed" if fs else "No applicable falsification was run.",
+        draws_on=[est.tag + ".value", est.tag + ".ci"] + [f.address + ".new_effect" for f in fs],
     )

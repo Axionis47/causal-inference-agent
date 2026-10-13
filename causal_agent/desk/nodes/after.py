@@ -22,8 +22,9 @@ from causal_agent.desk.nodes.journey import CAT, QUIT_WORDS
 from causal_agent.desk.nodes.shared import _csv_path, design_now, journal_of, record, thread_id
 from causal_agent.desk.state import DeskState
 from causal_agent.explore import client as XC
+from causal_agent.lane.endpoints import dataset_identity
 from causal_agent.memory import artifacts as VA
-from causal_agent.memory import ops
+from causal_agent.memory import ops, store
 from causal_agent.memory.matrix import Matrix
 
 MAX_ATTEMPTS = 3
@@ -36,7 +37,7 @@ DONE_WORDS = {"done", "bye", "finished"} | QUIT_WORDS
 def _status_line(run: RunRecord | None) -> str:
     if run is None:
         return "no run yet"
-    flags = [r["name"] for r in ((run.specialist_result.get("design") or {}).get("checks") or {}).get("results") or [] if r.get("level") != "pass"]
+    flags = [r["name"] for r in run.specialist_result.get("checks") or [] if r.get("level") != "pass"]
     eff = f"effect {M._g(run.effect)} [{M._g(run.ci_low)}, {M._g(run.ci_high)}]" if run.effect is not None else f"status {run.status}"
     return f"run {run.index} · {run.family or 'no design'} · {eff} · flags: {', '.join(flags) or 'none'}"
 
@@ -52,7 +53,7 @@ def brief(state: DeskState) -> dict:
         cur.differs = design_differences(prev.design_dir, cur.design_dir)
         pipeline.save_record(cur)
     matrix = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else None
-    mat = M.render(cur, memory, prev, matrix=matrix)
+    mat = M.render(cur, memory, prev, steps=journal_of(state).steps(), matrix=matrix)
     text = M.brief(cur, prev, mat)
     if cur.what_if:
         text += "\nThis was a what-if: nothing you told me changed. The copy differed in " + ", ".join(f"[{a}] = {v}" for a, v in cur.what_if.items()) + "."
@@ -71,7 +72,17 @@ def brief(state: DeskState) -> dict:
         left=[str(Path(cur.design_dir) / "record.json")] if prev is not None and cur.design_dir else [],
         note=text.splitlines()[0] if text else "",
     )
-    return {"opening": text, "after_reply": None, "after_errors": [], "after_attempts": 0, "reply": text, "runs": runs, "fork": None, "what_if": {}}
+    return {
+        "opening": text,
+        "after_reply": None,
+        "after_errors": [],
+        "after_attempts": 0,
+        "reply": text,
+        "runs": runs,
+        "memory": store.memory_for(state["dataset"]) if state.get("fork") is not None else memory,
+        "fork": None,
+        "what_if": {},
+    }
 
 
 def design_differences(before_dir: str | None, after_dir: str | None) -> list[str]:
@@ -139,7 +150,7 @@ def talk(state: DeskState) -> Command[Literal["turn", "__end__"]]:
     mirror: dict = {}
     if not any(s.turn == turn for s in memory.said):
         memory.said.append(Said(turn=turn, about="after", text=answer))
-        mirror = F.saved(memory)
+        mirror = F.saved(memory, state)
     return Command(goto="turn", update={"message": answer, "turn": turn, "after_errors": [], "after_attempts": 0, "artifact": None, **mirror})
 
 
@@ -201,7 +212,7 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
     before = {a: (f.value, f.status) for a, f in memory.fields.items()}
     rejected = trace.gate(ops.apply(memory, updates, CAT), name="gate:writes", updates=[u.address for u in updates])
     settled = [a for a, f in memory.fields.items() if before.get(a) != (f.value, f.status)]
-    mirror = F.saved(memory)
+    mirror = F.saved(memory, state)
     if not settled:
         note = "I could not apply that change: " + "; ".join(rejected)
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"}), **mirror})
@@ -220,9 +231,9 @@ def revise(state: DeskState) -> Command[Literal["check", "talk"]]:
     )
 
 
-def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
+def what_if(state: DeskState) -> Command[Literal["check", "talk"]]:
     """A supposition: the memory is copied, the supposed fields written on the copy through the same gate, and the copy is routed
-    and run as the next design. What is known does not change."""
+    and prepared for a new authorization. What is known does not change."""
     reply = state["after_reply"]
     memory = F.memory_of(state)
     fork = memory.fork()
@@ -240,8 +251,21 @@ def what_if(state: DeskState) -> Command[Literal["fit", "talk"]]:
         return Command(goto="talk", update={"after_reply": reply.model_copy(update={"text": note, "kind": "answer"})})
     record(state, "what_if", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(f"{a} = {v}" for a, v in changed.items()))
     return Command(
-        goto="fit",
-        update={"fork": fork, "what_if": {a: str(v) for a, v in changed.items()}, "handoff": None, "brief": None, "gate_errors": [], "decide_attempts": 0},
+        goto="check",
+        update={
+            "fork": fork,
+            "what_if": {a: str(v) for a, v in changed.items()},
+            "phase": "before",
+            "run_intent": True,
+            "handoff": None,
+            "brief": None,
+            "preview": None,
+            "convinced_version": None,
+            "ready_version": None,
+            "ready": False,
+            "gate_errors": [],
+            "decide_attempts": 0,
+        },
     )
 
 
@@ -261,7 +285,30 @@ def requestion(state: DeskState) -> dict:
         "story_asked": False,
         "readback_done": False,
         "focus": [],
+        "context_family": None,
+        "deficiency_addresses": [],
+        "preview": None,
+        "ready": False,
+        "convinced_version": -1,
     }
+
+
+def frozen_context(run: RunRecord, memory) -> bool:
+    """Only a design frozen on these dataset bytes lifts the exploration fence."""
+    if not run.specialist_result.get("designs") or not run.design_dir:
+        return False
+    path = Path(run.design_dir) / "handoff.json"
+    if not path.is_file():
+        return False
+    h = Handoff.model_validate_json(path.read_text())
+    return (
+        h.pack_name == memory.name
+        and h.data_version == memory.data_version
+        and h.csv == memory.csv
+        and bool(h.dataset_identity)
+        and h.dataset_identity == dataset_identity(h)
+        and any(d.get("context_id") == h.context_id for d in run.specialist_result["designs"].values())
+    )
 
 
 def explore_after(state: DeskState) -> dict:
@@ -277,10 +324,15 @@ def explore_after(state: DeskState) -> dict:
     outcome, treatment = pair_names(state, memory)
     if cur.design_dir and (Path(cur.design_dir) / "handoff.json").exists():
         h = Handoff.model_validate_json((Path(cur.design_dir) / "handoff.json").read_text())
-        outcome, treatment = h.outcome, h.treatment
+        outcome_column = memory.column(h.outcome)
+        treatment_column = memory.column(h.treatment) if h.treatment else None
+        outcome = outcome_column.name if outcome_column is not None else h.outcome
+        treatment = treatment_column.name if treatment_column is not None else h.treatment
         context = h.render_context() + "\n\nCOLUMNS\n" + context.split("COLUMNS\n", 1)[-1]
     mat = M.render(cur, memory)
-    context += "\n\nWHAT THE RUN FOUND\n" + "\n".join(ln for ln in mat.lines if ln.startswith(("[design.", "[estimate:", "[check:", "[refute:", "[placebo:")))
+    context += "\n\nWHAT THE RUN FOUND\n" + "\n".join(
+        ln for ln in mat.lines if ln.startswith(("[design:", "[estimate:", "[check:", "[falsification:", "[sensitivity:"))
+    )
     artifact, decline, thoughts = XC.explore(
         dataset=memory.name,
         ask=ask,
@@ -289,7 +341,7 @@ def explore_after(state: DeskState) -> dict:
         csv=_csv_path(memory),
         outcome=outcome,
         treatment=treatment,
-        frozen=True,
+        frozen=frozen_context(cur, memory),
         design=int(cur.index),
         memory_version=memory.version,
         data_version=memory.data_version,
@@ -335,7 +387,7 @@ def transform_after(state: DeskState) -> Command[Literal["check", "talk"]]:
         csv=_csv_path(memory),
         outcome=outcome,
         treatment=treatment,
-        frozen=True,
+        frozen=frozen_context(state["runs"][-1], memory),
         memory_version=memory.version,
         data_version=memory.data_version,
         thread_id=thread_id(),
@@ -358,6 +410,6 @@ def transform_after(state: DeskState) -> Command[Literal["check", "talk"]]:
             "handoff": None,
             "brief": None,
             "debug": thoughts,
-            **F.saved(memory),
+            **F.saved(memory, state),
         },
     )

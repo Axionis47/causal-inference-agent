@@ -170,7 +170,16 @@ function GraphFigure({ spec }: { spec: FigureSpec }) {
           </marker>
         </defs>
         {edges.map((e) => (
-          <line key={e.i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} className="edge" markerEnd="url(#arrow)">
+          <line
+            key={e.i}
+            x1={e.x1}
+            y1={e.y1}
+            x2={e.x2}
+            y2={e.y2}
+            className="edge"
+            strokeDasharray={spec.edges[e.i]?.status === "proposed" || spec.edges[e.i]?.status === "contested" ? "5 3" : undefined}
+            markerEnd="url(#arrow)"
+          >
             <title>{`[figure:${spec.id}.edge.${e.i}] ${e.src} → ${e.dst}${spec.edges?.[e.i]?.cites.length ? ` (${spec.edges[e.i].cites.join(", ")})` : ""}`}</title>
           </line>
         ))}

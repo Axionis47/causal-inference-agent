@@ -69,9 +69,9 @@ describe("Figure graph", () => {
         { id: "u", label: "unobserved", role: "hidden" },
       ],
       edges: [
-        { src: "course", dst: "math", cites: [] },
-        { src: "lunch", dst: "course", cites: ["col:lunch.when"] },
-        { src: "lunch", dst: "math", cites: [] },
+        { status: "supported", src: "course", dst: "math", cites: [] },
+        { status: "supported", src: "lunch", dst: "course", cites: ["col:lunch.when"] },
+        { status: "supported", src: "lunch", dst: "math", cites: [] },
       ],
     };
     const html = renderToStaticMarkup(createElement(Figure, { spec: graph }));

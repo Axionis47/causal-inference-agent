@@ -3,6 +3,10 @@ re-prompts with the log kept, and a fake drives it all."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from uuid import UUID
+
+import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 from pydantic import BaseModel, Field
 
@@ -10,6 +14,11 @@ from causal_agent.common.llm import set_llm
 from causal_agent.lane import episode as E
 from causal_agent.lane import tools as TL
 from causal_agent.lane.tests.test_tools import table
+
+
+@pytest.fixture(autouse=True)
+def fixed_visit(monkeypatch):
+    monkeypatch.setattr(E, "uuid", SimpleNamespace(uuid4=lambda: UUID("12345678-1234-1234-1234-123456789abc")))
 
 
 class Record(BaseModel):
@@ -72,19 +81,25 @@ def run(fake, **kw):
 
 
 def test_the_model_looks_then_answers_and_every_fact_has_an_address():
-    fake = Fake([[("by_arm", {"column": "lunch"}), ("timing", {})], []], [Record(cites=["probe:roles.1", "probe:roles.2"])])
+    fake = Fake([[("by_arm", {"column": "lunch"}), ("timing", {})], []], [Record(cites=["probe:roles.123456781234.1", "probe:roles.123456781234.2"])])
     rec, log, thoughts, errors = run(fake)
     assert rec is not None and errors == [] and len(log.tries) == 1 and log.calls == 2
-    assert [f.address for f in log.facts] == ["probe:roles.1", "probe:roles.2"] and log.facts[0].tool == "by_arm"
+    assert [f.address for f in log.facts] == ["probe:roles.123456781234.1", "probe:roles.123456781234.2"] and log.facts[0].tool == "by_arm"
     assert fake.bound == list(tools().names()) == list(TL.NAMES[:6])  # the shape-aware tools are not offered on a plain table
     # the tool phase: the rule is in the system message; each result went back as a tool message with its address
     first = fake.rounds[0]
-    assert "at most 4 calls" in first[0].content and "[probe:roles.<n>]" in first[0].content and first[1].content == "USER"
+    assert "at most 4 calls" in first[0].content and "[probe:roles.123456781234.<n>]" in first[0].content and first[1].content == "USER"
     second = fake.rounds[1]
     tool_msgs = [m for m in second if isinstance(m, ToolMessage)]
-    assert [m.tool_call_id for m in tool_msgs] == ["c0", "c1"] and tool_msgs[0].content.startswith("[probe:roles.1] by_arm(column='lunch'): 'lunch' by arm")
+    assert [m.tool_call_id for m in tool_msgs] == ["c0", "c1"] and tool_msgs[0].content.startswith(
+        "[probe:roles.123456781234.1] by_arm(column='lunch'): 'lunch' by arm"
+    )
     # the answer: a fresh structured call whose material carries the facts
-    assert fake.humans == [fake.humans[0]] and "FACTS YOU ASKED FOR\n[probe:roles.1]" in fake.humans[0] and "[probe:roles.2] timing()" in fake.humans[0]
+    assert (
+        fake.humans == [fake.humans[0]]
+        and "FACTS YOU ASKED FOR\n[probe:roles.123456781234.1]" in fake.humans[0]
+        and "[probe:roles.123456781234.2] timing()" in fake.humans[0]
+    )
     assert fake.systems == ["SYSTEM"]
     assert [t.node for t in thoughts] == ["roles:look", "roles"]
 
@@ -111,17 +126,22 @@ def test_the_budget_bounds_the_looking():
 def test_a_refused_answer_goes_back_with_the_log_kept_and_the_model_may_look_again():
     fake = Fake(
         [[("describe", {"column": "lunch"})], [], [("describe", {"column": "district"})], []],
-        [Record(cites=["probe:roles.9"]), Record(cites=["probe:roles.1", "probe:roles.2"])],
+        [Record(cites=["probe:roles.123456781234.9"]), Record(cites=["probe:roles.123456781234.1", "probe:roles.123456781234.2"])],
     )
     rec, log, thoughts, errors = run(fake)
-    assert rec is not None and errors == [] and len(log.tries) == 2 and [f.address for f in log.facts] == ["probe:roles.1", "probe:roles.2"]
-    assert "PREVIOUS ANSWER WAS REJECTED" in fake.humans[1] and "'probe:roles.9' does not resolve" in fake.humans[1]
-    assert "[probe:roles.1]" in fake.humans[1] and "[probe:roles.2]" in fake.humans[1]
+    assert (
+        rec is not None
+        and errors == []
+        and len(log.tries) == 2
+        and [f.address for f in log.facts] == ["probe:roles.123456781234.1", "probe:roles.123456781234.2"]
+    )
+    assert "PREVIOUS ANSWER WAS REJECTED" in fake.humans[1] and "'probe:roles.123456781234.9' does not resolve" in fake.humans[1]
+    assert "[probe:roles.123456781234.1]" in fake.humans[1] and "[probe:roles.123456781234.2]" in fake.humans[1]
     assert "PREVIOUS ANSWER WAS REJECTED" in fake.rounds[2][1].content  # the second look saw the errors too
     # every try is kept: what was shown, what was answered, what the gate said
     assert log.system == "SYSTEM" and [t.n for t in log.tries] == [1, 2]
-    assert log.tries[0].errors == ["citation 'probe:roles.9' does not resolve"] and log.tries[1].errors == []
-    assert log.tries[0].answer == {"ok": True, "cites": ["probe:roles.9"]} and log.tries[1].user == fake.humans[1]
+    assert log.tries[0].errors == ["citation 'probe:roles.123456781234.9' does not resolve"] and log.tries[1].errors == []
+    assert log.tries[0].answer == {"ok": True, "cites": ["probe:roles.123456781234.9"]} and log.tries[1].user == fake.humans[1]
 
 
 def test_three_refusals_return_no_record_and_the_errors():
@@ -145,3 +165,11 @@ def test_a_wrong_tool_name_or_arguments_is_a_refusal_not_a_crash():
     rec, log, _, _ = run(fake)
     assert rec is not None and log.facts == [] and [r.reason[:8] for r in log.refusals] == ["refused:", "refused:"]
     assert "no tool named 'drop_table'" in log.refusals[0].reason and "could not run" in log.refusals[1].reason
+
+
+def test_malformed_structured_records_are_visible_bounded_gate_refusals():
+    fake = Fake([], [None, None, Record()])
+    rec, log, _, errors = run(fake)
+    assert rec is not None and not errors and len(log.tries) == 3
+    assert all("parsing_error" in attempt.answer and attempt.errors for attempt in log.tries[:2])
+    assert "PREVIOUS ANSWER WAS REJECTED" in log.tries[1].user

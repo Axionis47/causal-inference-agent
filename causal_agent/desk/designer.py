@@ -28,7 +28,7 @@ def _plain(c: str) -> str:
 
 def check(brief: DesignBrief, family: Family, chosen: str, memory: Memory, probes: list[ProbeResult]) -> list[str]:
     """What the gate refuses: the wrong family, a decision the family does not list or lists once and the brief fills twice or not
-    at all, a cite that resolves nowhere, a road the family has no decision for, or no road where it has one."""
+    at all, or a cite that resolves nowhere."""
     errors: list[str] = []
     if brief.family != chosen:
         errors.append(f"family {brief.family!r} is not the chosen family {chosen!r}")
@@ -50,21 +50,15 @@ def check(brief: DesignBrief, family: Family, chosen: str, memory: Memory, probe
         for a in t.cites:
             if not D.resolves(_plain(a), memory, probes):
                 errors.append(f"threat {i} cites {a!r}, which is not an address in the memory or the probes")
-    has_road = family.decision("road") is not None
-    if brief.road is not None and not has_road:
-        errors.append("road must be null: this family lists no decision named road")
-    if brief.road is None and has_road:
-        errors.append("road is required for this family: one of backdoor, frontdoor, iv")
     return errors
 
 
 def fallback(family: Family, errors: list[str]) -> DesignBrief:
     """The honest brief when three tries failed: every decision not decided, resting on the change card, betting on the family's
-    stated assumption; no road named."""
+    stated assumption."""
     why = "the design brief failed its checks: " + "; ".join(errors[:3])
     return DesignBrief(
         family=family.name,
-        road=None,
         target="average",
         decisions=[DecisionMade(name=d.name, choice="not decided", rests_on=["change:1.note"], reason=why) for d in family.decisions],
         threats=[],

@@ -1,63 +1,30 @@
-"""Diff-in-diff lane state. Shares the harness keys with every lane; the rest is its own.
-
-The panel never sits in state: `panel_path` points at the run directory. pyfixest objects never sit in
-state either; the estimate node refits from the Design.
-"""
+"""Reasoning state and immutable per-design execution artifacts."""
 
 from __future__ import annotations
 
 import operator
 from typing import Annotated
 
-from typing_extensions import TypedDict
-
-from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
-from causal_agent.families.diff_in_diff.lane.contracts import (
-    Controls,
-    Design,
-    DesignAssessment,
-    EstimatorPick,
-    Groups,
-    Ladder,
-    Periods,
-    Revision,
-    ShapeFacts,
-)
-from causal_agent.lane.state import LaneState, by_key, merge_dicts
+from causal_agent.common.contracts import Estimate, Falsification, Interpretation, Sensitivity
+from causal_agent.families.diff_in_diff.lane.contracts import Candidate, Design, Groups, Periods, ShapeFacts
+from causal_agent.lane.ledger import Ledger
+from causal_agent.lane.state import LaneState, by_key
 
 
 class SpecialistState(LaneState, total=False):
     panel_path: str
-    unit_column: str | None
-    cluster_column: str | None
-    target_units: str
-    group_levels: list[str]
-    groups: Groups | None
-    periods: Periods | None
-    contrast: Contrast | None
-    shape: ShapeFacts | None
-    ladder: Ladder | None  # the rungs climbed so far
-    controls: Controls | None
-    applied_revisions: list[Revision]
-    revisions: int
-    assessment: DesignAssessment | None
-    estimator: str | None
-    estimator_pick: EstimatorPick | None
-    excluded_estimators: list[str]
-    pick_attempts: int
-    design: Design | None
-    estimates: Annotated[list[Estimate], by_key(lambda e: (e.contrast, e.method, e.modifier, e.level))]
-    refutations: Annotated[list[Refutation], by_key(lambda r: (r.contrast, r.refuter))]
-    dynamic: dict  # rel_time -> (value, lo, hi) when the dynamic model ran
-    trends_raw: dict  # the trends rung's leads fit as computed, every period's coefficient, for the check and the figure
-    placebo_draws: Annotated[dict, merge_dicts]  # placebo name -> every placebo effect, so the spread can be drawn
-    placebo_points: Annotated[dict, merge_dicts]  # placebo name -> every refit as data a figure can draw
+    groups: Groups
+    periods: Periods
+    shape: ShapeFacts
+    ledger: Ledger
+    candidates: list[Candidate]
+    designs: dict[str, Design]
+    lead_design_id: str | None
+    context_deficiency: dict | None
+    chosen_estimators: dict[str, str]
+    estimates: Annotated[list[Estimate], by_key(lambda e: (e.design_id, e.method, e.modifier, e.level))]
+    falsifications: Annotated[list[Falsification], operator.add]
+    sensitivities: Annotated[list[Sensitivity], operator.add]
     interpretations: Annotated[list[Interpretation], operator.add]
-    interpret_errors: Annotated[dict[str, list[str]], merge_dicts]
-
-
-class PlaceboTask(TypedDict):
-    name: str
-    design: dict
-    panel_path: str
-    primary: dict
+    reasoning_history: Annotated[list[dict], operator.add]
+    candidate_history: Annotated[list[dict], operator.add]

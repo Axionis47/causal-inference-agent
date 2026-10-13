@@ -20,6 +20,9 @@ kinds:
       key_columns: {type: columns, optional: true, hint: "the columns that together pick out exactly one row, when the description names them"}
       panel: {type: bool}   # the same unit appears in more than one period (true), or each unit once (false)
       nesting: {type: columns, optional: true, hint: "the column naming the group each unit sits inside, when there is one: a school for pupils, a market for stores"}
+      before_column: {type: column, optional: true, hint: "the outcome measurement from before the change, for a table with paired measurements"}
+      after_column: {type: column, optional: true, hint: "the outcome measurement from after the change, for a table with paired measurements"}
+      layout: {type: choice, options: [wide, long], optional: true, hint: "computed from the recorded unit/time or before/after measurement structure"}
     check: key_unique
     frame: what does one row stand for, a person, a household, a county, a store in a week; do any columns together pick out exactly one row; does the same unit come back in more than one period
     order: 2
@@ -46,6 +49,7 @@ kinds:
   change:
     about: what happened, to whom, and when
     fields:
+      no_causal_path: {type: bool, optional: true, hint: "an explicitly accepted structural account that treatment has no causal path to the outcome, not an inference from missing arrows"}
       what: {type: text}
       to_whom: {type: text}
       when: {type: text}
@@ -80,6 +84,9 @@ kinds:
       level_column: {type: column, optional: true, required_when: {kind: [date_by_others]}, hint: "the column naming the group the change was assigned at, when it reached whole groups (a state, a school, a store); the level to cluster at"}
       offer_column: {type: column_or_none, optional: true, hint: "when one column records who was offered the change and another who took it, the column that records the offer; none when there is one column, or no offer"}
       uptake_column: {type: column_or_none, optional: true, hint: "when the offer and the taking are two columns, the column that records who took it; none otherwise"}
+      compliance: {type: choice, options: [sharp, fuzzy], optional: true, hint: "computed from the assignment rule and actual receipt; the person does not diagnose this"}
+      never_treated_exists: {type: bool, optional: true, hint: "computed from declared unit, time and adoption or receipt mappings, without looking at the outcome"}
+      exchangeable: {type: bool, optional: true, hint: "whether the assignment labels could validly have been reassigned among the units being compared"}
     check: assignment_matches_data
     frame: who decided which units got the change and on what basis, a draw, a line on a score, the unit's own choice, a date set by someone else; which columns the decision or the offer depended on; which column records who got it; could a unit have changed what the rule looked at
     order: 0
@@ -132,6 +139,10 @@ kinds:
       exists: {type: bool}
       column: {type: column, optional: true, asked_when: {exists: [true]}}
       why: {type: text, optional: true}
+      exogenous: {type: bool, optional: true, asked_when: {exists: [true]}, hint: "whether the nudge was independent of other causes of the outcome, and why"}
+      homogeneous: {type: bool, optional: true, asked_when: {exists: [true]}, hint: "whether a constant additive treatment effect is an acceptable explicit modelling assumption"}
+      controls: {type: columns, optional: true, asked_when: {exists: [true]}, hint: "baseline columns needed to make the nudge independent of other causes"}
+      columns: {type: columns, optional: true, asked_when: {exists: [true]}, hint: "all columns representing separate nudges"}
     check: none
     frame: is there a column that pushed units toward the change but could not have affected the outcome any other way; if so which, and why
     cues: "'no nudge', 'no separate column', 'nothing pushed them' mean exists=false; naming such a column means exists=true with column and why"
@@ -177,10 +188,50 @@ kinds:
       exists: {type: bool}
       column: {type: column, optional: true, asked_when: {exists: [true]}}
       why: {type: text, optional: true}
+      sequential_ignorability: {type: bool, optional: true, hint: "whether the measured baseline columns account for common causes of the treatment, intermediate measurement, and outcome"}
+      no_treatment_confounder: {type: bool, optional: true, hint: "whether the treatment created any common cause of the intermediate measurement and outcome"}
+      linear_additive: {type: bool, optional: true, hint: "whether additive linear stages without treatment-by-intermediate interactions are an acceptable modelling assumption"}
     check: none
     frame: is there a column the change altered, such that the change reaches the outcome only by altering it; if so which, and why
     cues: "'it works through', 'only by changing' name a mediator with column; 'no', 'directly' mean exists=false"
     order: 12
+
+  monotonicity:
+    about: whether the assignment nudge moves receipt in one direction for every unit
+    uncheckable: true
+    fields:
+      believed: {type: bool}
+      why: {type: text, optional: true}
+    check: none
+    frame: could the same offer or eligibility nudge make some units take the change and make others avoid it
+    order: 13
+
+  local_randomisation:
+    about: whether assignment near the score boundary can be treated as random
+    uncheckable: true
+    fields:
+      believed: {type: bool}
+      why: {type: text, optional: true}
+    check: none
+    frame: within a small interval around the score boundary, is there a study-based reason to treat assignment as random
+    order: 14
+
+  target:
+    about: the effect and population the person wants answered
+    fields:
+      modifiers: {type: columns, optional: true, hint: The baseline columns defining the requested effect groups.}
+      population: {type: choice, options: [study_population, treated, untreated, compliers], hint: "which population the answer should speak for"}
+      effect: {type: choice, options: [total, natural_direct, natural_indirect, conditional], optional: true}
+      aggregation: {type: choice, options: [pooled, horizon, horizon_profile, cohort, cohort_profile, cohort_horizon], optional: true}
+      locality: {type: choice, options: [cutoff, window], optional: true, hint: "whether the requested local effect is right at the threshold or inside a fixed score window"}
+      comparison: {type: choice, options: [receipt, eligibility], optional: true, hint: "whether the question asks about receiving the treatment or eligibility and assignment itself"}
+      weighting: {type: choice, options: [treated_cell_shares, residualized_treatment_projection, linear_response_horizon_projection, clean_adopter_projection], optional: true, hint: "which quantity to summarize: an average over treated unit-periods, the projected pooled treatment contrast, projected responses at each horizon, or the contrast among clean adoption comparisons; these weight definitions can describe different populations"}
+      horizons: {type: integers, optional: true}
+      cohorts: {type: texts, optional: true}
+      prefix_scope_accepted: {type: bool, optional: true, hint: "whether the requested effect may be limited to periods before the final group adopts; that final group's treatment effects would be excluded"}
+    check: none
+    frame: which population and periods should the answer describe
+    order: 2
 
 # Words the reply gate refuses in a question. Family names from the registry are added by code.
 method_words:

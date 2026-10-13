@@ -59,7 +59,7 @@ evals: ## run one family's evals: make evals FAMILY=discontinuity
 explore-image: ## build the exploration agent's container image (EXPLORE_SANDBOX=docker uses it)
 	docker build -t causal-desk-explore -f docker/explore.Dockerfile docker
 
-docfigs: ## redraw docs/diagrams/*.svg from the records under docs/demo/
+docfigs: ## redraw docs/diagrams/*.svg from the current declared trajectories
 	LANGSMITH_TRACING=false $(UV) python -m causal_agent.evals.docfigs
 
 trace: ## the newest LangSmith trace as a tree in the terminal: make trace ARGS="--last 8" | ARGS="--thoughts"

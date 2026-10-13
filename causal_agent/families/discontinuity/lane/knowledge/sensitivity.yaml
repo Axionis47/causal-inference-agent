@@ -1,0 +1,120 @@
+bandwidth_grid:
+  in_words: the primary refit at the coverage-error bandwidth, the MSE bandwidth,
+    and twice each; the conclusion should not depend on the bandwidth
+  source: Foundations 5.5 (h_CER, h_MSE, 2h_CER, 2h_MSE); holding the bias bandwidth
+    b at the primary's value is ours, because a manual h makes the library reset b
+    = h
+  spec: primary
+  grid:
+  - h_cer
+  - h_mse
+  - 2h_cer
+  - 2h_mse
+  hold_b: true
+  applies_when:
+    engine:
+    - local_polynomial
+donut:
+  in_words: the primary refit with the rows closest to the cutoff removed; the estimate
+    should not rest on the rows right at the line
+  source: Foundations 5.4; the radii as shares of the bandwidth are ours (the Foundations
+    use radii in score units, which differ by dataset)
+  spec: primary
+  radii_share_of_h:
+  - 0.05
+  - 0.1
+  applies_when:
+    engine:
+    - local_polynomial
+polynomial_grid:
+  in_words: the primary refit with a local linear, quadratic and cubic on each side
+    inside the design's window; how far the estimate moves with the order
+  source: Foundations 4.2 and Gelman and Imbens (2019) against high orders; reporting
+    p = 1, 2, 3 at the design's window with b held is ours
+  spec: primary
+  params:
+    orders:
+    - 1
+    - 2
+    - 3
+  hold_b: true
+  applies_when:
+    engine:
+    - local_polynomial
+kernel_grid:
+  in_words: the primary refit with triangular, Epanechnikov and uniform weights inside
+    the design's window; the kernel should matter little
+  source: Foundations 4.2, the kernel choice; reporting the three at the design's
+    window with b held is ours
+  spec: primary
+  params:
+    kernels:
+    - tri
+    - epa
+    - uni
+  hold_b: true
+  applies_when:
+    engine:
+    - local_polynomial
+window_sensitivity:
+  in_words: the local randomisation estimate in windows narrower and wider than the
+    one the design used; the conclusion should not hinge on the window
+  source: Extensions 2.4.1, the sensitivity of the randomisation p-value and interval
+    to the window length
+  spec: primary
+  params:
+    window_shares:
+    - 0.5
+    - 0.75
+    - 1.0
+    - 1.5
+    - 2.0
+  applies_when:
+    engine:
+    - local_randomisation
+rosenbaum_bounds:
+  in_words: how far assignment inside the window could depart from a coin toss before
+    the randomisation p-value would change its verdict
+  source: Extensions 2.4.2, Rosenbaum bounds on the randomisation p-value; the gammas
+    are ours
+  spec: primary
+  params:
+    gammas:
+    - 0.1
+    - 0.3
+    - 0.5
+    - 1.0
+    reps: 500
+  applies_when:
+    engine:
+    - local_randomisation
+    kind:
+    - sharp
+inference_rows:
+  in_words: paired conventional, bias-corrected and robust bias-corrected rows at
+    the frozen bandwidth; robust is primary
+  params:
+    rows:
+    - conventional
+    - bias_corrected
+    - robust
+  applies_when:
+    engine:
+    - local_polynomial
+variance_grid:
+  in_words: variance estimator sensitivity at the frozen design, preserving independent
+    versus clustered assignment
+  params:
+    independent:
+    - nn
+    - hc0
+    - hc1
+    - hc2
+    - hc3
+    clustered:
+    - cr1
+    - cr2
+    - cr3
+  applies_when:
+    engine:
+    - local_polynomial

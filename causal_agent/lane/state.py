@@ -9,12 +9,23 @@ from typing import Annotated, Any
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from causal_agent.common.contracts import Decline, Feasibility, Handoff, LaneAsk, Thought
+from causal_agent.common.contracts import ContextDeficiency, Decline, Feasibility, Handoff, Thought
 
 
 def merge_dicts(a: dict | None, b: dict | None) -> dict:
     """Two workers may each add keys; a later write to the same key wins."""
     return {**(a or {}), **(b or {})}
+
+
+def merge_episode_visits(a: dict | None, b: dict | None) -> dict:
+    """Every visit survives; the key identifies the episode rather than a node's latest output."""
+    out = dict(a or {})
+    for name, episode in (b or {}).items():
+        visit = getattr(episode, "visit", None)
+        if not visit:
+            raise ValueError(f"{name}: episode has no visit identity")
+        out[f"{name}:{visit}"] = episode
+    return out
 
 
 def by_key(keyfn: Callable[[Any], Any]):
@@ -52,31 +63,18 @@ class LaneState(TypedDict, total=False):
     handoff: Handoff | None
     dataset: str
     specialist_result: dict | None
+    lead_selection: dict
     debug: Annotated[list[Thought], operator.add]
 
     run_dir: str
     table_path: str
     columns: dict[str, str]  # key -> raw name
     declines: Annotated[list[Decline], operator.add]
-    case: Any  # lane.case.Case, kept as an object
     checks: list  # list[CheckResult]
     check_facts: Annotated[dict, merge_dicts]
-    ask: LaneAsk | dict | None
+    context_deficiency: ContextDeficiency | None
     feasibility: Feasibility | None
     figures: list[dict]
     report: str
     ladder: Any  # the lane's own Ladder record: the rungs climbed so far, each line addressed
-    episodes: Annotated[dict[str, Any], merge_dicts]  # node -> EpisodeLog, what each reasoning episode looked at
-
-
-class InterpretTask(TypedDict):
-    """Input to one interpret worker: the case, the artifacts of one comparison and the addresses it must and may cite."""
-
-    question: str
-    frame: str
-    contrast: str
-    material: str
-    addresses: str
-    required: str
-    primary_value: float | None
-    tolerance: float
+    episodes: Annotated[dict[str, Any], merge_episode_visits]

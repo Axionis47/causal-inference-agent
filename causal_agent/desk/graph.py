@@ -4,7 +4,7 @@
                                                                    └─ check ─ probe_fit ─ ask ─(fit ─ decide ─ gate ─ design ─ judge ─ convince, when ready)─ listen ─(interrupt)─ infer ─┬─ check …
                                                                                                                    (run, at the ready moment) ─┘   └─ handoff ─ run ─ brief ─ talk ─(interrupt)─ turn ─┬─ answer ─ talk
                                                                                                                                                                                                            ├─ revise ─ check …
-                                                                                                                                                                                                           ├─ what_if ─ fit ─ … ─ run (on a copy)
+                                                                                                                                                                                                           ├─ what_if ─ check ─ … ─ ready moment (on a copy)
                                                                                                                                                                                                            ├─ requestion ─ read_question …
                                                                                                                                                                                                            ├─ explore_after ─ talk
                                                                                                                                                                                                            ├─ transform_after ─ check … (a new table version, then the ready moment)
@@ -29,14 +29,17 @@ from causal_agent.common.contracts import (
     Cited,
     ColumnBrief,
     ColumnFacts,
+    ContextAdmission,
+    ContextDeficiency,
     DecisionMade,
     Decline,
     DesignBrief,
+    EndpointAdmission,
     FamilyDecision,
     FamilyVerdict,
     Handoff,
-    LaneAsk,
     NeedCheck,
+    Obligation,
     PrefilterVote,
     Probe,
     Provenance,
@@ -85,7 +88,7 @@ def build() -> StateGraph:
     b.add_node("judge", JG.judge, retry_policy=_retry)
     b.add_node("handoff", J.handoff)
     b.add_node("run", J.run)
-    b.add_node("ask_back", J.ask_back)
+    b.add_node("context_deficiency", J.context_deficiency)
     b.add_node("brief", A.brief)
     b.add_node("talk", A.talk)
     b.add_node("turn", A.turn, retry_policy=_retry)
@@ -112,11 +115,11 @@ def build() -> StateGraph:
     b.add_conditional_edges("design", J.after_design, ["judge", "handoff"])  # the ready moment (judged first), or the word's hand-off
     b.add_edge("judge", "convince")
     b.add_edge("handoff", "run")
-    b.add_conditional_edges("run", J.after_run, ["ask_back", "brief"])
-    b.add_edge("ask_back", "listen")
+    b.add_conditional_edges("run", J.after_run, ["context_deficiency", "brief"])
+    b.add_edge("context_deficiency", "listen")
     b.add_edge("brief", "talk")
     # talk → turn | END; turn → answer | revise | what_if | requestion | explore_after | transform_after | END; revise → check | talk;
-    # what_if → fit | talk; transform_after → check | talk, via Command
+    # what_if → check | talk; transform_after → check | talk, via Command
     b.add_edge("answer", "talk")
     b.add_edge("explore_after", "talk")
     b.add_edge("requestion", "read_question")
@@ -146,7 +149,10 @@ _CONTRACTS: list = [
     Said,
     Probe,
     Decline,
-    LaneAsk,
+    ContextAdmission,
+    EndpointAdmission,
+    Obligation,
+    ContextDeficiency,
     RunRecord,
     *DESIGNS.values(),
     Ask,

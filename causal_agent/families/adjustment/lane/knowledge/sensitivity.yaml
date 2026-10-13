@@ -1,0 +1,17 @@
+add_unobserved_common_cause:
+  endpoints:
+  - total.backdoor
+  - total.unadjusted
+  in_words: simulate a hidden common cause of specified strengths without changing
+    the frozen graph
+  params:
+    confounders_effect_on_treatment: binary_flip
+    confounders_effect_on_outcome: linear
+    effect_strength_on_treatment:
+    - 0.01
+    - 0.03
+    - 0.05
+    effect_strength_on_outcome:
+    - 0.01
+    - 0.03
+    - 0.05

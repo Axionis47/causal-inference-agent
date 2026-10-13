@@ -15,7 +15,7 @@ def test_every_spec_is_whole_and_its_cases_load():
         assert cases and all({"id", "dataset", "question", "expected"} <= set(c) for c in cases)
         for c in cases:
             if c.get("handoff"):
-                h = Handoff.model_validate({k: v for k, v in c["handoff_json"].items() if k != "question"})
+                h = Handoff.model_validate(c["handoff_json"])
                 assert h.family == s.family
         assert callable(s.summarise) and callable(s.lane_graph) and all(callable(e) for e in s.evaluators)
         assert set(EV.SHARED) <= set(s.evaluators)

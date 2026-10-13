@@ -41,15 +41,26 @@ def canonical(
     unit_column: str | None = None,
     cluster_column: str | None = None,
     cohort_column: str | None = None,
+    validate_assignment_support: bool = True,
 ) -> tuple[pd.DataFrame, ShapeFacts]:
     """unit_column: the entity column for a long panel (from the dataset index); the group column when absent.
     cluster_column: the level the pack says errors cluster at; carried as `cluster` when it is a column of the table.
     cohort_column: the pack's adoption column, the period each unit first got the change, when it names one."""
+    for column in [groups.column, cluster_column, unit_column if periods.kind == "long" else None, cohort_column]:
+        if column and column in table and table[column].isna().any():
+            raise ShapeError("missing assignment, adoption, cluster or unit identity", [column], "complete source-backed identity and exposure mapping")
+    if periods.kind == "long":
+        if not unit_column or unit_column not in table:
+            raise ShapeError("the unit identity must be explicit", [], "confirmed unit identifiers")
+        if table.duplicated([unit_column, periods.time_column]).any():
+            raise ShapeError("duplicate unit-time rows", [], "one observation per unit and period")
+        if cluster_column and cluster_column in table and (table.groupby(unit_column)[cluster_column].nunique(dropna=False) > 1).any():
+            raise ShapeError("a unit belongs to multiple assignment clusters", [], "a consistent assignment cluster")
     treated = (table[groups.column].astype(str) == str(groups.treated_level)).astype(int)
     if periods.kind == "wide":
-        panel, facts = _from_wide(table, treated, periods, candidates)
+        panel, facts = _from_wide(table, treated, periods, candidates, validate_assignment_support)
     else:
-        panel, facts = _from_long(table, treated, periods, outcome, candidates, unit_column or groups.column, cohort_column)
+        panel, facts = _from_long(table, treated, periods, outcome, candidates, unit_column or groups.column, cohort_column, validate_assignment_support)
     if cluster_column and cluster_column in table.columns and "cluster" not in panel.columns:
         by_row = table[cluster_column].astype(str)
         if periods.kind == "wide":
@@ -67,7 +78,11 @@ def _cluster_by_unit(table: pd.DataFrame, panel: pd.DataFrame, unit_column: str,
     return panel["unit"].map(first).to_numpy()
 
 
-def _from_wide(table: pd.DataFrame, treated: pd.Series, p: Periods, candidates: list[str]) -> tuple[pd.DataFrame, ShapeFacts]:
+def _from_wide(
+    table: pd.DataFrame, treated: pd.Series, p: Periods, candidates: list[str], validate_assignment_support: bool
+) -> tuple[pd.DataFrame, ShapeFacts]:
+    if p.before_column == p.after_column:
+        raise ShapeError("before and after measurements are the same column", [], "distinct dated outcome measurements")
     for c in (p.before_column, p.after_column):
         if c not in table.columns or not pd.api.types.is_numeric_dtype(table[c]):
             raise ShapeError("a before or after column is missing or not numeric", [f"{c!r}"], "two numeric columns holding the outcome before and after")
@@ -83,13 +98,23 @@ def _from_wide(table: pd.DataFrame, treated: pd.Series, p: Periods, candidates: 
     long["cohort"] = 2 * long["treated"]  # the after period is the first treated one; 0 for never treated
     long["rel_time"] = np.where(long["treated"] == 1, long["time_index"] - 2, -1)
     facts = _facts(long, kind="wide", source="label", labels={1: "before", 2: "after"})
-    _guard(facts)
+    if validate_assignment_support:
+        _guard(facts)
     return long[CANON + keep], facts
 
 
 def _from_long(
-    table: pd.DataFrame, treated: pd.Series, p: Periods, outcome: str, candidates: list[str], unit_column: str, cohort_column: str | None
+    table: pd.DataFrame,
+    treated: pd.Series,
+    p: Periods,
+    outcome: str,
+    candidates: list[str],
+    unit_column: str,
+    cohort_column: str | None,
+    validate_assignment_support: bool,
 ) -> tuple[pd.DataFrame, ShapeFacts]:
+    if outcome not in table or not pd.api.types.is_numeric_dtype(table[outcome]):
+        raise ShapeError("outcome is not numeric", [outcome], "a numeric outcome measurement")
     t = p.time_column
     if t not in table.columns:
         raise ShapeError("the time column is missing", [f"{t!r}"], "a column that orders rows in time")
@@ -111,12 +136,6 @@ def _from_long(
     keep = [c for c in candidates if c in table.columns and c not in (t, outcome, unit_column)]
     for c in keep:
         df[c] = table[c].to_numpy()
-    lo = _parse_like(time, p.window_start) if p.window_start else None
-    hi = _parse_like(time, p.window_end) if p.window_end else None
-    if lo is not None:
-        df = df[df["time"] >= lo]
-    if hi is not None:
-        df = df[df["time"] <= hi]
     df = df.copy()
     periods_sorted = sorted(df["time"].unique())
     index = {v: i + 1 for i, v in enumerate(periods_sorted)}  # 1-based: pyfixest's gname reads 0 as never treated
@@ -132,7 +151,8 @@ def _from_long(
     df["treat"] = ((gnum > 0) & (df["time_index"] >= gnum)).astype(float)
     df["rel_time"] = np.where(gnum > 0, df["time_index"] - gnum, -1).astype(int)
     facts = _facts(df, kind="long", source=source, labels=labels)
-    _guard(facts)
+    if validate_assignment_support:
+        _guard(facts)
     return df[CANON + keep], facts
 
 
@@ -142,17 +162,25 @@ def _first_treated(
     """Each unit's first treated period as a 1-based index, 0 for never: the pack's adoption column, else an indicator that
     switches on within a unit, else the treated label and the one change period."""
     if cohort_column and cohort_column in table.columns:
-        per_unit = table[cohort_column].groupby(unit_of_row).first().dropna()
+        if (table[cohort_column].groupby(unit_of_row).nunique(dropna=False) > 1).any():
+            raise ShapeError("adoption dates disagree within a unit", [], "one adoption date per unit")
+        per_unit = table[cohort_column].groupby(unit_of_row).first()
         out: dict[str, int] = {}
         bad: list[str] = []
         for u, v in per_unit.items():
-            if pd.isna(v) or (isinstance(v, (int, float, np.integer, np.floating)) and float(v) == 0.0):
+            if isinstance(v, (int, float, np.integer, np.floating)) and float(v) == 0.0:
                 out[str(u)] = 0
                 continue
             parsed = _parse_like(time, v)
             if parsed is None:
                 bad.append(str(u))
                 continue
+            if min(index) <= parsed <= max(index) and parsed not in index:
+                raise ShapeError(
+                    "adoption date is not an observed period",
+                    [period_label(parsed)],
+                    "adoption dates aligned to observed period labels; elapsed-time interpolation is unsupported",
+                )
             later = [i for p, i in index.items() if p >= parsed]
             out[str(u)] = min(later) if later else 0  # an adoption after the span: never treated within it
         if bad:

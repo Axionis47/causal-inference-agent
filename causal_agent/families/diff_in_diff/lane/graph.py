@@ -9,10 +9,11 @@ from causal_agent.families.diff_in_diff.lane import nodes as N
 from causal_agent.families.diff_in_diff.lane.knowledge import SPEC
 from causal_agent.families.diff_in_diff.lane.state import SpecialistState
 from causal_agent.lane import graph as G
+from causal_agent.lane.state import LaneInput
 
 
 def build() -> StateGraph:
-    return G.build(SPEC, N, SpecialistState)
+    return G.build(SPEC, N, SpecialistState, input_schema=LaneInput)
 
 
 def compile_subgraph():

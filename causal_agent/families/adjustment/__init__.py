@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from causal_agent.common.contracts.endpoints import load_endpoints
 from causal_agent.families.adjustment import design, handoff, probes
 from causal_agent.families.base import FamilyDef, load_family_yaml
 
@@ -24,5 +25,5 @@ FAMILY = FamilyDef(
     design_block=handoff.design_block,
     probes=probes.probes,
     lane=_lane,
-    refutation_prefix="refute",
+    endpoints=load_endpoints(Path(__file__).parent / "lane" / "knowledge" / "endpoints.yaml"),
 )

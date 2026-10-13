@@ -22,6 +22,9 @@ class RouteState(TypedDict, total=False):
     """The routing keys: from a question and a memory to a hand-off."""
 
     question: str
+    context_family: str | None
+    matrix: object | None
+    fork: object | None
     dataset: str
     prefilter_votes: Annotated[list[PrefilterVote], operator.add]
     frame: QuestionFrame | None
@@ -41,6 +44,7 @@ class RouteState(TypedDict, total=False):
 
 
 class DeskState(RouteState, total=False):
+    deficiency_addresses: list[str]
     """The whole conversation: the question first, the journey to ready, the run, and the chat after."""
 
     analysis: str  # a<k>: the journal this conversation appends to, under data/memory/<name>/analyses/
@@ -49,7 +53,6 @@ class DeskState(RouteState, total=False):
     invalid: str | None  # why the last question did not pass, or None
     frame_attempts: int
     status: object | None  # memory.claims.Status: the fit
-    matrix: object | None  # memory.matrix.Matrix: the fit as a record, each cell with what set it and when
     open: list  # ops.Open: what is still vague
     findings: list[Finding]  # the checks' verdicts this turn
     refutations: dict[str, int]  # address -> how many times the file refuted the person's answer
@@ -74,7 +77,6 @@ class DeskState(RouteState, total=False):
     infer_attempts: int
     run_intent: bool  # the person has asked to run: the interview asks what blocks, the ready moment is shown, the word launches; cleared by a new question
     ready: bool
-    fork: object | None  # a what-if: a copy of the memory the routing and the run read instead of the one on disk
     what_if: dict[str, str]  # the fields changed on the fork, address -> value
     convinced_version: int  # the memory version the decision shown at the ready moment was made on
     convincing: bool  # the routing nodes are running to show the ready moment, not to hand off

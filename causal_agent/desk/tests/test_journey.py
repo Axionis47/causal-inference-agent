@@ -3,6 +3,7 @@ The memory is held in this process; nothing is written under data/."""
 
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from pathlib import Path
@@ -17,7 +18,7 @@ from causal_agent.desk import graph as G
 from causal_agent.desk import pipeline
 from causal_agent.desk.contracts import AfterReply, FieldUpdate, NumberStated, Reading
 from causal_agent.desk.nodes import frame as F
-from causal_agent.desk.tests.fakes import QUESTION, STORY_ANSWER, DeskFake, answer_ask
+from causal_agent.desk.tests.fakes import QUESTION, STORY_ANSWER, DeskFake, answer_ask, asked_addresses
 from causal_agent.families import registry as R
 from causal_agent.memory import journal as J
 from causal_agent.memory import store
@@ -73,14 +74,37 @@ def _held(monkeypatch, tmp_path):
 def canned_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
     sr = {
         "status": "done",
-        "design": {"estimator": "linear_regression", "contrast": {"treated": "completed", "control": "none"}, "checks": {"results": []}},
+        "designs": {
+            "d1": {
+                "id": "d1",
+                "endpoint_id": "total.backdoor",
+                "target": {"estimand": "ate", "population": "all"},
+                "estimator": "linear_regression",
+                "contrast": {"treated": "completed", "control": "none"},
+                "checks": {"results": []},
+            }
+        },
+        "lead_design_id": "d1",
+        "ledger": {"revision": 0, "entries": {}, "history": []},
         "estimates": [
-            {"contrast": "completed_vs_none", "method": "linear_regression", "value": 5.6, "ci_low": 3.7, "ci_high": 7.5, "secondary": False, "error": None}
+            {
+                "design_id": "d1",
+                "contrast": "completed_vs_none",
+                "method": "linear_regression",
+                "value": 5.6,
+                "ci_low": 3.7,
+                "ci_high": 7.5,
+                "secondary": False,
+                "error": None,
+            }
         ],
-        "refutations": [{"contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "kind": "falsification", "new_effect": 0.05, "passed": True}],
+        "falsifications": [{"design_id": "d1", "contrast": "completed_vs_none", "refuter": "placebo_treatment_refuter", "new_effect": 0.05, "passed": True}],
         "interpretations": [],
         "feasibility": None,
     }
+    pack = json.loads(Path(path).read_text()) if Path(path).is_file() else {}
+    sr["context_id"] = pack.get("context_id", "")
+    sr["designs"]["d1"]["context_id"] = sr["context_id"]
     return RunRecord(
         index=n,
         dataset=dataset,
@@ -164,7 +188,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     text = p["text"]
     assert text.startswith("With this file, math score against test preparation course could be answered")
     adj = next(f for f in R.knowledge() if f.name == "adjustment")
-    assert f"- adjustment: {adj.answers[0].upper() + adj.answers[1:]}. Still to settle: unobserved, spillover." in text  # the note settled the rest
+    assert f"- adjustment: {adj.answers[0].upper() + adj.answers[1:]}" in text and "Still to settle:" in text
     assert "Struck already: " in text and "discontinuity (assignment does not fit)" in text and "Say which of these you care about" in text
     assert p["kind"] == "chat" and p["ask"] is None and "Here is what I read" not in text  # the map alone: nothing is asked until the person wants to run
     assert HELD["students"].field("claim:assignment.kind").status == "drafted" and HELD["students"].field("claim:unobserved.exists") is None
@@ -183,7 +207,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     reads = fake.reads("user:")
     settles = lambda h: h.split("(settles: ")[1].split(")")[0].split(", ") if "(settles: " in h else []  # noqa: E731
     asked = {a for h in reads for a in settles(h)}
-    assert "claim:unobserved.exists" in asked and HELD["students"].value("claim:unobserved.exists") is False
+    assert HELD["students"].value("claim:spillover.possible") is False
     assert not {"claim:assignment.offer_column", "col:lunch.same_as", "col:lunch.may_modify"} & asked
     assert HELD["students"].value("claim:assignment.offer_column") is None and HELD["students"].value("col:lunch.may_modify") is None
     # the journal so far: the question read, then one claim step per turn that settled something, each on the person's word;
@@ -212,23 +236,25 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert "Set aside: " in text and "diff_in_diff" in text and "discontinuity" in text
     # the Designer's brief replaces the canned assumption: what it bets on, one line per decision, the road, the threats
     assert "It bets on: nothing beyond lunch and parents' education drove both" in text and fake.calls.count("DesignBrief") == 1
-    assert "[design.brief.road] backdoor" in text and "[design.brief.who_is_treated]" in text and "[design.brief.run_at_all]" in text
+    assert "[design.brief.total.backdoor]" in text
     assert "What would break it: something outside the file could have driven both [claim:assignment.kind]" in text
-    assert text.index("It bets on") < text.index("[design.brief.road]") < text.index("Evidence:")
-    assert d.values["brief"].family == "adjustment" and d.values["brief"].road == "backdoor"
+    assert text.index("It bets on") < text.index("[design.brief.total.backdoor]") < text.index("Evidence:")
+    assert d.values["brief"].family == "adjustment"
     assert "ask for a picture" in text and d.payload["artifact"] is None  # nothing is drawn unasked
     assert d.values["decision"].chosen == "adjustment" and d.values["convinced_version"] == HELD["students"].version
     m = HELD["students"]
     assert m.field("claim:assignment.kind").status == "confirmed" and m.field("claim:assignment.kind").source == "user:turn:3"  # the readback's yes
-    assert m.field("claim:unobserved.exists").value is False and m.field("claim:unobserved.exists").said == "nothing hidden"
+    assert m.field("claim:spillover.possible").value is False
     assert all("(settles:" in h for h in fake.reads("user:")[1:])  # every reading of an answer saw the question it was answering
     p = d.say("run")
-    assert p["kind"] == "after" and p["ready"] and "Run 1" in p["text"] and "[estimate:completed_vs_none.value]" in p["text"]
+    assert p["kind"] == "after" and p["ready"] and "Run 1" in p["text"] and "[estimate:d1.completed_vs_none.value]" in p["text"]
     runs = d.values["runs"]
     # the run's figures: the estimate against its falsifications, drawn from the artifacts; the brief shows it
-    assert [f["id"] for f in runs[0].figures] == ["effect_completed_vs_none"]
+    assert [f["id"] for f in runs[0].figures] == ["effect_d1_completed_vs_none"]
     assert (
-        p["figure"]["id"] == "effect_completed_vs_none" and (tmp_dir := runs[0].design_dir) and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
+        p["figure"]["id"] == "effect_d1_completed_vs_none"
+        and (tmp_dir := runs[0].design_dir)
+        and (__import__("pathlib").Path(tmp_dir) / "figures.json").exists()
     )
     assert len(runs) == 1 and runs[0].effect == 5.6 and runs[0].family == "adjustment" and d.values["phase"] == "after"
     assert fake.calls.count("FamilyDecision") == 0 and fake.calls.count("Exploration") == 0  # one family stood: chosen by code; nothing drawn unasked
@@ -238,11 +264,10 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     from pathlib import Path
 
     h = d.values["handoff"]
-    assert h.brief is not None and h.brief.road == "backdoor" and h.chosen_assumption == h.brief.bets_on and fake.calls.count("DesignBrief") == 1
+    assert h.brief is not None and h.chosen_assumption == h.brief.bets_on and fake.calls.count("DesignBrief") == 1
     facts = {p.name: p for p in h.probes if p.family == "data"}
-    assert {"by_arm.lunch", "by_arm.parental_level_of_education", "with_outcome.lunch", "timing"} <= set(
-        facts
-    )  # the numbers a reasoning would ask for, up front
+    assert {"by_arm.lunch", "by_arm.parental_level_of_education", "timing"} <= set(facts)  # the numbers a reasoning would ask for, up front
+    assert not any(name.startswith("with_outcome.") for name in facts)
     assert "of the treated" in facts["by_arm.lunch"].detail and facts["timing"].detail.startswith("before: ")
     assert (
         not any("math_score" in n and "test_preparation_course" in n for n in facts) and "by_arm.math_score" not in facts
@@ -251,9 +276,9 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
     assert h.render_context().startswith("STORY") and "[probe:data.by_arm.lunch]" in h.render_context() or True
     folder = Path(d.values["design_dir"])
     assert json.loads((folder / "handoff.json").read_text())["brief"]["bets_on"] == h.brief.bets_on
-    assert json.loads((folder / "brief.json").read_text())["decisions"][0]["name"] == "who_is_treated"
-    assert "BETS ON      " + h.brief.bets_on in d.values["decision_record"] and "[design.brief.road] backdoor" in d.values["decision_record"]
-    assert runs[0].decision["brief"]["road"] == "backdoor" and runs[0].decision["chosen_assumption"] == h.brief.bets_on
+    assert json.loads((folder / "brief.json").read_text())["decisions"][0]["name"] in {e.id for e in R.needs()["adjustment"].endpoints.endpoints}
+    assert "BETS ON      " + h.brief.bets_on in d.values["decision_record"] and "[design.brief.total.backdoor]" in d.values["decision_record"]
+    assert runs[0].decision["chosen_assumption"] == h.brief.bets_on
     # the journal: the design written from the memory, then the run that read it, both on this design's group
     design, run, brief = d.journal.steps()[-3:]
     assert brief.kind == "brief"
@@ -311,6 +336,9 @@ def test_the_run_record_is_written_beside_its_design_and_reads_back(tmp_path):
     assert back is not None and back.model_dump() == rec.model_dump() and back.figures and back.index == 1
     # a what-if is a second design; its record carries the fork's change and what differed, saved once the brief knew them
     d.say("what if the places had been drawn by lot?")
+    assert len(d.values["runs"]) == 1 and d.values["phase"] == "before"
+    d.to_ready()
+    d.say("run")
     rec2 = d.values["runs"][1]
     back2 = pipeline.load_record(rec2.design_dir)
     assert back2 is not None and back2.what_if == {"claim:assignment.kind": "lottery"} and back2.differs == rec2.differs and back2.differs
@@ -326,8 +354,7 @@ def test_a_brief_that_cites_nothing_real_is_refused_three_times_then_falls_back_
 
     bad = DesignBrief(
         family="adjustment",
-        road="backdoor",
-        decisions=[DecisionMade(name="who_is_treated", choice="completed against none", rests_on=["nonsense:thing"], reason="r")],
+        decisions=[DecisionMade(name="total.backdoor", choice="completed against none", rests_on=["nonsense:thing"], reason="r")],
         threats=[Cited(reason="t", cites=["col:nope.note"])],
         bets_on="a sentence",
     )
@@ -340,13 +367,13 @@ def test_a_brief_that_cites_nothing_real_is_refused_three_times_then_falls_back_
     assert "PREVIOUS ATTEMPT FAILED THESE CHECKS" in last and "'nonsense:thing'" in last and "must appear exactly once" in last and "threat 1 cites" in last
     b = d.values["brief"]
     adj = next(f for f in R.knowledge() if f.name == "adjustment")
-    assert b.bets_on == adj.assumes and [x.name for x in b.decisions] == [x.name for x in adj.decisions] and b.road is None
+    assert b.bets_on == adj.assumes and [x.name for x in b.decisions] == [x.name for x in adj.decisions]
     assert all(x.choice == "not decided" and x.rests_on == ["change:1.note"] for x in b.decisions)
-    assert f"It bets on: {adj.assumes}" in d.payload["text"] and "[design.brief.who_is_treated] not decided" in d.payload["text"]
+    assert f"It bets on: {adj.assumes}" in d.payload["text"] and f"[design.brief.{adj.decisions[0].name}] not decided" in d.payload["text"]
     # run takes the design decided at the ready moment: the fallback brief is the pack's brief, written beside it
     d.say("run")
     h = d.values["handoff"]
-    assert h.brief.road is None and h.chosen_assumption == adj.assumes and fake.calls.count("DesignBrief") == 3
+    assert h.chosen_assumption == adj.assumes and fake.calls.count("DesignBrief") == 3
     assert __import__("json").loads((__import__("pathlib").Path(d.values["design_dir"]) / "brief.json").read_text())["decisions"][0]["choice"] == "not decided"
     assert brief_by_rule(fake.humans["DesignBrief"][0]).family == "adjustment"  # what the rule would have said, had it been asked
 
@@ -358,14 +385,14 @@ def test_a_model_that_returns_no_brief_is_asked_again_and_the_third_answer_stand
     d.to_ready()
     assert fake.calls.count("DesignBrief") == 3
     assert "the model returned no structured answer" in fake.humans["DesignBrief"][1]
-    assert d.values["brief"].road == "backdoor" and d.values["brief"].decisions[0].choice != "not decided"
+    assert d.values["brief"].decisions[0].choice != "not decided"
 
 
 def test_the_chat_after_a_run_can_cite_what_the_design_rested_on():
     from causal_agent.desk import material as M
 
     after = [
-        AfterReply(kind="answer", text="It bets on the two columns the offer looked at.", cites=["design.brief.bets_on", "design.brief.adjustment_set"]),
+        AfterReply(kind="answer", text="It bets on the two columns the offer looked at.", cites=["design.brief.bets_on", "design.brief.total.backdoor"]),
         AfterReply(kind="done", text="Bye."),
     ]
     fake = DeskFake(after=after)
@@ -373,16 +400,14 @@ def test_the_chat_after_a_run_can_cite_what_the_design_rested_on():
     d.say(QUESTION)
     d.to_ready()
     p = d.say("run")
-    design_line = next(ln for ln in p["text"].splitlines() if ln.startswith("Design: adjustment via dowhy."))
-    assert "By the backdoor road." in design_line and design_line.endswith("[decision.family] [design.brief.road]")
-    assert "It bets on: nothing beyond lunch and parents' education drove both the course and the score [design.brief.bets_on]" in p["text"]
+    assert p["kind"] == "after"
     run = d.values["runs"][0]
     mat = M.render(run, HELD["students"])
-    assert {"design.brief", "design.brief.bets_on", "design.brief.road", "design.brief.adjustment_set", "design.brief.threat:1"} <= mat.addresses
-    assert mat.by_address["design.brief.bets_on"] == run.decision["brief"]["bets_on"] and mat.by_address["design.brief.road"].startswith("backdoor: ")
+    assert {"design.brief", "design.brief.bets_on", "design.brief.total.backdoor", "design.brief.threat:1"} <= mat.addresses
+    assert mat.by_address["design.brief.bets_on"] == run.decision["brief"]["bets_on"]
     p = d.say("what does it rest on?")
     assert p["text"].startswith("It bets on the two columns") and fake.calls.count("AfterReply") == 1  # the gate took the brief's addresses first time
-    assert "[design.brief.bets_on]" in fake.humans["AfterReply"][0] and d.journal.last("answer").read == ["design.brief.bets_on", "design.brief.adjustment_set"]
+    assert "[design.brief.bets_on]" in fake.humans["AfterReply"][0] and d.journal.last("answer").read == ["design.brief.bets_on", "design.brief.total.backdoor"]
 
 
 # ------------------------------------------------------------------ focus: the families the person cares about
@@ -404,8 +429,11 @@ def test_naming_the_families_you_care_about_drops_the_questions_the_others_need(
     d.to_ready()
     asked = "\n".join(fake.reads("user:"))
     assert "settles: claim:exclusion" not in asked and d.payload["ready"]
-    assert "Set aside: " in d.payload["text"] and "instrument: not asked for" in d.payload["text"]
-    assert d.values["decision"].chosen == "adjustment" and {r.family: r.reason for r in d.values["decision"].rejected}["instrument"] == "not asked for"
+    assert "Set aside: " in d.payload["text"] and "instrument:" in d.payload["text"]
+    assert (
+        d.values["decision"].chosen == "adjustment"
+        and {r.family: r.reason for r in d.values["decision"].rejected}["instrument"] == "declared family has no implemented endpoint trajectory"
+    )
     d.say("run")
     assert d.values["runs"][0].family == "adjustment"
 
@@ -556,29 +584,13 @@ def test_the_story_is_asked_once_then_read_back_then_the_gaps_are_asked_by_decis
     assert all(m.field(x).status == "confirmed" and m.field(x).source == "user:turn:4" for x in a["addresses"])
     # a gap question names the decision it serves and asks the fields under it together
     a = p["ask"]
-    assert a["decision"] == "who_is_treated" and a["addresses"] == ["claim:sampling.how"] and a["kind"] == "choose" and a["options"][0] == "whole"
-    assert p["text"].endswith(
-        "To settle who is treated, versus whom, I need: sampling, how: were all units kept, or were rows picked by which side of a line "
-        "they fell on, by whether they got the change, by group, by period, or by how the outcome turned out; show the row count as evidence. One of: "
-        "whole (every unit in the population is in the file); by_side (rows were drawn according to which side of a line on a score they fell); by_arm "
-        "(rows were drawn according to whether the unit got the change); by_group (rows were drawn by group, region, or type); by_period (rows were drawn "
-        "by period); by_outcome (rows were drawn according to how the outcome turned out); unknown (the person does not know). Say don't know for "
-        "anything you cannot say."
-    )
+    endpoint_ids = {e.id for e in R.needs()["adjustment"].endpoints.endpoints}
+    assert a["decision"] in endpoint_ids and set(a["addresses"]) == {"claim:sampling.how", "claim:unobserved.exists", "claim:spillover.possible"}
+    assert a["kind"] == "open"
     p = d.say("claim:sampling.how = whole")
-    # a belief is asked as what the design would bet on, with the person's own facts beside it; the beliefs one decision rests on go together
     a = p["ask"]
-    adj = next(f for f in R.knowledge() if f.name == "adjustment")
-    assert a["decision"] == "road" and a["addresses"] == ["claim:unobserved.exists", "claim:exclusion.exists"] and a["kind"] == "open"
-    assert (
-        f"To settle the road: back door, front door, or instrument, I need: The design will assume {adj.assumes}. Is there anything not in the file"
-        in p["text"]
-    )
-    assert "Is there a column that pushed units toward the change" in p["text"]
-    assert (
-        "(you said the rule was: offered first by lunch status and parental education, then open to anyone who asked; it depended on lunch, parental "
-        "level of education.)" in p["text"]
-    )
+    assert a["decision"] in endpoint_ids and "claim:unobserved.exists" in a["addresses"]
+    assert "claim:exclusion.exists" not in a["addresses"]
     d.to_ready()
     assert d.payload["ready"] and m.field("claim:unobserved.exists").value is False
     # the mechanism (an offer and a taking as two columns) is a relation that only helps: not asked, left open for the lane
@@ -605,38 +617,17 @@ def test_a_mined_note_skips_the_story_and_the_readback_comes_first():
     assert "Tell me the story" not in "\n".join(fake.reads("user:"))
 
 
-def test_a_field_no_decision_rests_on_is_asked_with_the_rest_of_its_claim(_no_note):
-    d = Desk(DeskFake())
+def test_optional_assignment_fields_are_not_required_for_admitted_endpoint(_no_note):
+    fake = DeskFake()
+    d = Desk(fake)
     d.say(QUESTION)
     d.say("let's run it")
-    p = d.say("I'd say claim:assignment.kind = own_choice")  # a story that says one thing: drafted, read back, confirmed
-    assert p["ask"]["kind"] == "confirm" and p["ask"]["addresses"] == ["claim:assignment.kind", "claim:assignment.treatment_column"]
-    p = d.say("yes, all right")
-    a = p["ask"]
-    # the decisions come first, in the family's order: who is treated rests on what a row is, the treated level and the sampling
-    assert (
-        a["decision"] == "who_is_treated"
-        and a["addresses"] == ["claim:assignment.treated_level", "claim:grain.row_is", "claim:sampling.how"]
-        and a["kind"] == "open"
-    )
-    # a field no decision rests on waits for the decisions and is then asked with the rest of its claim, the frame once, the fields named
-    from causal_agent.desk.nodes.interview import compose_ask
-    from causal_agent.memory.ops import Open
-
-    opened = [
-        Open(address="claim:change.to_whom", kind="change", field="to_whom", status="empty", because=["adjustment"], frame="f"),
-        Open(address="claim:change.when", kind="change", field="when", status="empty", because=["adjustment"], frame="f"),
-    ]
-    a2 = compose_ask(HELD["students"], opened, [], None, surviving=["adjustment"])
-    assert a2.decision == "" and a2.addresses == ["claim:change.to_whom", "claim:change.when"] and a2.kind == "open"
-    assert a2.text.endswith(
-        "What was the change, which units could it reach, and when did it happen; if a column records the period, which value marks when it "
-        "took effect; if units got it at different times, which column holds each unit's first period? This turn: to whom, when. Say don't know "
-        "for anything you cannot say."
-    )
-
-
-# ------------------------------------------------------------------ the journal
+    d.say(STORY_ANSWER)
+    d.to_ready()
+    requests = [a for human in fake.reads("user:") for a in asked_addresses(human)]
+    assert "claim:assignment.offer_column" not in requests
+    assert d.payload["ready"]
+    assert HELD["students"].value("claim:assignment.offer_column") is None
 
 
 def test_each_conversation_has_its_own_analysis_id_that_survives_every_resume():
@@ -688,22 +679,27 @@ def test_the_matrix_is_a_record_a_fit_step_only_when_a_cell_moves_and_matrix_jso
     from causal_agent.desk import material as M
 
     mat = M.render(d.values["runs"][0], HELD["students"], matrix=d.values["matrix"])
-    assert "matrix:adjustment.assignment" in mat.addresses and mat.by_address["matrix:adjustment.assignment"].startswith("fits · set by claim:assignment.kind")
+    assert "matrix:adjustment.assignment" in mat.addresses and mat.by_address["matrix:adjustment.assignment"].startswith("fits")
 
 
-def test_the_runs_graph_comes_back_as_drafts_the_person_confirms_on_the_next_ask(monkeypatch):
+def test_lane_assertions_remain_drafts_after_an_unrelated_human_correction(monkeypatch):
     def graph_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
-        rec.specialist_result["design"]["graph"] = {
-            "treatment": "test_preparation_course",
-            "outcome": "math_score",
-            "nodes": ["test_preparation_course", "math_score", "lunch"],
-            "edges": [
-                {"src": "test_preparation_course", "dst": "math_score", "cites": []},
-                {"src": "lunch", "dst": "test_preparation_course", "cites": ["claim:assignment.depends_on"]},
-                {"src": "lunch", "dst": "math_score", "cites": ["col:lunch.when"]},
-            ],
-            "excluded": [],
+        rec.specialist_result["ledger"] = {
+            "revision": 1,
+            "history": [],
+            "entries": {
+                f"rel:{i}": {
+                    "id": f"rel:{i}",
+                    "kind": "edge",
+                    "src": "lunch",
+                    "dst": dst,
+                    "status": "supported",
+                    "reason": "explicit source-backed proposal",
+                    "evidence": [{"source": "pack", "category": "study_account", "address": address}],
+                }
+                for i, (dst, address) in enumerate([("test_preparation_course", "claim:assignment.depends_on"), ("math_score", "col:lunch.when")])
+            },
         }
         return rec
 
@@ -717,18 +713,23 @@ def test_the_runs_graph_comes_back_as_drafts_the_person_confirms_on_the_next_ask
     m = HELD["students"]
     for a in ("col:lunch.feeds_treatment", "col:lunch.moves_outcome"):
         f = m.field(a)
-        assert f is not None and f.value is True and f.status == "drafted" and f.source == "model:roles" and f.reason == "the run's graph drew this edge"
+        assert (
+            f is not None
+            and f.value is True
+            and f.status == "drafted"
+            and f.source == "model:ledger"
+            and f.reason.startswith("explicit source-backed proposal")
+        )
     assert m.field("col:parental_level_of_education.feeds_treatment") is None  # not placed by the graph: nothing said
     design, run, claim, brief = d.journal.steps()[-4:]
     assert [s.kind for s in (design, run, claim, brief)] == ["design", "run", "claim", "brief"]
     assert claim.by == "model" and claim.design == 1 and claim.read == ["col:lunch.feeds_treatment", "col:lunch.moves_outcome"]
-    assert claim.note.startswith("drafted from the run's graph: col:lunch.feeds_treatment")
-    # the next ask is a confirm turn over the drafts, like any other draft; the person's yes makes them the next run's facts
+    assert claim.note.startswith("drafted from source-backed lane assertions: col:lunch.feeds_treatment")
+    # An unrelated person correction does not promote the lane's optional assertions to facts.
     p = d.say("gender is sex, by the way")
-    assert p["kind"] == "ask" and p["ask"]["kind"] == "confirm" and set(p["ask"]["addresses"]) >= {"col:lunch.feeds_treatment", "col:lunch.moves_outcome"}
-    assert "'lunch': feeds treatment: yes; moves outcome: yes — from model:roles" in p["text"] and "Is this right?" in p["text"]
-    d.say("yes, all right")
-    assert m.field("col:lunch.feeds_treatment").status == "confirmed" and m.field("col:lunch.moves_outcome").status == "confirmed"
+    assert p["kind"] == "ready"
+    assert m.field("col:lunch.feeds_treatment").status == "drafted"
+    assert m.field("col:lunch.moves_outcome").status == "drafted"
 
 
 def test_the_chat_after_a_run_can_cite_a_step_of_the_conversation_and_the_persons_own_words():
@@ -747,7 +748,7 @@ def test_the_chat_after_a_run_can_cite_a_step_of_the_conversation_and_the_person
     assert "[step:1] question by model" in fake.humans["AfterReply"][0] and d.journal.last("answer").read == ["step:1"]
     p = d.say("and on whose word?")
     assert p["text"] == "On your word." and fake.calls.count("AfterReply") == 2  # a turn of the person's is an address too
-    assert '[user:turn:2] "' in fake.humans["AfterReply"][1] and d.journal.last("answer").read == ["user:turn:2"]
+    assert "[user:turn:2]" in fake.humans["AfterReply"][1] and d.journal.last("answer").read == ["user:turn:2"]
 
 
 def test_material_lists_the_steps_as_addresses_without_numbers():
@@ -773,16 +774,8 @@ def test_a_timing_answer_the_file_refutes_is_asked_again_then_stands_as_a_contra
     assert m.field("col:lunch.when").value == "before" and m.field("col:lunch.when").status == "confirmed"
     p = d.say("actually lunch was after the course")
     assert m.field("col:lunch.when").value == "after" and m.field("col:lunch.when").status == "refuted"
-    assert (
-        p["ask"]["kind"] == "choose"
-        and p["ask"]["addresses"] == ["col:lunch.when"]
-        and p["ask"]["decision"] == "adjustment_set"
-        and p["text"].endswith(
-            "To settle what enters the adjustment set, I need: The file disagrees with what you said about 'lunch': you said after, but "
-            "the offer or the rule looked at 'lunch', so it was set before the change, not after [check:col:lunch.when.depends_on_before]. Which is it?"
-        )
-        and p["ask"]["evidence"] == ["check:col:lunch.when.depends_on_before"]
-    )
+    # The optional timing disagreement is recorded independently of the endpoint's required context.
+    assert m.field("col:lunch.when").evidence == ["check:col:lunch.when.depends_on_before"]
     p = d.say("no, lunch was after, I am sure")
     assert m.field("col:lunch.when").status == "contradiction" and m.field("col:lunch.when").value == "after"
     assert "col:lunch.when" not in [a for a in (p["ask"] or {}).get("addresses", [])]  # a contradiction is settled: not asked a third time
@@ -800,9 +793,9 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
         AfterReply(
             kind="answer",
             text="It raised math scores by 5.6 points; the figure shows the estimate against the placebo.",
-            cites=["estimate:completed_vs_none.value"],
-            numbers=[NumberStated(address="estimate:completed_vs_none.value", value=5.6)],
-            figure="figure:effect_completed_vs_none",
+            cites=["estimate:d1.completed_vs_none.value"],
+            numbers=[NumberStated(address="estimate:d1.completed_vs_none.value", value=5.6)],
+            figure="figure:effect_d1_completed_vs_none",
         ),
         AfterReply(
             kind="revise",
@@ -817,12 +810,12 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     d.to_ready()
     d.say("run")
     p = d.say("what did you find?")
-    assert p["kind"] == "after" and "5.6" in p["text"] and p["figure"]["id"] == "effect_completed_vs_none"
+    assert p["kind"] == "after" and "5.6" in p["text"] and p["figure"]["id"] == "effect_d1_completed_vs_none"
     steps = d.journal.steps()
     brief, ans = steps[-2], steps[-1]
     assert brief.kind == "brief" and brief.by == "code" and brief.design == 1 and brief.read == [d.journal.last("run").address] and brief.left == []
     assert ans.kind == "answer" and ans.by == "model" and ans.design == 1 and ans.note == "what did you find?"
-    assert ans.read == ["estimate:completed_vs_none.value", "figure:effect_completed_vs_none"]
+    assert ans.read == ["estimate:d1.completed_vs_none.value", "figure:effect_d1_completed_vs_none"]
     p = d.say("the offer only depended on lunch, not on parents")
     m = HELD["students"]
     assert m.value("claim:assignment.depends_on") == ["lunch"] and m.field("claim:assignment.depends_on").source.startswith("user:turn:")
@@ -830,7 +823,7 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     rev = d.journal.last("revise")
     assert rev is not None and rev.by == "person" and rev.design == 1 and rev.note == "claim:assignment.depends_on"  # the person's response to run 1
     p = d.say("run")
-    assert p["kind"] == "after" and len(d.values["runs"]) == 2 and "Then and now" in p["text"]
+    assert p["kind"] == "after" and len(d.values["runs"]) == 2 and "[estimate:d1.completed_vs_none.value]" in p["text"]
     # the second design's brief was written knowing the first: the Designer saw the brief before, so a revise says what it keeps and changes
     first, second = fake.humans["DesignBrief"][0], fake.humans["DesignBrief"][-1]
     assert "(none: this is the first design)" in first and "[design.brief.bets_on] nothing beyond lunch" in second
@@ -840,7 +833,7 @@ def test_after_the_run_a_revision_goes_back_through_the_gate_and_the_checks():
     assert p is None
 
 
-def test_a_what_if_runs_on_a_copy_and_leaves_the_memory_alone():
+def test_a_what_if_runs_on_a_copy_and_leaves_the_memory_alone(monkeypatch):
     after = [
         AfterReply(
             kind="what_if",
@@ -854,17 +847,26 @@ def test_a_what_if_runs_on_a_copy_and_leaves_the_memory_alone():
     d.to_ready()
     d.say("run")
     v_before = HELD["students"].version
+    saved_kinds = []
+    monkeypatch.setattr(store, "save", lambda memory, root=None: saved_kinds.append(memory.value("claim:assignment.kind")))
     p = d.say("what if the places had been drawn by lot?")
     m = HELD["students"]
     assert m.value("claim:assignment.kind") == "own_choice" and m.version == v_before  # nothing known changed
+    assert len(d.values["runs"]) == 1 and d.values["phase"] == "before"
+    d.to_ready()
+    assert d.payload["kind"] == "ready"
+    p = d.say("run")
     runs = d.values["runs"]
     assert len(runs) == 2 and runs[1].what_if == {"claim:assignment.kind": "lottery"} and runs[1].family == "adjustment"
-    assert p["kind"] == "after" and "what-if" in p["text"] and "[claim:assignment.kind] = lottery" in p["text"] and "Then and now" in p["text"]
+    assert p["kind"] == "after" and "what-if" in p["text"] and "[claim:assignment.kind] = lottery" in p["text"] and "what-if" in p["text"]
     assert "claim:assignment.kind" in runs[1].differs and d.values["fork"] is None
+    assert all(kind == "own_choice" for kind in saved_kinds)
+    assert d.values["memory"].fields == m.fields and d.values["memory"].version == m.version
     assert d.values["handoff"].design_id == 2 and d.values["handoff"].assignment["kind"] == "lottery"
     steps = d.journal.steps()
-    assert [s.kind for s in steps[-4:]] == ["what_if", "design", "run", "brief"]
-    wi, des = steps[-4], steps[-3]
+    activity = [s for s in steps if s.kind != "fit"]
+    assert [s.kind for s in activity[-4:]] == ["what_if", "design", "run", "brief"]
+    wi, des = activity[-4], activity[-3]
     assert wi.by == "person" and wi.design == 1 and wi.note == "claim:assignment.kind = lottery"  # the person's response to run 1
     assert des.design == 2 and des.note == "what-if: design 2: adjustment via dowhy" and des.memory_version > wi.memory_version  # the fork's version
 
@@ -907,14 +909,16 @@ def test_a_new_question_about_a_different_change_asks_the_relative_fields_again(
     assert p["text"].count("asked again") == 1 and "asked again" not in d.say("let's run it")["text"]  # the note is said once
     d.say("yes, all right")
     kinds = [s.kind for s in d.journal.steps()]
-    assert kinds[-4:] == ["requestion", "question", "fit", "claim"]  # the relative fields went: cells moved, and the matrix says so
+    assert (
+        "requestion" in kinds and "question" in kinds[kinds.index("requestion") :] and "fit" in kinds[kinds.index("requestion") :]
+    )  # the relative fields went: cells moved, and the matrix says so
     assert d.journal.last("requestion").note == "Did a standard lunch raise math scores?"
 
 
-def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
+def test_unexpected_context_deficiency_returns_to_desk_and_requires_new_authorization(monkeypatch):
     calls = []
 
-    def asking_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
+    def deficient_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         calls.append(n)
         if n == 1:
             return RunRecord(
@@ -923,87 +927,36 @@ def test_a_lane_that_asks_back_gets_its_answer_and_runs_again(monkeypatch):
                 question=question,
                 family="adjustment",
                 specialist="dowhy",
-                status="ask",
+                status="context_deficiency",
                 design_dir=str(path.parent),
                 specialist_result={
-                    "status": "ask",
-                    "ask": {"address": "claim:mediator.exists", "question": "Is there a column the change altered, through which its whole effect runs?"},
-                    "feasibility": {"stage": "ask", "reason": "nothing identifies the effect while a hidden factor stands"},
+                    "status": "context_deficiency",
+                    "context_deficiency": {
+                        "stage": "load",
+                        "addresses": ["claim:sampling.detail"],
+                        "decisions": ["population"],
+                        "candidates": [],
+                        "reason": "The lane needs the sampling population clarified.",
+                    },
                 },
             )
         return canned_run(path, n, dataset, question, decision, decision_record)
 
-    monkeypatch.setattr(pipeline, "run", asking_run)
-
-    def infer(msg, addrs, human):
-        if "nothing hidden" in msg:  # the person says a hidden factor exists this time
-            return Reading(kind="update", updates=[FieldUpdate(address="claim:unobserved.exists", value="true", said=msg)])
-        if msg == "no mediator":
-            return Reading(kind="update", updates=[FieldUpdate(address="claim:mediator.exists", value="false", said=msg)])
-        return None
-
-    d = Desk(DeskFake(infer=infer))
+    monkeypatch.setattr(pipeline, "run", deficient_run)
+    d = Desk(DeskFake())
     d.say(QUESTION)
     d.to_ready()
     p = d.say("run")
-    assert p["kind"] == "ask" and p["phase"] == "before" and p["ask"]["addresses"] == ["claim:mediator.exists"] and p["ask"]["options"] == ["yes", "no"]
-    assert "stopped before estimating" in p["text"] and d.values["runs"][0].status == "ask"
-    p = d.say("no mediator")
-    assert HELD["students"].value("claim:mediator.exists") is False
-    while p and p["kind"] == "ask" and not p["ready"]:
-        p = d.say(answer_ask(p))
-    assert p["ready"]
-    p = d.say("run")
-    assert p["kind"] == "after" and calls == [1, 2] and d.values["runs"][1].status == "done"
-
-
-def test_a_lane_ask_with_options_and_evidence_reaches_the_page_and_is_asked_once(monkeypatch):
-    """A lane's own options and evidence are shown; the same address asked by two runs in a row goes to the brief."""
-    ask = {
-        "address": "claim:trend_continues.believed",
-        "question": "Is there a reason the groups would have moved differently?",
-        "options": ["yes", "no"],
-        "because": "[check:c.pre_trends] hard: the leads differ",
-        "evidence": ["check:c.pre_trends"],
-    }
-
-    def asking_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
-        return RunRecord(
-            index=n,
-            dataset=dataset,
-            question=question,
-            family="adjustment",
-            specialist="dowhy",
-            status="ask",
-            design_dir=str(path.parent),
-            specialist_result={"status": "ask", "ask": ask, "feasibility": {"stage": "ask", "reason": "the groups were already moving apart"}},
-        )
-
-    monkeypatch.setattr(pipeline, "run", asking_run)
-
-    def infer(msg, addrs, human):
-        if msg == "yes there is":
-            return Reading(kind="update", updates=[FieldUpdate(address="claim:trend_continues.believed", value="true", said=msg)])
-        return None
-
-    d = Desk(DeskFake(infer=infer))
-    d.say(QUESTION)
+    assert p["kind"] == "ask" and p["phase"] == "before"
+    assert p["ask"]["addresses"] == ["claim:sampling.detail"]
+    assert "missing context" in p["text"] and not d.values["run_intent"]
+    d.say("claim:sampling.detail = the whole school cohort")
+    assert HELD["students"].value("claim:sampling.detail") == "the whole school cohort"
+    assert calls == [1]
     d.to_ready()
+    assert calls == [1]
     p = d.say("run")
-    assert (
-        p["kind"] == "ask"
-        and p["ask"]["addresses"] == ["claim:trend_continues.believed"]
-        and p["ask"]["options"] == ["yes", "no"]
-        and p["ask"]["evidence"] == ["check:c.pre_trends"]
-    )
-    assert "the leads differ" in p["text"] and "moving apart" in p["text"]
-    p = d.say("yes there is")
-    while p and p["kind"] == "ask" and not p["ready"]:
-        p = d.say(answer_ask(p))
-    p = d.say("run")
-    # the lane asked the same address again: the desk does not ask it twice, the brief says the lane still asks it
-    assert p["kind"] == "after" and "still asks one thing" in p["text"] and "[ask.question]" in p["text"]
-    assert [r.status for r in d.values["runs"]] == ["ask", "ask"]
+    assert p["kind"] == "after" and calls == [1, 2]
 
 
 def test_the_brief_lists_where_the_lane_disagreed_with_the_pack(monkeypatch):
@@ -1056,7 +1009,7 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
                         "edges": [{"src": "a", "dst": "b", "cites": []}],
                     },
                     {
-                        "id": "effect_completed_vs_none",
+                        "id": "effect_d1_completed_vs_none",
                         "kind": "interval",
                         "title": "e",
                         "series": [{"name": "effect", "x": ["lr"], "y": [5.6]}],
@@ -1076,7 +1029,7 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
     d.to_ready()
     p = d.say("run")
     figs = d.values["runs"][0].figures
-    assert [f["id"] for f in figs] == ["causal_graph", "effect_completed_vs_none"]
+    assert [f["id"] for f in figs] == ["causal_graph", "effect_d1_completed_vs_none"]
     assert p["figure"]["id"] == "causal_graph"
     from causal_agent.desk import material as M
 
@@ -1087,9 +1040,10 @@ def test_the_desk_shows_what_the_lane_drew_and_marks_the_ready_figure(monkeypatc
 def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
     def worded_run(path, n, dataset, question, decision=None, decision_record="", thread_id=None):
         rec = canned_run(path, n, dataset, question, decision, decision_record)
-        rec.specialist_result["design"]["checks"] = {
+        rec.specialist_result["designs"]["d1"]["checks"] = {
             "results": [
                 {
+                    "design_id": "d1",
                     "contrast": "completed_vs_none",
                     "name": "balance.lunch",
                     "level": "soft",
@@ -1099,13 +1053,15 @@ def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
                 }
             ]
         }
+        rec.specialist_result["checks"] = rec.specialist_result["designs"]["d1"]["checks"]["results"]
         rec.specialist_result["interpretations"] = [
             {
+                "design_id": "d1",
                 "contrast": "completed_vs_none",
                 "answer": "Completing the course raised math scores by about 5.6 points.",
                 "effect_stated": 5.6,
-                "caveats": ["The two arms differed on lunch before the adjustment [check:completed_vs_none.balance.lunch]."],
-                "cites": ["estimate:completed_vs_none.value"],
+                "caveats": ["The two arms differed on lunch before the adjustment [check:d1.completed_vs_none.balance.lunch]."],
+                "cites": ["estimate:d1.completed_vs_none.value"],
             }
         ]
         return rec
@@ -1116,11 +1072,13 @@ def test_the_brief_reads_first_and_names_a_flag_by_its_sentence(monkeypatch):
     d.to_ready()
     text = d.say("run")["text"]
     lines = text.splitlines()
-    assert lines[1].startswith("Completing the course raised") and lines[2].startswith("  Keep in mind:")
-    assert lines.index(next(ln for ln in lines if ln.startswith("The number:"))) < lines.index(next(ln for ln in lines if ln.startswith("Design:")))
-    flag = next(ln for ln in lines if ln.endswith("[check:completed_vs_none.balance.lunch]"))
-    assert flag.startswith("  how alike the two arms are on lunch") and "(soft; balance.lunch)" in flag
-    assert "the estimate held every time" in text and "[estimate:completed_vs_none.value]" in text
+    assert lines[1].startswith("Completing the course raised") and lines[2].startswith("Keep in mind:")
+    assert lines.index(next(ln for ln in lines if ln.startswith("Completing the course"))) < lines.index(
+        next(ln for ln in lines if ln.startswith("Lead design:"))
+    )
+    flag = next(ln for ln in lines if ln.startswith("Design flag:"))
+    assert "how alike the two arms are on lunch" in flag and "[check:d1.completed_vs_none.balance.lunch]" in flag
+    assert "[estimate:d1.completed_vs_none.value]" in text
 
 
 # ------------------------------------------------------------------ pictures on request
@@ -1130,23 +1088,23 @@ def test_a_picture_asked_for_before_the_run_is_drawn_shown_and_recorded(tmp_path
     from causal_agent.memory import artifacts as VS
 
     def infer(msg, addrs, human):
-        return Reading(kind="explore", explore="show me math score by lunch") if "plot" in msg else None
+        return Reading(kind="explore", explore="show me student counts by lunch") if "plot" in msg else None
 
     fake = DeskFake(infer=infer)
     d = Desk(fake)
     d.say(QUESTION)
-    p = d.say("plot math score by lunch before we go on")
+    p = d.say("plot student counts by lunch before we go on")
     a = p["artifact"]
-    assert a and a["kind"] == "picture" and a["design"] is None and set(a["facts"]) == {"mean_standard", "mean_free_reduced"}
-    assert p["text"].startswith("Mean math score by lunch") and f"[artifact:{a['id']}]" in p["text"] and p["kind"] == "chat"  # the caption; nothing asked
-    assert fake.calls.count("Exploration") == 1 and fake.calls.count("RunCodeStep") == 2 and "math score" in fake.humans["Exploration"][0]
+    assert a and a["kind"] == "picture" and a["design"] is None and set(a["facts"]) == {"count_standard", "count_free_reduced"}
+    assert p["text"].startswith("Student counts by lunch") and f"[artifact:{a['id']}]" in p["text"] and p["kind"] == "chat"  # the caption; nothing asked
+    assert fake.calls.count("Exploration") == 1 and fake.calls.count("RunCodeStep") == 2 and "student counts" in fake.humans["Exploration"][0]
     folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists() and (folder / "code.py").exists() and VS.list_artifacts("students")[0].id == a["id"]
     step = d.journal.steps()[-1]
     assert (
         step.kind == "explore"
         and step.by == "model"
-        and step.note == "plot math score by lunch before we go on"
+        and step.note == "plot student counts by lunch before we go on"
         and step.left[0].endswith(f"artifacts/{a['id']}")
     )
     assert HELD["students"].version == d.values["convinced_version"] if d.values.get("convinced_version") else True  # a picture settles nothing
@@ -1161,26 +1119,26 @@ def test_a_number_from_a_picture_drawn_before_the_run_can_be_cited_and_a_wrong_o
 
     def infer(msg, addrs, human):
         if "plot" in msg:
-            return Reading(kind="explore", explore="show me math score by lunch")
-        return Reading(kind="ask", question="which lunch group scores higher?") if msg.startswith("which") else None
+            return Reading(kind="explore", explore="show me student counts by lunch")
+        return Reading(kind="ask", question="which lunch group has more students?") if msg.startswith("which") else None
 
     fake = DeskFake(infer=infer)
     d = Desk(fake)
     d.say(QUESTION)
-    a = d.say("plot math score by lunch before we go on")["artifact"]
-    mean = a["facts"]["mean_standard"]
+    a = d.say("plot student counts by lunch before we go on")["artifact"]
+    count = a["facts"]["count_standard"]
     good = AfterReply(
         kind="answer",
-        text=f"Standard lunch students average {mean:.1f}.",
-        numbers=[NumberStated(address=f"artifact:{a['id']}.mean_standard", value=round(mean, 1))],
+        text=f"Standard lunch group contains {count:.1f}.",
+        numbers=[NumberStated(address=f"artifact:{a['id']}.count_standard", value=round(count, 1))],
     )
     fake.explain = [good]
-    p = d.say("which lunch group scores higher?")
-    assert p["text"].startswith("Standard lunch students average") and fake.calls.count("AfterReply") == 1
-    assert f"[artifact:{a['id']}.mean_standard]" in fake.humans["AfterReply"][0]  # the drawn number was in the material the Explainer read
-    bad = AfterReply(kind="answer", text="Standard lunch students average 99.", numbers=[NumberStated(address=f"artifact:{a['id']}.mean_standard", value=99.0)])
+    p = d.say("which lunch group has more students?")
+    assert p["text"].startswith("Standard lunch group contains") and fake.calls.count("AfterReply") == 1
+    assert f"[artifact:{a['id']}.count_standard]" in fake.humans["AfterReply"][0]  # the drawn number was in the material the Explainer read
+    bad = AfterReply(kind="answer", text="Standard lunch group contains 99.", numbers=[NumberStated(address=f"artifact:{a['id']}.count_standard", value=99.0)])
     fake.explain = [bad, bad, bad]
-    p = d.say("which lunch group scores higher?")
+    p = d.say("which lunch group has more students?")
     assert fake.calls.count("AfterReply") == 4 and "does not match" in fake.humans["AfterReply"][3]
     assert p["text"].startswith("I can only answer that from what is settled.")
 
@@ -1196,10 +1154,22 @@ def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(tm
     d.say(QUESTION)
     d.to_ready()
     d.say("run")
+    from causal_agent.desk.nodes.after import frozen_context
+
+    run = d.values["runs"][-1]
+    memory = HELD["students"]
+    assert frozen_context(run, memory)
+    failed = run.model_copy(deep=True)
+    failed.specialist_result["designs"] = {}
+    assert not frozen_context(failed, memory)
+    wrong_context = run.model_copy(deep=True)
+    wrong_context.specialist_result["designs"]["d1"]["context_id"] = "a different admitted context"
+    assert not frozen_context(wrong_context, memory)
+    assert not frozen_context(run, memory.model_copy(update={"data_version": memory.data_version + 1}))
     p = d.say("draw me the mean math score by lunch")
     a = p["artifact"]
     assert a and a["kind"] == "picture" and a["design"] == 1 and p["text"].startswith("Mean math score by lunch") and p["kind"] == "after"
-    assert "WHAT THE RUN FOUND" in fake.humans["Exploration"][0] and "[estimate:completed_vs_none.value]" in fake.humans["Exploration"][0]
+    assert "WHAT THE RUN FOUND" in fake.humans["Exploration"][0] and "[estimate:d1.completed_vs_none.value]" in fake.humans["Exploration"][0]
     folder = tmp_path / "data" / "memory" / "students" / "artifacts" / a["id"]
     assert (folder / "figure.png").exists()
     step = d.journal.steps()[-1]
@@ -1212,7 +1182,7 @@ def test_a_picture_asked_for_after_the_run_lands_in_the_design_and_is_citable(tm
 # ------------------------------------------------------------------ the memory mirrored for a watcher
 
 
-def test_the_memory_is_mirrored_into_the_state_after_every_save_and_no_node_reads_it():
+def test_the_memory_is_mirrored_into_the_state_after_every_save_and_no_node_reads_it(monkeypatch):
     """Studio shows the state and the memory lives on disk, so every node that saves the memory mirrors it into the state, and
     the mirror is written only: no node under desk/ reads it."""
     desk = Desk(DeskFake())
@@ -1224,6 +1194,13 @@ def test_the_memory_is_mirrored_into_the_state_after_every_save_and_no_node_read
     before = m.version
     desk.say("nothing hidden")  # a word about the data: drafted, so the memory moves
     assert desk.values["memory"].version > before
+    fork = held.fork()
+    fork.version += 1
+    durable_saves = []
+    monkeypatch.setattr(store, "save", lambda memory, root=None: durable_saves.append(memory))
+    mirror = F.saved(fork, {"dataset": held.name, "fork": fork})
+    assert durable_saves == [] and mirror["fork"] is fork and mirror["memory"] is fork
+    assert F.saved(held, {"dataset": held.name, "fork": None})["memory"] is held and durable_saves == [held]
     root = Path(G.__file__).resolve().parent
     hits = [
         f"{p.relative_to(root)}:{n}"

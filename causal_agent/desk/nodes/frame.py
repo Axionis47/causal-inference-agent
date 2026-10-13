@@ -38,8 +38,10 @@ def memory_of(state: RouteState) -> Memory:
     return store.memory_for(state["dataset"])
 
 
-def saved(memory: Memory) -> dict:
+def saved(memory: Memory, state: RouteState) -> dict:
     """Save the memory and mirror it into the state, so a watcher sees it as it stands after this node. No node reads the mirror."""
+    if state.get("fork") is not None:
+        return {"memory": memory, "fork": memory}
     store.save(memory)
     return {"memory": memory}
 
@@ -84,7 +86,7 @@ def mine(state: RouteState) -> dict:
             break
         errors = rejected
     ops.apply(memory, [ops.Update(address="claim:story.text", value=text, status="drafted", source=f"doc:{name}", said=text, verbatim=True)])
-    mirror = saved(memory)
+    mirror = saved(memory, state)
     _writer()({"mine": {"drafted": memory.version, "rejected": rejected}})
     return {"debug": debug, **mirror}
 

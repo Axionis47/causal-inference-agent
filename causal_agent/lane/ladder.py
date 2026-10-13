@@ -11,9 +11,8 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from causal_agent.common.addresses import norm_address
-from causal_agent.common.contracts import CheckResult, Cited, ColumnBrief, Decline, Handoff
+from causal_agent.common.contracts import CheckResult, Cited, Decline
 from causal_agent.common.contracts.base import _slug
-from causal_agent.lane.case import Case
 from causal_agent.memory.catalogue import load_catalogue
 
 _CATALOGUE = load_catalogue()  # to tell a claim the interview could have settled from a rung's own item
@@ -101,72 +100,6 @@ HARD_THREATS = {
     "selection": "rows were drawn by how the outcome turned out; a comparison among the selected does not reach the population the question asks about",
     "outcome_timing": "the outcome was measured before the change; it cannot carry its effect",
 }
-
-_SAMPLING_WORDS = {
-    "by_arm": "by whether the unit got the change",
-    "by_side": "by which side of the line they fell on",
-    "by_group": "by group, region or type",
-    "by_period": "by period",
-    "unknown": "in a way the person could not say",
-}
-
-
-def pack_threats(h: Handoff, case: Case, outcome_key: str, columns: dict[str, str], *, outcome_timing: bool = True) -> list[Threat]:
-    """Selection into the file, the outcome's timing, and gaps whose reason is not settled: the risks any design carries, read
-    from the pack. A lane appends the risks of its own design; a design that observes the outcome on both sides of the change
-    passes `outcome_timing=False`."""
-    items: list[Threat] = []
-    how = (h.sampling or {}).get("how")
-    if how == "by_outcome":
-        items.append(
-            Threat(
-                name="selection",
-                level="hard",
-                text=HARD_THREATS["selection"],
-                cites=["claim:sampling.how"],
-            )
-        )
-    elif how in _SAMPLING_WORDS:
-        items.append(
-            Threat(
-                name="selection",
-                level="soft",
-                text=f"rows were drawn {_SAMPLING_WORDS[how]}; who is in the file may differ by arm, and the estimate speaks for the file, not the population",
-                cites=["claim:sampling.how"],
-            )
-        )
-    yb: ColumnBrief | None = h.column(outcome_key)
-    yw = (case.fact(f"col:{outcome_key}.when") or (yb.when if yb is not None else "unknown")) if outcome_timing else "after"
-    if yw == "before":
-        items.append(
-            Threat(
-                name="outcome_timing",
-                level="hard",
-                text=HARD_THREATS["outcome_timing"],
-                cites=[f"col:{outcome_key}.when"],
-            )
-        )
-    elif yw == "unknown":
-        items.append(
-            Threat(
-                name="outcome_timing",
-                level="soft",
-                text="when the outcome was measured is not settled; an outcome measured before the change cannot carry its effect",
-                cites=[f"col:{outcome_key}.when"],
-            )
-        )
-    gaps = [b for b in h.columns if b.key in columns and b.facts.nulls > 0]
-    if gaps and not (h.missing or {}).get("why"):
-        items.append(
-            Threat(
-                name="missingness",
-                level="soft",
-                text=f"values are missing in {', '.join(b.name for b in gaps)} and the reason is not settled; a gap that differs by arm biases the comparison",
-                cites=[b.address for b in gaps],
-            )
-        )
-    return items
-
 
 # ------------------------------------------------------------------ flags and declines from the ladder
 

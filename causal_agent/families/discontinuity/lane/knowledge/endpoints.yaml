@@ -1,0 +1,597 @@
+endpoints:
+- id: sharp_local_polynomial
+  title: Sharp local polynomial
+  targets:
+  - effect_at_cutoff
+  configuration:
+    framework: continuity
+    kind: sharp
+    estimand: effect_at_cutoff
+  requirements:
+  - id: target_locality
+    address: claim:target.locality
+    values:
+    - cutoff
+    - window
+  - id: rule
+    address: claim:assignment.kind
+  - id: score
+    address: claim:assignment.score_column
+  - id: cutoff
+    address: claim:assignment.cutoff
+  - id: side
+    address: claim:assignment.treated_side
+  - id: equality
+    address: claim:assignment.cutoff_value_treated
+  - id: timing
+    address: col:<score>.when
+  - id: movability
+    address: claim:assignment.movable
+  - id: other_changes
+    address: claim:cutoff_only.believed
+    values:
+    - true
+  - id: unit
+    address: claim:grain.row_is
+  - id: sampling
+    address: claim:sampling.how
+  - id: compliance
+    address: claim:assignment.compliance
+    values:
+    - sharp
+  assumptions:
+  - no coincident intervention confounds the contrast
+  - no selective score manipulation
+  - potential-outcome regression functions are continuous at the cutoff
+  trajectory:
+  - load
+  - validate_context
+  - seed
+  - score
+  - shape_table
+  - covariates
+  - density
+  - balance
+  - line
+  - assumptions
+  - rivals
+  - check_candidates
+  - freeze_designs
+  checks:
+  - sides
+  - support
+  - density
+  - covariate_continuity
+  estimators:
+  - local_linear
+  inference:
+  - robust_bc
+  - cluster_entity
+  - cluster_few
+  terminal_failures:
+  - context_deficiency
+  - invalid_rule
+  - insufficient_support
+  - assumptions_rejected
+  - engine_failure
+  activation:
+    claim:assignment.kind:
+    - cutoff_rule
+    claim:assignment.compliance:
+    - sharp
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - local
+  activation_required: true
+- id: fuzzy_local_polynomial
+  title: Fuzzy local polynomial
+  targets:
+  - complier_effect_at_cutoff
+  configuration:
+    framework: continuity
+    kind: fuzzy
+    estimand: complier_effect_at_cutoff
+  requirements:
+  - id: target_locality
+    address: claim:target.locality
+    values:
+    - cutoff
+    - window
+  - id: target_comparison
+    address: claim:target.comparison
+    values:
+    - receipt
+    - eligibility
+    when:
+      claim:assignment.compliance:
+      - fuzzy
+  - id: rule
+    address: claim:assignment.kind
+  - id: score
+    address: claim:assignment.score_column
+  - id: cutoff
+    address: claim:assignment.cutoff
+  - id: side
+    address: claim:assignment.treated_side
+  - id: equality
+    address: claim:assignment.cutoff_value_treated
+  - id: timing
+    address: col:<score>.when
+  - id: movability
+    address: claim:assignment.movable
+  - id: other_changes
+    address: claim:cutoff_only.believed
+    values:
+    - true
+  - id: unit
+    address: claim:grain.row_is
+  - id: sampling
+    address: claim:sampling.how
+  - id: receipt
+    address: claim:assignment.treatment_column
+  - id: receipt_level
+    address: claim:assignment.treated_level
+  - id: exclusion
+    address: claim:exclusion.believed
+    values:
+    - true
+  - id: monotonicity
+    address: claim:monotonicity.believed
+    values:
+    - true
+  - id: compliance
+    address: claim:assignment.compliance
+    values:
+    - fuzzy
+  assumptions:
+  - no coincident intervention confounds the contrast
+  - no selective score manipulation
+  - potential-outcome regression functions are continuous at the cutoff
+  - eligibility affects outcome only through receipt
+  - eligibility moves receipt in one direction
+  trajectory:
+  - load
+  - validate_context
+  - seed
+  - score
+  - shape_table
+  - covariates
+  - density
+  - balance
+  - line
+  - assumptions
+  - rivals
+  - check_candidates
+  - freeze_designs
+  checks:
+  - sides
+  - support
+  - density
+  - covariate_continuity
+  - first_stage
+  estimators:
+  - local_linear_fuzzy
+  inference:
+  - robust_bc
+  - cluster_entity
+  - cluster_few
+  terminal_failures:
+  - context_deficiency
+  - invalid_rule
+  - insufficient_support
+  - assumptions_rejected
+  - engine_failure
+  activation:
+    claim:assignment.kind:
+    - cutoff_rule
+    claim:assignment.compliance:
+    - fuzzy
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - local
+  activation_required: true
+- id: eligibility_local_polynomial
+  title: Eligibility local polynomial
+  targets:
+  - itt_at_cutoff
+  configuration:
+    framework: continuity
+    kind: fuzzy
+    estimand: itt_at_cutoff
+  requirements:
+  - id: target_locality
+    address: claim:target.locality
+    values:
+    - cutoff
+    - window
+  - id: target_comparison
+    address: claim:target.comparison
+    values:
+    - receipt
+    - eligibility
+    when:
+      claim:assignment.compliance:
+      - fuzzy
+  - id: rule
+    address: claim:assignment.kind
+  - id: score
+    address: claim:assignment.score_column
+  - id: cutoff
+    address: claim:assignment.cutoff
+  - id: side
+    address: claim:assignment.treated_side
+  - id: equality
+    address: claim:assignment.cutoff_value_treated
+  - id: timing
+    address: col:<score>.when
+  - id: movability
+    address: claim:assignment.movable
+  - id: other_changes
+    address: claim:cutoff_only.believed
+    values:
+    - true
+  - id: unit
+    address: claim:grain.row_is
+  - id: sampling
+    address: claim:sampling.how
+  - id: compliance
+    address: claim:assignment.compliance
+    values:
+    - fuzzy
+  assumptions:
+  - no coincident intervention confounds the contrast
+  - no selective score manipulation
+  - potential-outcome regression functions are continuous at the cutoff
+  trajectory:
+  - load
+  - validate_context
+  - seed
+  - score
+  - shape_table
+  - covariates
+  - density
+  - balance
+  - line
+  - assumptions
+  - rivals
+  - check_candidates
+  - freeze_designs
+  checks:
+  - sides
+  - support
+  - density
+  - covariate_continuity
+  estimators:
+  - local_linear_itt
+  inference:
+  - robust_bc
+  - cluster_entity
+  - cluster_few
+  terminal_failures:
+  - context_deficiency
+  - invalid_rule
+  - insufficient_support
+  - assumptions_rejected
+  - engine_failure
+  activation:
+    claim:assignment.kind:
+    - cutoff_rule
+    claim:assignment.compliance:
+    - fuzzy
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - local
+  activation_required: true
+- id: sharp_local_randomisation
+  title: Sharp local randomisation
+  targets:
+  - effect_in_window
+  configuration:
+    framework: local_randomisation
+    kind: sharp
+    estimand: effect_in_window
+  requirements:
+  - id: target_locality
+    address: claim:target.locality
+    values:
+    - cutoff
+    - window
+  - id: rule
+    address: claim:assignment.kind
+  - id: score
+    address: claim:assignment.score_column
+  - id: cutoff
+    address: claim:assignment.cutoff
+  - id: side
+    address: claim:assignment.treated_side
+  - id: equality
+    address: claim:assignment.cutoff_value_treated
+  - id: timing
+    address: col:<score>.when
+  - id: movability
+    address: claim:assignment.movable
+  - id: other_changes
+    address: claim:cutoff_only.believed
+    values:
+    - true
+  - id: unit
+    address: claim:grain.row_is
+  - id: sampling
+    address: claim:sampling.how
+  - id: randomisation_account
+    address: claim:local_randomisation.believed
+    values:
+    - true
+  - id: compliance
+    address: claim:assignment.compliance
+    values:
+    - sharp
+  assumptions:
+  - no coincident intervention confounds the contrast
+  - no selective score manipulation
+  - assignment inside the frozen window is as-if complete randomisation
+  - the additive-effect null is appropriate for randomisation test inversion
+  trajectory:
+  - load
+  - validate_context
+  - seed
+  - score
+  - shape_table
+  - covariates
+  - density
+  - balance
+  - line
+  - assumptions
+  - rivals
+  - check_candidates
+  - freeze_designs
+  checks:
+  - sides
+  - support
+  - density
+  - covariate_continuity
+  estimators:
+  - local_randomisation
+  inference:
+  - randomisation
+  terminal_failures:
+  - context_deficiency
+  - invalid_rule
+  - insufficient_support
+  - assumptions_rejected
+  - engine_failure
+  - dependent_assignment
+  activation:
+    claim:assignment.kind:
+    - cutoff_rule
+    claim:local_randomisation.believed:
+    - true
+    claim:assignment.compliance:
+    - sharp
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - local
+  activation_required: false
+- id: fuzzy_local_randomisation
+  title: Fuzzy local randomisation
+  targets:
+  - complier_effect_in_window
+  configuration:
+    framework: local_randomisation
+    kind: fuzzy
+    estimand: complier_effect_in_window
+  requirements:
+  - id: target_locality
+    address: claim:target.locality
+    values:
+    - cutoff
+    - window
+  - id: target_comparison
+    address: claim:target.comparison
+    values:
+    - receipt
+    - eligibility
+    when:
+      claim:assignment.compliance:
+      - fuzzy
+  - id: rule
+    address: claim:assignment.kind
+  - id: score
+    address: claim:assignment.score_column
+  - id: cutoff
+    address: claim:assignment.cutoff
+  - id: side
+    address: claim:assignment.treated_side
+  - id: equality
+    address: claim:assignment.cutoff_value_treated
+  - id: timing
+    address: col:<score>.when
+  - id: movability
+    address: claim:assignment.movable
+  - id: other_changes
+    address: claim:cutoff_only.believed
+    values:
+    - true
+  - id: unit
+    address: claim:grain.row_is
+  - id: sampling
+    address: claim:sampling.how
+  - id: randomisation_account
+    address: claim:local_randomisation.believed
+    values:
+    - true
+  - id: receipt
+    address: claim:assignment.treatment_column
+  - id: receipt_level
+    address: claim:assignment.treated_level
+  - id: exclusion
+    address: claim:exclusion.believed
+    values:
+    - true
+  - id: monotonicity
+    address: claim:monotonicity.believed
+    values:
+    - true
+  - id: compliance
+    address: claim:assignment.compliance
+    values:
+    - fuzzy
+  assumptions:
+  - no coincident intervention confounds the contrast
+  - no selective score manipulation
+  - assignment inside the frozen window is as-if complete randomisation
+  - the additive-effect null is appropriate for randomisation test inversion
+  - eligibility affects outcome only through receipt
+  - eligibility moves receipt in one direction
+  trajectory:
+  - load
+  - validate_context
+  - seed
+  - score
+  - shape_table
+  - covariates
+  - density
+  - balance
+  - line
+  - assumptions
+  - rivals
+  - check_candidates
+  - freeze_designs
+  checks:
+  - sides
+  - support
+  - density
+  - covariate_continuity
+  - first_stage
+  estimators:
+  - local_randomisation_fuzzy
+  inference:
+  - randomisation
+  terminal_failures:
+  - context_deficiency
+  - invalid_rule
+  - insufficient_support
+  - assumptions_rejected
+  - engine_failure
+  - dependent_assignment
+  activation:
+    claim:assignment.kind:
+    - cutoff_rule
+    claim:local_randomisation.believed:
+    - true
+    claim:assignment.compliance:
+    - fuzzy
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - local
+  activation_required: false
+- id: eligibility_local_randomisation
+  title: Eligibility local randomisation
+  targets:
+  - itt_in_window
+  configuration:
+    framework: local_randomisation
+    kind: fuzzy
+    estimand: itt_in_window
+  requirements:
+  - id: target_locality
+    address: claim:target.locality
+    values:
+    - cutoff
+    - window
+  - id: target_comparison
+    address: claim:target.comparison
+    values:
+    - receipt
+    - eligibility
+    when:
+      claim:assignment.compliance:
+      - fuzzy
+  - id: rule
+    address: claim:assignment.kind
+  - id: score
+    address: claim:assignment.score_column
+  - id: cutoff
+    address: claim:assignment.cutoff
+  - id: side
+    address: claim:assignment.treated_side
+  - id: equality
+    address: claim:assignment.cutoff_value_treated
+  - id: timing
+    address: col:<score>.when
+  - id: movability
+    address: claim:assignment.movable
+  - id: other_changes
+    address: claim:cutoff_only.believed
+    values:
+    - true
+  - id: unit
+    address: claim:grain.row_is
+  - id: sampling
+    address: claim:sampling.how
+  - id: randomisation_account
+    address: claim:local_randomisation.believed
+    values:
+    - true
+  - id: compliance
+    address: claim:assignment.compliance
+    values:
+    - fuzzy
+  assumptions:
+  - no coincident intervention confounds the contrast
+  - no selective score manipulation
+  - assignment inside the frozen window is as-if complete randomisation
+  - the additive-effect null is appropriate for randomisation test inversion
+  trajectory:
+  - load
+  - validate_context
+  - seed
+  - score
+  - shape_table
+  - covariates
+  - density
+  - balance
+  - line
+  - assumptions
+  - rivals
+  - check_candidates
+  - freeze_designs
+  checks:
+  - sides
+  - support
+  - density
+  - covariate_continuity
+  estimators:
+  - local_randomisation_itt
+  inference:
+  - randomisation
+  terminal_failures:
+  - context_deficiency
+  - invalid_rule
+  - insufficient_support
+  - assumptions_rejected
+  - engine_failure
+  - dependent_assignment
+  activation:
+    claim:assignment.kind:
+    - cutoff_rule
+    claim:local_randomisation.believed:
+    - true
+    claim:assignment.compliance:
+    - fuzzy
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - local
+  activation_required: false

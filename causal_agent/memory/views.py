@@ -11,7 +11,7 @@ from causal_agent.common.contracts import Belief, ColumnBrief, Provenance, Quest
 from causal_agent.memory.records import Column, Memory
 from causal_agent.profile import datasets as DS
 
-BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator")
+BELIEF_KINDS = ("unobserved", "exclusion", "spillover", "trend_continues", "cutoff_only", "mediator", "monotonicity", "local_randomisation")
 _VALUE_FIELD = {
     "unobserved": "exists",
     "exclusion": "exists",
@@ -19,6 +19,8 @@ _VALUE_FIELD = {
     "trend_continues": "believed",
     "cutoff_only": "believed",
     "mediator": "exists",
+    "monotonicity": "believed",
+    "local_randomisation": "believed",
 }
 
 

@@ -1,5 +1,5 @@
 """The ladder tables: docs/ladders/<family>.md for every built lane, written from the lane's declarations (rungs.yaml, space.yaml,
-checks.yaml, beliefs.yaml and the catalogue), never by hand. Three tables per lane: the rungs in order, the space, and the end
+checks.yaml, endpoints.yaml and the catalogue), never by hand. Three tables per lane: the rungs in order, the space, and the end
 states the declarations allow (the cells a design can reach, the questions a rung can send back, the typed stops each rung
 can raise). `make ladder` writes them; CI fails when the files differ from what the declarations say.
 
@@ -96,11 +96,13 @@ def render(family: str) -> str:
     space: Space | None = getattr(k, "SPACE", None)
     estimators = k.load_estimators() if hasattr(k, "load_estimators") else []
     refuters = k.load_refuters() if hasattr(k, "load_refuters") else []
-    e = RG.ends(spec, space=space, estimators=estimators, refuters=refuters, checks=k.load_checks(), beliefs=k.load_beliefs())
+    family_needs = R.REGISTRY[family].needs
+    catalogue = family_needs.endpoints if family_needs else None
+    e = RG.ends(spec, space=space, estimators=estimators, refuters=refuters, checks=k.load_checks(), endpoints=catalogue)
     loops = "\n".join(f"- {lp.src} → {lp.to}, at most {lp.max}: {lp.why}" for lp in spec.loops) or "(none)"
     head = (
         f"# The {family.replace('_', '-')} lane's ladder\n\n"
-        f"Written by `make ladder` from `causal_agent/families/{family}/lane/knowledge/` (rungs.yaml, space.yaml, checks.yaml, beliefs.yaml\n"
+        f"Written by `make ladder` from `causal_agent/families/{family}/lane/knowledge/` (rungs.yaml, space.yaml, checks.yaml, endpoints.yaml\n"
         "and the catalogue). Do not edit; change the declarations.\n\n"
         f"The ladder climbs to `{spec.goal}`; every rung may go only where this table says, and a stop goes to `feasibility`.\n\n"
         f"Loops still in the graph:\n\n{loops}\n"
@@ -108,7 +110,41 @@ def render(family: str) -> str:
     body = ["## The rungs\n\n" + _rungs_table(spec, space)]
     if space is not None:
         body.append("## The space\n\n" + _space_table(space))
-    counts = f"{len(e.answers)} answers, {len(e.asks)} questions, {len(e.stops)} stops"
+    if catalogue:
+        body.append(
+            "## Executable endpoint catalogue\n\nValid designs are conditional on the stated assumptions. Diagnostics cannot prove those assumptions.\n\n"
+            + _table(
+                ["endpoint", "target", "configuration", "trajectory", "estimators / inference", "terminal failures"],
+                [
+                    [
+                        ep.id,
+                        ", ".join(ep.targets),
+                        str(ep.configuration),
+                        " → ".join(ep.trajectory),
+                        ", ".join(ep.estimators) + " / " + ", ".join(ep.inference),
+                        ", ".join(ep.terminal_failures),
+                    ]
+                    for ep in catalogue.endpoints
+                ],
+            )
+        )
+        for ep in catalogue.endpoints:
+            body.append(
+                f"### Context for `{ep.id}`\n\n"
+                + _table(
+                    ["requirement", "address", "accepted status", "acceptable sources", "permitted unknown", "condition", "allowed values"],
+                    [
+                        [r.id, r.address, ", ".join(r.allowed_statuses), ", ".join(r.allowed_sources), r.allow_unknown, str(r.when), str(r.values)]
+                        for r in ep.requirements
+                    ],
+                )
+                + "\n\nAssumptions: "
+                + "; ".join(ep.assumptions)
+                + ".\n\nChecks: "
+                + ", ".join(ep.checks)
+                + "."
+            )
+    counts = f"{len(e.answers)} engine configurations, {len(e.asks)} questions, {len(e.stops)} stops"
     body.append("## The end states\n\n" + f"Derived from the declarations: {counts}.\n\n" + _ends_tables(e))
     return head + "\n" + "\n\n".join(body) + "\n"
 

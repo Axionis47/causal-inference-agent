@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field, field_validator
 
-from causal_agent.common.contracts import Belief, Design, register_design
+from causal_agent.common.contracts import Design, register_design
 
 
 @register_design
 class DidDesign(Design):
     """What the diff-in-diff lane must not guess."""
+
+    model_config = ConfigDict(extra="forbid")
 
     kind: Literal["diff_in_diff"] = "diff_in_diff"
     unit: str | None = None
@@ -22,34 +24,43 @@ class DidDesign(Design):
         default_factory=dict,
         description="{column, level}, and cohort_column when the pack names the column holding the period each unit first got the change",
     )
-    staggered: bool | None = Field(
-        default=None,
-        description="the pack's word that units got the change at different times: true when it names an adoption column; None when it says nothing",
-    )
-    pre_periods: int | None = None
-    post_periods: int | None = None
-    controls_allowed: list[str] = Field(default_factory=list)
+    before_column: str | None = None
+    after_column: str | None = None
+    adoption_representation: Literal["label", "indicator", "cohort_column"] = "label"
+    aggregation: Literal["pooled", "horizon", "horizon_profile", "cohort", "cohort_profile", "cohort_horizon"] = "pooled"
+    target_weighting: (
+        Literal["treated_cell_shares", "residualized_treatment_projection", "linear_response_horizon_projection", "clean_adopter_projection"] | None
+    ) = None
+    horizons: list[int] = Field(default_factory=list, description="distinct nonnegative post-adoption period offsets")
+    cohorts: list[str] = Field(default_factory=list)
+    prefix_scope_accepted: bool = False
     cluster_level: str | None = None
-    trend_belief: Belief | None = None
-    spillover: Belief | None = None
+
+    @field_validator("horizons")
+    @classmethod
+    def valid_horizons(cls, horizons: list[int]) -> list[int]:
+        if any(h < 0 for h in horizons) or len(set(horizons)) != len(horizons):
+            raise ValueError("horizons must be distinct nonnegative period offsets")
+        return sorted(horizons)
 
     def columns(self) -> list[str]:
         tg = self.treated_group or {}
-        return [n for n in [self.unit, self.time, tg.get("column"), tg.get("cohort_column"), self.cluster_level, *self.controls_allowed] if n]
+        return [
+            n
+            for n in [
+                self.unit,
+                self.time,
+                tg.get("column"),
+                tg.get("cohort_column"),
+                self.cluster_level,
+                self.before_column,
+                self.after_column,
+            ]
+            if n
+        ]
 
     def time_column(self) -> str | None:
         return self.time or None
 
     def render(self) -> str:
-        tg = self.treated_group
-        return "\n".join(
-            [
-                f"  unit: {self.unit or 'not known'}; time: {self.time or 'not known'} ({self.period_kind or 'kind not known'})",
-                f"  change period: {self.change_period or 'not known'}; treated group: "
-                + (f"{tg.get('column')} = {tg.get('level')!r}" if tg.get("column") else "not known")
-                + (f"; first treated period per unit in {tg.get('cohort_column')}" if tg.get("cohort_column") else ""),
-                f"  staggered: {self.staggered}; pre periods: {self.pre_periods}; post periods: {self.post_periods}",
-                f"  controls allowed: {', '.join(self.controls_allowed) or 'none named'}; cluster at: {self.cluster_level or 'not known'}",
-            ]
-            + [f"  {b.render()}" for b in (self.trend_belief, self.spillover) if b is not None]
-        )
+        return f"unit={self.unit}; time={self.time}; paired={self.before_column}/{self.after_column}; assignment={self.treated_group}; adoption={self.adoption_representation}; change={self.change_period}; cluster={self.cluster_level}; aggregation={self.aggregation}; weighting={self.target_weighting}; horizons={self.horizons}; cohorts={self.cohorts}; prefix accepted={self.prefix_scope_accepted}"

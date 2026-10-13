@@ -1,5 +1,4 @@
-"""A run's graph written back as drafts: an edge into the treatment or the outcome per column, a measure of the outcome when
-excluded as one, never over a field the person confirmed, nothing when the result has no graph."""
+"""Explicit, source-backed lane assertions return as drafts without replacing human facts."""
 
 from __future__ import annotations
 
@@ -14,77 +13,58 @@ def _handoff(memory):
     return forced("students3", "Did completing the prep course raise math scores?", "adjustment", "math score", "test preparation course", COLS, memory=memory)
 
 
-def _result(edges, excluded=(), nodes=("test_preparation_course", "math_score", "lunch", "gender")):
+def _result(edges, no_edges=()):
+    assertions = [("edge", s, d) for s, d in edges] + [("no_edge", s, d) for s, d in no_edges]
     return {
         "status": "done",
-        "design": {
-            "graph": {
-                "treatment": "test_preparation_course",
-                "outcome": "math_score",
-                "nodes": list(nodes),
-                "edges": [{"src": s, "dst": d, "cites": []} for s, d in edges],
-                "excluded": [{"column": c, "why": w} for c, w in excluded],
-            }
+        "ledger": {
+            "revision": 1,
+            "history": [],
+            "entries": {
+                f"rel:{i}": {
+                    "id": f"rel:{i}",
+                    "kind": kind,
+                    "src": src,
+                    "dst": dst,
+                    "status": "supported",
+                    "reason": "explicit source-backed proposal",
+                    "evidence": [{"source": "pack", "category": "study_account", "address": f"col:{src}.when", "note": "the reported measurement account"}],
+                }
+                for i, (kind, src, dst) in enumerate(assertions)
+            },
         },
     }
 
 
-def test_the_graph_comes_back_as_drafts_and_never_over_a_confirmed_field():
+def test_explicit_assertions_are_drafts_and_cannot_replace_human_confirmation():
     m = store.migrate("students3", write=False)
     m.set("col:gender.moves_outcome", False, status="confirmed", source="user:turn:4", said="gender never mattered")
     h = _handoff(m)
-    v = m.version
-    result = _result(
-        edges=[("test_preparation_course", "math_score"), ("lunch", "test_preparation_course"), ("lunch", "math_score"), ("gender", "math_score")],
-        excluded=[
-            ("reading_score", "another measurement of the outcome"),
-            ("writing_score", "comes after the treatment; adjusting for it would remove part of the effect"),
-        ],
+    version = m.version
+    written = absorb_relations(
+        m, _result([("lunch", "test_preparation_course"), ("lunch", "math_score"), ("gender", "math_score")], [("gender", "test_preparation_course")]), h
     )
-    written = absorb_relations(m, result, h)
-    assert written == ["col:lunch.feeds_treatment", "col:lunch.moves_outcome", "col:gender.feeds_treatment", "col:reading_score.measures_outcome"]
-    lunch_t, lunch_y = m.field("col:lunch.feeds_treatment"), m.field("col:lunch.moves_outcome")
-    assert (lunch_t.value, lunch_t.status, lunch_t.source, lunch_t.reason) == (True, "drafted", "model:roles", "the run's graph drew this edge")
-    assert lunch_y.value is True and lunch_y.status == "drafted"
-    gender_t = m.field("col:gender.feeds_treatment")
-    assert gender_t.value is False and gender_t.status == "drafted" and gender_t.reason == "the run's graph drew no such edge"
-    # the person's word stands: the gate refused the draft over the confirmed field, and the value did not move
-    gender_y = m.field("col:gender.moves_outcome")
-    assert gender_y.value is False and gender_y.status == "confirmed" and gender_y.source == "user:turn:4"
-    reading = m.field("col:reading_score.measures_outcome")
-    assert reading.value is True and reading.status == "drafted" and reading.reason == "excluded as another measurement of the outcome"
-    # a column excluded for another reason, or not placed at all, gets nothing
-    assert m.field("col:writing_score.measures_outcome") is None and m.field("col:writing_score.feeds_treatment") is None
-    assert m.version == v + len(written)
+    assert written == ["col:lunch.feeds_treatment", "col:lunch.moves_outcome", "col:gender.feeds_treatment"]
+    for address in written:
+        f = m.field(address)
+        assert f.status == "drafted" and f.source == "model:ledger" and "evidence col:" in f.reason
+    assert m.field("col:lunch.moves_outcome").value is True
+    assert m.field("col:gender.feeds_treatment").value is False
+    assert m.field("col:gender.moves_outcome").value is False and m.field("col:gender.moves_outcome").status == "confirmed"
+    assert m.field("col:reading_score.measures_outcome") is None
+    assert m.version == version + len(written)
 
 
-def test_the_roles_rung_s_relations_come_back_as_drafts_too():
+def test_missing_assertions_do_not_write_negative_claims():
     m = store.migrate("students3", write=False)
     h = _handoff(m)
-    result = _result(edges=[("test_preparation_course", "math_score"), ("lunch", "math_score"), ("gender", "math_score")])
-    result["relations"] = [
-        {"column": "lunch", "stands_for": "household income", "redundant_with": None, "nested_in": None, "modifier_candidate": True},
-        {"column": "gender", "stands_for": None, "redundant_with": None, "nested_in": None, "modifier_candidate": False},
-    ]
-    written = absorb_relations(m, result, h)
-    assert "col:lunch.stands_for" in written and "col:lunch.may_modify" in written and "col:gender.may_modify" in written
-    assert m.field("col:lunch.stands_for").value == "household income" and m.field("col:lunch.stands_for").status == "drafted"
-    assert m.field("col:lunch.may_modify").value is True and m.field("col:gender.may_modify").value is False
-    assert m.field("col:gender.stands_for") is None and m.field("col:lunch.same_as") is None
+    version = m.version
+    assert absorb_relations(m, {}, h) == []
+    assert absorb_relations(m, {"ledger": {"entries": {}}}, h) == []
+    assert m.version == version
 
 
-def test_a_result_without_a_graph_writes_nothing():
+def test_treatment_and_outcome_do_not_receive_self_role_updates():
     m = store.migrate("students3", write=False)
     h = _handoff(m)
-    v = m.version
-    assert absorb_relations(m, {}, h) == [] and absorb_relations(m, {"design": {"estimator": "x"}}, h) == [] and absorb_relations(m, {"design": None}, h) == []
-    assert m.version == v
-
-
-def test_the_treatment_and_the_outcome_are_never_related_to_themselves():
-    m = store.migrate("students3", write=False)
-    h = _handoff(m)
-    written = absorb_relations(m, _result(edges=[("test_preparation_course", "math_score")], nodes=("test_preparation_course", "math_score")), h)
-    assert written == [] and not any(
-        a.startswith(("col:math_score.", "col:test_preparation_course.")) and a.endswith(("feeds_treatment", "moves_outcome")) for a in m.fields
-    )
+    assert absorb_relations(m, _result([("test_preparation_course", "math_score")]), h) == []

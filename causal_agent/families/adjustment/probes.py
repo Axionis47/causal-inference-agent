@@ -31,5 +31,14 @@ def probes(df: pd.DataFrame, table: ClaimTable, th: dict) -> list[ProbeResult]:
     deps = [c for d in (a.fields.get("depends_on") or []) if (c := column(df, d)) is not None]
     if deps:  # the same cells the pre-viz draws: both arms present at every level the offer looked at
         ov = overlap_probe(df, treated, deps, int(th["arms"]["min_rows_cell"]))
-        out.append(ProbeResult(family=fam, name=ov.name, value=ov.value, passed=ov.passed, detail=ov.detail))
+        alternative = any((claim := table.get(kind)) is not None and claim.fields.get("exists") is True for kind in ("exclusion", "mediator"))
+        out.append(
+            ProbeResult(
+                family=fam,
+                name=ov.name,
+                value=ov.value,
+                passed=None if alternative else ov.passed,
+                detail=ov.detail + ("; applies to observed adjustment only, instrument or mediator endpoint remains to be checked" if alternative else ""),
+            )
+        )
     return out

@@ -1,78 +1,126 @@
-"""The lane's knowledge files: the entry models, and the shared loader bound to this folder. Read once, rendered for the model, filtered by facts."""
+"""Executable method declarations owned by the adjustment family."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+import networkx as nx
+import yaml
+from pydantic import BaseModel, Field, model_validator
 
-from causal_agent.lane.knowledge import Knowledge
 from causal_agent.lane.rungs import load_spec
 from causal_agent.lane.space import load_space
 
 _HERE = Path(__file__).parent
-SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once: the graph is built from it and held to it
-SPACE = load_space(_HERE / "space.yaml")  # the shapes this lane runs; read at load, at the deciding rungs, at the freeze
+SPEC = load_spec(_HERE / "rungs.yaml")
+SPACE = load_space(_HERE / "space.yaml")
 
 
 class EstimatorEntry(BaseModel):
     name: str
-    dowhy: str
-    applies_when: dict[str, Any]
+    method: str
+    endpoints: list[str]
+    targets: list[str]
+    outcomes: list[str]
     in_words: str
     assumes: str
-    weak_when: str
-    prefer_over: dict[str, str] = Field(default_factory=dict)
     params: dict[str, Any] = Field(default_factory=dict)
     rank: int = 99
-    also_run: str | None = None
-
-    @property
-    def estimand(self) -> str:
-        return str(self.applies_when.get("estimand"))
-
-    @property
-    def targets(self) -> list[str]:
-        """The units the entry can be asked the effect for: ate, att, atc."""
-        return [str(t) for t in self.applies_when.get("target", [])]
-
-    def applies(self, *, estimand: str, treatment: str, outcome: str, adjustment_set: str, target: str | None = None) -> bool:
-        """The entry runs on a design whose road, treatment kind, outcome kind and adjustment set are the entry's, and, when a
-        target is given, one the entry serves."""
-        w = self.applies_when
-        return (
-            w.get("estimand") == estimand
-            and treatment in w.get("treatment", [])
-            and outcome in w.get("outcome", [])
-            and adjustment_set in w.get("adjustment_set", [])
-            and (target is None or target in self.targets)
-        )
 
     def render(self) -> str:
-        return f"estimator: {self.name}\n  what it does: {self.in_words}\n  assumes: {self.assumes}\n  weak when: {self.weak_when}"
+        return f"[estimator:{self.name}] {self.in_words}; assumes {self.assumes}"
 
 
-class RefuterEntry(BaseModel):
+class FalsificationEntry(BaseModel):
     name: str
-    kind: Literal["falsification", "sensitivity"]
+    endpoints: list[str]
     in_words: str
-    applies_when: dict[str, Any]
-    params: dict[str, Any] = Field(default_factory=dict)
-    pass_when: dict[str, Any] = Field(default_factory=dict)
-
-    def applies(self, *, estimand: str, adjustment_set: str, sensitivity_required: bool = False) -> bool:
-        w = self.applies_when
-        needs = w.get("sensitivity_required")
-        return (
-            estimand in w.get("estimand", [])
-            and adjustment_set in w.get("adjustment_set", ["empty", "nonempty"])
-            and (needs is None or sensitivity_required in needs)
-        )
+    params: dict = Field(default_factory=dict)
+    pass_when: dict = Field(default_factory=dict)
 
 
-# ------------------------------------------------------------------ the files, through the shared loader
+class SensitivityEntry(BaseModel):
+    name: str
+    endpoints: list[str]
+    in_words: str
+    params: dict = Field(default_factory=dict)
 
-K = Knowledge(_HERE, estimator=EstimatorEntry, refuter=RefuterEntry)
-load_estimators, load_refuters, load_checks, load_beliefs = K.estimators, K.refuters, K.checks, K.beliefs
-estimator, refuter, render_preferences = K.estimator, K.refuter, K.render_preferences
+
+def _entries(filename: str, cls):
+    return [cls(name=name, **raw) for name, raw in yaml.safe_load((_HERE / filename).read_text()).items()]
+
+
+def load_estimators() -> list[EstimatorEntry]:
+    return _entries("estimators.yaml", EstimatorEntry)
+
+
+def load_falsifications() -> list[FalsificationEntry]:
+    return _entries("falsifications.yaml", FalsificationEntry)
+
+
+def load_sensitivities() -> list[SensitivityEntry]:
+    return _entries("sensitivity.yaml", SensitivityEntry)
+
+
+def load_checks() -> dict:
+    return yaml.safe_load((_HERE / "checks.yaml").read_text())
+
+
+def load_endpoint_catalogue():
+    from causal_agent.common.contracts.endpoints import load_endpoints
+
+    return load_endpoints(_HERE / "endpoints.yaml")
+
+
+class MotifCertificate(BaseModel):
+    road: str
+    variables: list[str] | None = None
+    target: str = "ate"
+
+
+class GraphMotif(BaseModel):
+    id: str
+    title: str
+    category: Literal["base", "variant", "blocked"] = "base"
+    account: str
+    treatment: str = "t"
+    outcome: str = "y"
+    observed: list[str]
+    latent: list[str] = Field(default_factory=list)
+    edges: list[tuple[str, str]]
+    evidence: list[str]
+    assumptions: list[str]
+    expected: list[MotifCertificate] = Field(default_factory=list)
+    forbidden_adjustments: list[list[str]] = Field(default_factory=list)
+    mediator: str | None = None
+    modifiers: list[str] = Field(default_factory=list)
+    stop: str | None = None
+
+    @model_validator(mode="after")
+    def valid_graph(self):
+        nodes = self.observed + self.latent
+        if len(nodes) != len(set(nodes)) or self.treatment not in self.observed or self.outcome not in self.observed:
+            raise ValueError("motif nodes must be unique, with observed treatment and outcome")
+        if any(src not in nodes or dst not in nodes for src, dst in self.edges):
+            raise ValueError("motif edge references an undeclared node")
+        graph = nx.DiGraph()
+        graph.add_nodes_from(nodes)
+        graph.add_edges_from(self.edges)
+        if not nx.is_directed_acyclic_graph(graph):
+            raise ValueError("motif must be a DAG")
+        if self.mediator and self.mediator not in self.observed:
+            raise ValueError("motif mediator must be observed")
+        if any(modifier not in self.observed for modifier in self.modifiers):
+            raise ValueError("motif modifier must be observed")
+        if any(column not in nodes for group in self.forbidden_adjustments for column in group):
+            raise ValueError("forbidden adjustment references an undeclared node")
+        return self
+
+
+def load_motifs() -> list[GraphMotif]:
+    """Illustrative DAGs, never additional context or endpoint eligibility rules."""
+    rows = [GraphMotif.model_validate(row) for row in yaml.safe_load((_HERE / "motifs.yaml").read_text())["motifs"]]
+    if len({row.id for row in rows}) != len(rows) or sum(row.category == "base" for row in rows) != 10:
+        raise ValueError("motifs require unique IDs and the ten illustrative base examples")
+    return rows

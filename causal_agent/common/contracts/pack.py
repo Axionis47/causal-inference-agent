@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, SerializeAsAny, field_validator
 
 from causal_agent.common.contracts.base import Candidate, Cited, Intent, Scope
 from causal_agent.common.contracts.brief import DesignBrief
+from causal_agent.common.contracts.endpoints import ContextAdmission
 from causal_agent.common.contracts.text import render_change_text, render_dataset_text
 
 # ----------------------------------------------------------------- the context pack
@@ -364,6 +365,9 @@ class Handoff(BaseModel):
     intent: Intent = "effect_of_change"
     design_id: int = Field(default=0, description="which design of this dataset the pack is; 0 for a forced hand-off")
     memory_version: int = Field(default=0, description="the memory version the pack was projected from")
+    context_id: str = ""
+    dataset_identity: str = ""
+    admission: ContextAdmission | None = None
     data_version: int = Field(default=0, description="the version of the table the pack reads; 0 is the uploaded file")
     why: str = Field(default="", description="why this family over the others")
     over: dict[str, str] = Field(default_factory=dict, description="rejected family -> reason")

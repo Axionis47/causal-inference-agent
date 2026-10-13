@@ -30,6 +30,7 @@ from causal_agent.common.contracts import (
 )
 from causal_agent.families import registry as R
 from causal_agent.families.registry import BlockInputs, FamilyDef
+from causal_agent.lane.endpoints import admit
 from causal_agent.memory import facts as FX
 from causal_agent.memory import ops, store
 from causal_agent.memory.claims import ProbeResult
@@ -55,7 +56,9 @@ def build(
     """The one hand-off, projected from the memory. The memory is not changed. The brief, when there is one, is what the design
     bets on; without one the decision's assumption stands. Every column of the file but ids and constants is carried, with every
     word about it and its status; the data facts are computed for all of them here, in one pass over the file."""
-    m = memory
+    m = memory.snapshot()
+    if df is not None:
+        ops.derive_assignment_facts(m, df)
     entry = DS.dataset_entries().get(m.name) or {}
     a, ch, g, samp, miss = (fields_of(m, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
     outcome = frame.outcome or ""
@@ -94,23 +97,44 @@ def build(
         others = [v for v in tb.facts.levels() if v != treated_level]
         control_level = others[0] if len(tb.facts.levels()) == 2 and others else None
 
+    scope = frame.scope
+    population = m.value("claim:target.population")
+    effect = m.value("claim:target.effect")
+    aggregation = m.value("claim:target.aggregation")
+    scopes = {"treated": "on_treated", "untreated": "on_untreated", "compliers": "local", "study_population": "average"}
+    updates = {}
+    if population in scopes and scope.target == "average":
+        updates["target"] = scopes[population]
+    if effect in {"natural_direct", "natural_indirect", "conditional"}:
+        updates["target"] = effect
+    if aggregation in {"horizon", "horizon_profile", "cohort", "cohort_profile", "cohort_horizon"}:
+        updates["target"] = aggregation
+    if m.value("claim:target.modifiers"):
+        updates["modifiers"] = list(m.value("claim:target.modifiers"))
+    horizons = m.value("claim:target.horizons") or []
+    cohorts = m.value("claim:target.cohorts") or []
+    if len(horizons) == 1:
+        updates["horizon"] = horizons[0]
+    if len(cohorts) == 1:
+        updates["cohort"] = cohorts[0]
+    scope = scope.model_copy(update=updates)
     inputs = BlockInputs(
         briefs=briefs,
-        claims={"assignment": a, "change": ch, "grain": g, "sampling": samp, "missing": miss},
+        claims={"assignment": a, "change": ch, "grain": g, "sampling": samp, "missing": miss, "target": fields_of(m, "target")},
         beliefs=beliefs,
         probes=probe_list,
         entry=entry,
-        scope=frame.scope,
+        scope=scope,
         treatment=treatment,
     )
     design = family.design_block(inputs) if family.design_block else None
-    return Handoff(
+    pack = Handoff(
         family=family.name,
         specialist=family.specialist,
         supported_now=family.built,
         outcome=outcome,
         treatment=treatment,
-        scope=frame.scope,
+        scope=scope,
         pack_name=m.name,
         relevant_columns=list(frame.relevant_columns),
         chosen_assumption=brief.bets_on if brief is not None else decision.chosen_assumption,
@@ -140,6 +164,7 @@ def build(
         design=design,
         brief=brief,
     )
+    return admit(pack, family.needs.endpoints) if family.needs and family.needs.endpoints else pack
 
 
 def data_facts(m: Memory, outcome: str, treatment: str | None, names: list[str], df: pd.DataFrame | None = None) -> list[Probe]:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRows, claimRows, decisionOver, decisionWhy, declineRows, estimateRows, journalGroups, refutationRows, statusMatrix } from "./rows";
+import { checkRows, claimRows, decisionOver, decisionWhy, declineRows, estimateRows, journalGroups, falsificationRows, statusMatrix } from "./rows";
 import type { ClaimView, RunView, StatusView, StepView } from "../types";
 
 const claim = (over: Partial<ClaimView>): ClaimView => ({
@@ -30,7 +30,23 @@ const run = (over: Partial<RunView>): RunView =>
     decision_record: "",
     flags: [],
     checks: [],
-    refutations: [],
+    falsifications: [],
+    sensitivities: [],
+    lead_selection: {},
+    lead_design_id: "d1",
+    context_id: "context",
+    context_admission: null,
+    context_deficiency: null,
+    terminal: {},
+    candidate_history: [],
+    reasoning_history: [],
+    context_facts: {},
+    designs: {},
+    ledger: {},
+    candidates: [],
+    episode_visits: {},
+    comparisons: [],
+    execution_attempts: [],
     interpretations: [],
     estimates: [],
     feasibility: null,
@@ -51,6 +67,8 @@ describe("claimRows", () => {
 
 describe("statusMatrix", () => {
   const status: StatusView = {
+    endpoint_admissions: {},
+    selected_family: null,
     table: { did: { unit: "fits", time: "unknown" }, rd: { unit: "does_not_fit" } },
     surviving: ["did"],
     struck: { rd: "no cutoff" },
@@ -80,6 +98,12 @@ describe("run rows", () => {
     const r = run({
       estimates: [
         {
+          design_id: "d1",
+          endpoint_id: "total.backdoor",
+          target: {},
+          confidence_set: null,
+          modifier: null,
+          level: null,
           contrast: null,
           method: "ols",
           value: 1.5,
@@ -94,6 +118,12 @@ describe("run rows", () => {
           p_value_source: null,
         },
         {
+          design_id: "d1",
+          endpoint_id: "total.backdoor",
+          target: {},
+          confidence_set: null,
+          modifier: null,
+          level: null,
           contrast: "a",
           method: "ipw",
           value: 2,
@@ -108,6 +138,12 @@ describe("run rows", () => {
           p_value_source: "ritest",
         },
         {
+          design_id: "d1",
+          endpoint_id: "total.backdoor",
+          target: {},
+          confidence_set: null,
+          modifier: null,
+          level: null,
           contrast: "a",
           method: "dml",
           value: null,
@@ -130,19 +166,19 @@ describe("run rows", () => {
     expect(rows[2]).toMatchObject({ error: "boom", value: "—" });
   });
   it("shapes checks and refutations", () => {
-    expect(checkRows([{ contrast: null, name: "overlap", level: "warn", value: 0.02, threshold: 0.05, detail: null }])).toEqual([
+    expect(checkRows([{ design_id: "d1", contrast: null, name: "overlap", level: "warn", value: 0.02, threshold: 0.05, detail: null }])).toEqual([
       { contrast: "—", name: "overlap", level: "warn", value: "0.02", threshold: "0.05", detail: "" },
     ]);
-    const rows = refutationRows(
+    const rows = falsificationRows(
       run({
-        refutations: [
-          { contrast: null, refuter: "placebo", kind: "placebo_treatment", passed: null, p_value: null, new_effect: null, detail: null },
-          { contrast: "a", refuter: "subset", kind: null, passed: false, p_value: 0.001, new_effect: 3, detail: "moved" },
+        falsifications: [
+          { design_id: "d1", contrast: "all", refuter: "placebo", passed: null, p_value: null, new_effect: null, detail: "" },
+          { design_id: "d1", contrast: "a", refuter: "subset", passed: false, p_value: 0.001, new_effect: 3, detail: "moved" },
         ],
       }),
     );
     expect(rows[0].passed).toBe("n/a");
-    expect(rows[1]).toMatchObject({ passed: "failed", p_value: "0.001", new_effect: "3", kind: "—" });
+    expect(rows[1]).toMatchObject({ passed: "failed", p_value: "0.001", new_effect: "3", kind: "d1" });
   });
   it("reads the decision bag", () => {
     const r = run({ decision: { chosen: null, chosen_assumption: null, why: "fits", over: { rd: "no cutoff", iv: "no instrument" } } });

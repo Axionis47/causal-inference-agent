@@ -1,86 +1,61 @@
-"""The adjustment lane's own figures, pure over its artifacts: the causal graph it drew, and the balance of every column it
-adjusted for before and after weighting on the propensity. Every drawn value rests on an address the run produced."""
+"""Design-qualified figures drawn entirely from frozen adjustment artifacts."""
 
 from __future__ import annotations
 
-from causal_agent.viz.spec import Edge, FigureSpec, Mark, Node, Role, Series
-
-ROLE_WORDS = {
-    "confounder": "drives both",
-    "driver": "drives the outcome",
-    "treatment driver": "drives the treatment",
-    "mediator": "carries the effect",
-    "instrument": "pushes units in",
-    "hidden": "not in the file",
-    "excluded": "set aside",
-}
+from causal_agent.families.adjustment.lane.support import signature
+from causal_agent.viz.spec import Edge, FigureSpec, Node, Series
 
 
-def _role(graph: dict, node: str) -> Role:
-    t, y = graph.get("treatment"), graph.get("outcome")
-    edges = graph.get("edges") or []
-    if node == t:
-        return "treatment"
-    if node == y:
-        return "outcome"
-    if node == "unobserved":
-        return "hidden"
-    to_t = any(e.get("src") == node and e.get("dst") == t for e in edges)
-    to_y = any(e.get("src") == node and e.get("dst") == y for e in edges)
-    from_t = any(e.get("src") == t and e.get("dst") == node for e in edges)
-    if to_t and to_y:
-        return "confounder"
-    if from_t and to_y:
-        return "mediator"
-    if to_t and not to_y:
-        return "instrument" if not from_t else "driver"
-    if to_y:
-        return "driver"
-    return "other"
+def causal_graph(graph: dict, names: dict[str, str], *, design_id: str) -> FigureSpec:
+    t, y = graph["treatment"], graph["outcome"]
 
+    def role(n):
+        if n == t:
+            return "treatment"
+        if n == y:
+            return "outcome"
+        if n.startswith("hidden:"):
+            return "hidden"
+        parents = {e["src"] for e in graph["edges"] if e["dst"] == n}
+        children = {e["dst"] for e in graph["edges"] if e["src"] == n}
+        if t in children and y in children:
+            return "confounder"
+        if t in parents and y in children:
+            return "mediator"
+        if y in children:
+            return "driver"
+        return "other"
 
-def causal_graph(graph: dict, names: dict[str, str] | None = None) -> FigureSpec | None:
-    """The graph the lane built: one node per column with its role, one arrow per edge with the addresses it rests on, and the
-    columns the lane set aside as nodes with no arrows."""
-    if not graph or not graph.get("nodes"):
-        return None
-    names = names or {}
-    nodes = [Node(id=n, label=names.get(n, n), role=_role(graph, n)) for n in graph["nodes"]]
-    nodes += [
-        Node(id=x["column"], label=names.get(x["column"], x["column"]), role="excluded")
-        for x in graph.get("excluded") or []
-        if x.get("column") not in graph["nodes"]
-    ]
-    edges = [Edge(src=e["src"], dst=e["dst"], cites=list(e.get("cites") or [])) for e in graph.get("edges") or []]
-    cites = sorted({c for e in edges for c in e.cites})
-    conf = [n.label for n in nodes if n.role == "confounder"]
-    note = ("adjusted for " + ", ".join(conf) if conf else "nothing drives both the treatment and the outcome in this graph") + (
-        "; a hidden factor is drawn in" if any(n.role == "hidden" for n in nodes) else ""
-    )
     return FigureSpec(
-        id="causal_graph", kind="graph", title="The graph the analysis drew", nodes=nodes, edges=edges, note=note, draws_on=["design.graph"] + cites
+        id=f"graph_{design_id}",
+        kind="graph",
+        title=f"Causal assumptions for {design_id}",
+        nodes=[Node(id=n, label=names.get(n, n), role=role(n)) for n in graph["nodes"]],
+        edges=[Edge(src=e["src"], dst=e["dst"], cites=e["cites"], status=e["status"]) for e in graph["edges"]],
+        note="; ".join(f"{e['src']} -> {e['dst']}: {e['status']}" for e in graph["edges"]),
+        draws_on=[f"design:{design_id}.graph"],
     )
 
 
-def balance(facts: dict[str, dict], contrast: str, threshold: float | None = None, names: dict[str, str] | None = None) -> FigureSpec | None:
-    """The standardised mean difference of every adjustment column between the arms, before and after weighting on the score."""
-    if not facts:
-        return None
-    names = names or {}
-    cols = list(facts)
-    before = [facts[c].get("before") for c in cols]
-    after = [facts[c].get("after") for c in cols]
-    x = [names.get(c, c) for c in cols]
-    marks = [Mark(kind="hline", at=float(threshold), label="soft threshold")] if threshold is not None else []
-    worst = max((v for v in after if v is not None), default=0.0)
-    return FigureSpec(
-        id=f"balance_{contrast}",
-        kind="bars",
-        title="How alike the arms are on what was adjusted for",
-        x_label="",
-        y_label="standardised mean difference",
-        series=[Series(name="before adjustment", x=x, y=before), Series(name="after weighting on the score", x=x, y=after)],
-        marks=marks,
-        note=f"after weighting the largest difference is {worst:.2f}",
-        draws_on=[f"check:{contrast}.balance.{c}" for c in cols] + ["check_facts.balance"],
-    )
+def comparisons(estimates: list) -> list[FigureSpec]:
+    groups: dict[tuple, list] = {}
+    for e in estimates:
+        if e.error or e.modifier is not None:
+            continue
+        identity = signature(e)
+        groups.setdefault(identity, []).append(e)
+    out = []
+    for n, (identity, es) in enumerate(groups.items()):
+        out.append(
+            FigureSpec(
+                id=f"design_comparison_{n}",
+                kind="interval",
+                title=f"{es[0].target.get('type')} estimates for {identity[0]}",
+                x_label="Frozen design",
+                y_label=es[0].target.get("scale", "effect"),
+                series=[Series(name="effect", x=[e.design_id for e in es], y=[e.value for e in es], lo=[e.ci_low for e in es], hi=[e.ci_high for e in es])],
+                draws_on=[e.tag + ".value" for e in es],
+                note="Only identical contrasts, targets, scales and frozen analysis populations are plotted together.",
+            )
+        )
+    return out

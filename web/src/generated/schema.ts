@@ -292,6 +292,11 @@ export interface components {
         };
         /** CheckView */
         CheckView: {
+            /**
+             * Design Id
+             * @default
+             */
+            design_id: string;
             /** Contrast */
             contrast?: string | null;
             /** Name */
@@ -369,6 +374,51 @@ export interface components {
             sentinels?: components["schemas"]["Sentinel"][];
             /** Issues */
             issues?: string[];
+        };
+        /** ConfidenceSet */
+        ConfidenceSet: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "bounded" | "disconnected" | "unresolved_tail" | "empty" | "computational_failure";
+            /** Regions */
+            regions?: number[][];
+            /** Searched Range */
+            searched_range?: number[];
+            /** Resolution */
+            resolution?: number | null;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+        };
+        /** ContextAdmission */
+        ContextAdmission: {
+            /** Family */
+            family: string;
+            /** Contract */
+            contract: string;
+            /** Memory Version */
+            memory_version: number;
+            /** Data Version */
+            data_version: number;
+            /** Endpoints */
+            endpoints: components["schemas"]["EndpointAdmission"][];
+        };
+        /** ContextDeficiency */
+        ContextDeficiency: {
+            /** Stage */
+            stage: string;
+            /** Addresses */
+            addresses: string[];
+            /** Decisions */
+            decisions?: string[];
+            /** Candidates */
+            candidates?: string[];
+            /** Reason */
+            reason: string;
         };
         /**
          * DatasetCreate
@@ -470,9 +520,50 @@ export interface components {
             dst: string;
             /** Cites */
             cites?: string[];
+            /**
+             * Status
+             * @default supported
+             */
+            status: string;
+        };
+        /** EndpointAdmission */
+        EndpointAdmission: {
+            /** Endpoint Id */
+            endpoint_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "conditional" | "missing" | "excluded" | "unsupported";
+            /** Obligations */
+            obligations?: components["schemas"]["Obligation"][];
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /** EstimateView */
         EstimateView: {
+            /**
+             * Design Id
+             * @default
+             */
+            design_id: string;
+            /**
+             * Endpoint Id
+             * @default
+             */
+            endpoint_id: string;
+            /** Target */
+            target?: {
+                [key: string]: unknown;
+            };
+            confidence_set?: components["schemas"]["ConfidenceSet"] | null;
+            /** Modifier */
+            modifier?: string | null;
+            /** Level */
+            level?: string | null;
             /** Contrast */
             contrast?: string | null;
             /** Method */
@@ -501,11 +592,39 @@ export interface components {
             /** P Value Source */
             p_value_source?: string | null;
         };
+        /** Falsification */
+        Falsification: {
+            /**
+             * Design Id
+             * @default
+             */
+            design_id: string;
+            /** Contrast */
+            contrast: string;
+            /** Refuter */
+            refuter: string;
+            /** New Effect */
+            new_effect?: number | null;
+            /** P Value */
+            p_value?: number | null;
+            /** Passed */
+            passed?: boolean | null;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+        };
         /**
          * FeasibilityView
          * @description Where and why a lane stopped.
          */
         FeasibilityView: {
+            /**
+             * Terminal Kind
+             * @enum {string}
+             */
+            terminal_kind: "context_deficiency" | "unidentified_effect" | "unsupported_method" | "inadequate_support" | "exhausted_reasoning" | "execution_failure";
             /** Stage */
             stage: string;
             /** Reason */
@@ -604,13 +723,24 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
-        /**
-         * HandoffView
-         * @description The pack the ready moment read back, shown before the word: every field the design rests on with its status and the
-         *     sentence it rests on. A correction is sent as a message of `address = value` lines; the desk writes each as the person's
-         *     word and shows the ready moment again.
-         */
+        /** HandoffView */
         HandoffView: {
+            /**
+             * Context Id
+             * @default
+             */
+            context_id: string;
+            /**
+             * Dataset Identity
+             * @default
+             */
+            dataset_identity: string;
+            /**
+             * Data Version
+             * @default 0
+             */
+            data_version: number;
+            admission?: components["schemas"]["ContextAdmission"] | null;
             /** Family */
             family: string;
             /** Specialist */
@@ -639,6 +769,11 @@ export interface components {
         };
         /** InterpretationView */
         InterpretationView: {
+            /**
+             * Design Id
+             * @default
+             */
+            design_id: string;
             /** Contrast */
             contrast?: string | null;
             /** Answer */
@@ -720,6 +855,22 @@ export interface components {
             max: number;
             /** Mean */
             mean: number;
+        };
+        /** Obligation */
+        Obligation: {
+            /** Id */
+            id: string;
+            /** Address */
+            address: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "met" | "assumed" | "missing" | "failed" | "inapplicable";
+            /** Reason */
+            reason: string;
+            /** Cites */
+            cites?: string[];
         };
         /** ProfileOut */
         ProfileOut: {
@@ -808,23 +959,6 @@ export interface components {
              */
             because?: string[];
         };
-        /** RefutationView */
-        RefutationView: {
-            /** Contrast */
-            contrast?: string | null;
-            /** Refuter */
-            refuter: string;
-            /** Kind */
-            kind?: string | null;
-            /** Passed */
-            passed?: boolean | null;
-            /** P Value */
-            p_value?: number | null;
-            /** New Effect */
-            new_effect?: number | null;
-            /** Detail */
-            detail?: string | null;
-        };
         /** RunFiles */
         RunFiles: {
             /** Run Id */
@@ -864,8 +998,70 @@ export interface components {
             flags?: components["schemas"]["CheckView"][];
             /** Checks */
             checks?: components["schemas"]["CheckView"][];
-            /** Refutations */
-            refutations?: components["schemas"]["RefutationView"][];
+            /** Lead Design Id */
+            lead_design_id?: string | null;
+            /** Lead Selection */
+            lead_selection?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Context Id
+             * @default
+             */
+            context_id: string;
+            /**
+             * Dataset Identity
+             * @default
+             */
+            dataset_identity: string;
+            context_admission?: components["schemas"]["ContextAdmission"] | null;
+            context_deficiency?: components["schemas"]["ContextDeficiency"] | null;
+            /** Terminal */
+            terminal?: {
+                [key: string]: unknown;
+            };
+            /** Candidate History */
+            candidate_history?: {
+                [key: string]: unknown;
+            }[];
+            /** Reasoning History */
+            reasoning_history?: {
+                [key: string]: unknown;
+            }[];
+            /** Context Facts */
+            context_facts?: {
+                [key: string]: unknown;
+            };
+            /** Designs */
+            designs?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Ledger */
+            ledger?: {
+                [key: string]: unknown;
+            };
+            /** Candidates */
+            candidates?: {
+                [key: string]: unknown;
+            }[];
+            /** Episode Visits */
+            episode_visits?: {
+                [key: string]: unknown;
+            };
+            /** Comparisons */
+            comparisons?: {
+                [key: string]: unknown;
+            }[];
+            /** Execution Attempts */
+            execution_attempts?: {
+                [key: string]: unknown;
+            }[];
+            /** Falsifications */
+            falsifications?: components["schemas"]["Falsification"][];
+            /** Sensitivities */
+            sensitivities?: components["schemas"]["Sensitivity"][];
             /** Interpretations */
             interpretations?: components["schemas"]["InterpretationView"][];
             /** Estimates */
@@ -891,6 +1087,37 @@ export interface components {
             artifacts?: components["schemas"]["ArtifactView"][];
             /** Declines */
             declines?: components["schemas"]["DeclineView"][];
+        };
+        /** Sensitivity */
+        Sensitivity: {
+            /**
+             * Design Id
+             * @default
+             */
+            design_id: string;
+            /** Contrast */
+            contrast: string;
+            /** Method */
+            method: string;
+            /** Range Low */
+            range_low?: number | null;
+            /** Range High */
+            range_high?: number | null;
+            /** Points */
+            points?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Error */
+            error?: string | null;
+            /** Target */
+            target?: {
+                [key: string]: unknown;
+            };
         };
         /** Sentinel */
         Sentinel: {
@@ -1005,6 +1232,12 @@ export interface components {
         };
         /** StatusView */
         StatusView: {
+            /** Endpoint Admissions */
+            endpoint_admissions?: {
+                [key: string]: components["schemas"]["ContextAdmission"];
+            };
+            /** Selected Family */
+            selected_family?: string | null;
             /** Table */
             table: {
                 [key: string]: {

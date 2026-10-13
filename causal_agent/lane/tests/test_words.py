@@ -10,7 +10,7 @@ from causal_agent.lane import words as W
 
 EMITTED = {
     "dowhy": ["arms", "overlap", "separation", "balance", "identification", "adjusts_outside_candidates"],
-    "did": ["units", "single_treated_unit", "parallel_untestable", "pre_trends", "staggered"],
+    "did": ["pre_trends"],
     "rd": [
         "sides",
         "effective_rows",

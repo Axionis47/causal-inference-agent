@@ -8,14 +8,14 @@
   question: Did receiving the transfer raise support for the government?
   expected:
     status_in: [done, infeasible]     # the file's local-linear answer is null and both covariates jump; a stop at assess is a fair reading
-    stopped_at_in: [assess]           # graded only when infeasible
+    stopped_at_in: [freeze_designs]           # graded only when infeasible
     score_column: Income_Centered
     cutoff: 0
     treated_side: below
     kind: sharp
-    checks_ran: [covariate_continuity, mass_points, density, first_stage]
-    assess_cites_contain: [covariate_continuity]
-    placebo_ran_if_done: [placebo_cutoffs, bandwidth_grid, donut]
+    checks_ran: [covariate_continuity, mass_points, density]
+    line_cites_contain: [covariate_continuity]
+    falsifications_ran_if_done: [placebo_cutoffs]
 
 - id: senate_incumbency_rdd
   dataset: senate
@@ -29,7 +29,7 @@
     cluster: state
     estimator_in: [local_linear, local_quadratic]
     effect_sign: positive             # Cattaneo, Frandsen and Titiunik 2015: about 7 points
-    placebo_ran: [placebo_cutoffs, bandwidth_grid, donut]
+    falsifications_ran: [placebo_cutoffs]
 
 - id: headstart_rdd
   dataset: headstart
@@ -53,7 +53,7 @@
     treated_side: above
     kind: fuzzy
     estimator_in: [local_linear_fuzzy]
-    secondaries_contain: [local_linear_itt, first_stage]
+    endpoints_contain: [fuzzy_local_polynomial, eligibility_local_polynomial]
     effect_sign: positive             # Londoño-Vélez, Rodríguez and Sánchez 2020
 
 - id: probation_rdd
@@ -61,13 +61,13 @@
   question: Did being placed on academic probation change students' next-term GPA?
   expected:
     status_in: [done, infeasible]     # a first-year credits covariate jumps at the cutoff (robust p about 0.001); stopping on it is a fair reading
-    stopped_at_in: [assess]           # graded only when infeasible
+    stopped_at_in: [freeze_designs]           # graded only when infeasible
     score_column: X
     cutoff: 0
     treated_side: above
     kind: sharp
     flags_contain: [mass_points]
-    assess_cites_contain: [covariate_continuity]
+    line_cites_contain: [covariate_continuity]
     effect_sign_if_done: positive     # Lindo, Sanders and Oreopoulos 2010: the GPA of those who return rises
 
 - id: card_krueger_forced_rd
@@ -75,13 +75,38 @@
   handoff: handoffs/card_krueger_forced.json
   question: Did New Jersey's 1992 minimum wage rise reduce fast food employment?
   expected:
-    status: infeasible
-    stopped_at_in: [score, assess]    # no numeric cutoff in the notes, or no first stage at an invented one
+    status: context_deficient
+    stopped_at_in: [load]    # no numeric cutoff in the notes, or no first stage at an invented one
 
 - id: students_forced_rd
   dataset: students
   handoff: handoffs/students_forced.json
   question: Did completing the prep course raise math scores?
   expected:
-    status: infeasible
-    stopped_at_in: [score, assess]    # numeric scores exist but no note states a cutoff rule
+    status: context_deficient
+    stopped_at_in: [load]    # numeric scores exist but no note states a cutoff rule
+
+# Reproducible evaluations with declared generating-process assumptions, not empirical evidence.
+- id: declared_sharp_endpoints
+  dataset: window_sharp
+  handoff: handoffs/window_sharp.json
+  question: Did assignment to the intervention change the outcome at the cutoff?
+  expected:
+    status: done
+    score_column: score
+    cutoff: 0
+    treated_side: above
+    kind: sharp
+    endpoints_contain: [sharp_local_polynomial, sharp_local_randomisation]
+
+- id: declared_fuzzy_and_eligibility_endpoints
+  dataset: window_fuzzy
+  handoff: handoffs/window_fuzzy.json
+  question: Did actual receipt of the intervention change the outcome inside a score window?
+  expected:
+    status: done
+    score_column: score
+    cutoff: 0
+    treated_side: above
+    kind: fuzzy
+    endpoints_contain: [fuzzy_local_polynomial, fuzzy_local_randomisation, eligibility_local_polynomial, eligibility_local_randomisation]

@@ -31,6 +31,10 @@ Rules:
 - If the question is not about an effect at all, intent is not_causal.
 - Scope: say if the question restricts to some rows, a time window, whether the contrast is on/off or a dose,
   and whether it wants an average effect or something else.
+  Normalize a row restriction using the actual column and level: col == value, !=, >=, <=, >, <,
+  or in [a,b], with clauses joined by and. Use null for the whole file. Never discard a supplied restriction.
+  Normalize time restrictions as from A to B, A..B, >= A, <= B, after A or before B.
+  Treatment-population targets use scope.target, rather than a filter that discards the comparison arm.
 - Relevant columns: list every column that matters to this question: the outcome, the cause, anything the notes
   say influenced who got the change, anything that plausibly moves the outcome, and any unit or time column.
   Leave out columns that are other outcomes, bookkeeping, or unrelated. One line why each, with a citation.
@@ -87,8 +91,7 @@ make, the memory as it stands (every settled field with its address), the probes
 family, the person's own words, and, when a design ran before, its brief.
 Fill every decision the family lists, once each, by its name. Each choice is said in the dataset's words (which column, which
 level, which rows), never in method words, and rests on at least one address from the memory or the probes with one sentence
-why. Set road only when the family lists a decision named road, and then to the road the memory supports; leave it null
-otherwise. The target is the average effect unless the assignment or the question's scope calls for the effect on the treated.
+why. These are context-admission decisions. Identification and estimator selection happen in the lane after authorization. The target is the average effect unless the assignment or the question's scope calls for the effect on the treated.
 Threats are what would break the design here, each cited; checks are what would show it, in words. bets_on is one sentence:
 the assumption this design bets on, in this dataset's terms. A revise says what it keeps and what it changes from the brief
 before. A cites field may only contain addresses from the list given; cite what is settled, never invent a field.

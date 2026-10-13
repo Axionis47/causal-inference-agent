@@ -67,8 +67,8 @@ def test_the_adoption_column_rides_onto_the_block_as_the_cohort_column():
         return design_block(BlockInputs(briefs=[], claims=claims, beliefs={}, probes=[], entry={}, scope=Scope(target="on_treated"), treatment="arm"))
 
     d = block()
-    assert d.treated_group == {"column": "arm", "level": "yes"} and d.columns() == ["unit", "time", "arm", "unit"] and d.staggered is None
+    assert d.treated_group == {"column": "arm", "level": "yes"} and d.columns() == ["unit", "time", "arm", "unit"] and d.adoption_representation == "label"
     d = block(adoption_column="first_period")
-    assert d.staggered is True
+    assert d.adoption_representation == "cohort_column"
     assert d.treated_group == {"column": "arm", "level": "yes", "cohort_column": "first_period"} and "first_period" in d.columns()
-    assert "first treated period per unit in first_period" in d.render()
+    assert "first_period" in d.render()

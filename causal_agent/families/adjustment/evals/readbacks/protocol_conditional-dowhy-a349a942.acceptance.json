@@ -1,0 +1,972 @@
+{
+  "fixture": "causal_agent/families/adjustment/evals/handoffs/conditional_protocol.json",
+  "context_id": "3269649eae5a52e519fc2aed",
+  "dataset_identity": "d0085e27dfe64b84a700b3e42a642ac199ea8e032ad69d0e4726e3b3b9b27647",
+  "admission_contract": "b6f1e723569374947b89",
+  "run_dir": ".artifacts/runs/protocol_conditional-dowhy-a349a942",
+  "trace_id": "01a13776-813a-7f01-94bc-9b7201388481",
+  "status": "done",
+  "terminal": {
+    "kind": "valid_design",
+    "status": "done",
+    "stage": "assemble",
+    "lead_design_id": "dcf7a62deb559",
+    "lead_executed": true,
+    "failed_design_ids": [],
+    "executed_design_ids": [
+      "d8e18cc42fb7d",
+      "dcf7a62deb559"
+    ],
+    "contrast_completion": {
+      "d8e18cc42fb7d": {
+        "expected": [
+          "1_vs_0.x.0_0719542_to_0_566655",
+          "1_vs_0.x.0_566655_to_2_57167",
+          "1_vs_0.x.0_703383_to_0_0719542",
+          "1_vs_0.x.3_25144_to_0_703383"
+        ],
+        "executed": [
+          "1_vs_0.x.0_0719542_to_0_566655",
+          "1_vs_0.x.0_566655_to_2_57167",
+          "1_vs_0.x.0_703383_to_0_0719542",
+          "1_vs_0.x.3_25144_to_0_703383"
+        ],
+        "failed": [],
+        "missing": [],
+        "complete": true
+      },
+      "dcf7a62deb559": {
+        "expected": [
+          "1_vs_0.x.0_0719542_to_0_566655",
+          "1_vs_0.x.0_566655_to_2_57167",
+          "1_vs_0.x.0_703383_to_0_0719542",
+          "1_vs_0.x.3_25144_to_0_703383"
+        ],
+        "executed": [
+          "1_vs_0.x.0_0719542_to_0_566655",
+          "1_vs_0.x.0_566655_to_2_57167",
+          "1_vs_0.x.0_703383_to_0_0719542",
+          "1_vs_0.x.3_25144_to_0_703383"
+        ],
+        "failed": [],
+        "missing": [],
+        "complete": true
+      }
+    }
+  },
+  "endpoints": [
+    "adjustment.linear_conditional"
+  ],
+  "estimates": [
+    {
+      "design_id": "d8e18cc42fb7d",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d"
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 1.9822081125169304,
+      "ci_low": 1.8759427902676427,
+      "ci_high": 2.085857590131169,
+      "n_treated": 611,
+      "n_control": 589,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": true,
+      "modifier": null,
+      "level": null,
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "d8e18cc42fb7d",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "-3.25144 to -0.703383",
+            "low": -3.2514384154965383,
+            "high": -0.7033826256874236,
+            "include_low": true
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 1.3553106108791146,
+      "ci_low": 1.1961219557926503,
+      "ci_high": 1.4953558887700351,
+      "n_treated": 152,
+      "n_control": 148,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "-3.25144 to -0.703383",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "d8e18cc42fb7d",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "-0.703383 to -0.0719542",
+            "low": -0.7033826256874236,
+            "high": -0.071954192057328,
+            "include_low": false
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 1.8319707715169735,
+      "ci_low": 1.723360426001869,
+      "ci_high": 1.9280034894720053,
+      "n_treated": 161,
+      "n_control": 139,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "-0.703383 to -0.0719542",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "d8e18cc42fb7d",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "-0.0719542 to 0.566655",
+            "low": -0.071954192057328,
+            "high": 0.5666552402464478,
+            "include_low": false
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 2.1224060110679974,
+      "ci_low": 2.003168819209194,
+      "ci_high": 2.22775028794443,
+      "n_treated": 148,
+      "n_control": 152,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "-0.0719542 to 0.566655",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "d8e18cc42fb7d",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "0.566655 to 2.57167",
+            "low": 0.5666552402464478,
+            "high": 2.5716688829102927,
+            "include_low": false
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 2.619145056603636,
+      "ci_low": 2.408427078704728,
+      "ci_high": 2.7891810942528465,
+      "n_treated": 150,
+      "n_control": 150,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "0.566655 to 2.57167",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "dcf7a62deb559",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d"
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 1.9822081125169304,
+      "ci_low": 1.8759427902676427,
+      "ci_high": 2.085857590131169,
+      "n_treated": 611,
+      "n_control": 589,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": true,
+      "modifier": null,
+      "level": null,
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "dcf7a62deb559",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "-3.25144 to -0.703383",
+            "low": -3.2514384154965383,
+            "high": -0.7033826256874236,
+            "include_low": true
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 1.3553106108791146,
+      "ci_low": 1.1961219557926503,
+      "ci_high": 1.4953558887700351,
+      "n_treated": 152,
+      "n_control": 148,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "-3.25144 to -0.703383",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "dcf7a62deb559",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "-0.703383 to -0.0719542",
+            "low": -0.7033826256874236,
+            "high": -0.071954192057328,
+            "include_low": false
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 1.8319707715169735,
+      "ci_low": 1.723360426001869,
+      "ci_high": 1.9280034894720053,
+      "n_treated": 161,
+      "n_control": 139,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "-0.703383 to -0.0719542",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "dcf7a62deb559",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "-0.0719542 to 0.566655",
+            "low": -0.071954192057328,
+            "high": 0.5666552402464478,
+            "include_low": false
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 2.1224060110679974,
+      "ci_low": 2.003168819209194,
+      "ci_high": 2.22775028794443,
+      "n_treated": 148,
+      "n_control": 152,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "-0.0719542 to 0.566655",
+      "p_value": null,
+      "p_value_source": null
+    },
+    {
+      "design_id": "dcf7a62deb559",
+      "endpoint_id": "adjustment.linear_conditional",
+      "target": {
+        "type": "conditional",
+        "population": "scoped dataset",
+        "outcome": "y",
+        "scale": "outcome_units",
+        "scope": "conditional",
+        "analysis_population_ids": {
+          "1_vs_0": "f0c6ea79acea37553ff35b6d"
+        },
+        "primary_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-3.25144 to -0.703383"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.703383 to -0.0719542"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "-0.0719542 to 0.566655"
+          },
+          {
+            "contrast": "1_vs_0",
+            "modifier": "x",
+            "level": "0.566655 to 2.57167"
+          }
+        ],
+        "reference_summaries": [
+          {
+            "contrast": "1_vs_0",
+            "modifier": null,
+            "level": null
+          }
+        ],
+        "analysis_population_id": "f0c6ea79acea37553ff35b6d",
+        "subgroup": {
+          "column": "x",
+          "definition": {
+            "label": "0.566655 to 2.57167",
+            "low": 0.5666552402464478,
+            "high": 2.5716688829102927,
+            "include_low": false
+          }
+        }
+      },
+      "confidence_set": null,
+      "contrast": "1_vs_0",
+      "method": "linear_interaction",
+      "value": 2.619145056603636,
+      "ci_low": 2.408427078704728,
+      "ci_high": 2.7891810942528465,
+      "n_treated": 150,
+      "n_control": 150,
+      "target_units": "conditional",
+      "error": null,
+      "secondary": false,
+      "modifier": "x",
+      "level": "0.566655 to 2.57167",
+      "p_value": null,
+      "p_value_source": null
+    }
+  ],
+  "episodes": [
+    {
+      "node": "mechanism_1:5a02190e4c68",
+      "tries": 1,
+      "refusals": [],
+      "calls": 0,
+      "record": {
+        "drivers": [],
+        "offer_column": "",
+        "uptake_column": "",
+        "self_selection": false,
+        "reason": "Treatment 't' was assigned randomly via a lottery.",
+        "cites": [
+          "claim:assignment.kind",
+          "claim:assignment.rule",
+          "claim:assignment.depends_on"
+        ]
+      },
+      "errors": []
+    },
+    {
+      "node": "relate_1:84156b452707",
+      "tries": 1,
+      "refusals": [],
+      "calls": 0,
+      "record": {
+        "entries": [
+          {
+            "kind": "edge",
+            "src": "t",
+            "dst": "y",
+            "value": true,
+            "status": "proposed",
+            "reason": "candidate causal path for the requested target; its existence remains an assumption",
+            "cites": [
+              "pair.target",
+              "pair.treatment",
+              "pair.outcome"
+            ]
+          }
+        ],
+        "considered": [
+          "x"
+        ],
+        "reason": "The story describes a treatment effect that changes with x, and x has a baseline main effect on y. The treatment effect on y is a candidate causal path.",
+        "cites": [
+          "claim:story.text",
+          "pair.target",
+          "pair.treatment",
+          "pair.outcome"
+        ]
+      },
+      "errors": []
+    },
+    {
+      "node": "probe_1:92da275880f1",
+      "tries": 1,
+      "refusals": [],
+      "calls": 1,
+      "record": {
+        "entries": [
+          {
+            "kind": "edge",
+            "src": "t",
+            "dst": "y",
+            "value": null,
+            "status": "proposed",
+            "reason": "The question and pair.target/pair.treatment/pair.outcome define the requested candidate, not a causal fact. The story states 'an unknown treatment effect that changes linearly with x', implying a direct effect of t on y.",
+            "cites": [
+              "pair.target",
+              "pair.treatment",
+              "pair.outcome"
+            ]
+          }
+        ],
+        "considered": [
+          "t",
+          "y",
+          "x"
+        ],
+        "reason": "The question asks how the treatment effect on y differs by x, and the story explicitly states 'an unknown treatment effect that changes linearly with x'. The confirmed 'modifies: x True' relationship indicates that x modifies the effect of something, which, in this context, is the effect of t on y. The direct edge from t to y is proposed as per the source policy and the story's description of a treatment effect.",
+        "cites": [
+          "claim:story.text",
+          "pair.target",
+          "pair.treatment",
+          "pair.outcome",
+          "rel:modifies.x.value"
+        ]
+      },
+      "errors": []
+    },
+    {
+      "node": "interpret_1:e0aabcc83365",
+      "tries": 1,
+      "refusals": [],
+      "calls": 0,
+      "record": {
+        "answer": "The estimated treatment effect on y, conditional on x, increases as x increases for both designs. Design d8e18cc42fb7d, which adjusts for x, shows effects ranging from 1.36 (95% CI: 1.20, 1.50) for x in [-3.25, -0.70] to 2.62 (95% CI: 2.41, 2.79) for x in [0.57, 2.57]. Design dcf7a62deb559, which does not adjust for x, reports identical estimates for these subgroups.",
+        "caveats": [
+          "Design dcf7a62deb559 lacks diagnostic checks for covariate balance and arm separation, which are present in design d8e18cc42fb7d.",
+          "The unconfoundedness assumption for design dcf7a62deb559 does not condition on x, unlike design d8e18cc42fb7d.",
+          "The overall linear interaction estimate is a secondary reference and not a primary target summary for either design.",
+          "The falsification tests passing do not establish causal validity or justify changing the pre-frozen lead design."
+        ],
+        "cites": [
+          "design:d8e18cc42fb7d.assumptions",
+          "design:d8e18cc42fb7d.model",
+          "design:d8e18cc42fb7d.confidence_level",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci",
+          "design:dcf7a62deb559.assumptions",
+          "design:dcf7a62deb559.model",
+          "design:dcf7a62deb559.confidence_level",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci",
+          "check:d8e18cc42fb7d.1_vs_0.arms",
+          "check:d8e18cc42fb7d.1_vs_0.overlap",
+          "check:d8e18cc42fb7d.1_vs_0.separation",
+          "check:d8e18cc42fb7d.1_vs_0.balance.x",
+          "check:d8e18cc42fb7d.1_vs_0.dimensionality",
+          "check:d8e18cc42fb7d.1_vs_0.baseline_modifiers",
+          "check:dcf7a62deb559.1_vs_0.arms",
+          "check:dcf7a62deb559.1_vs_0.overlap",
+          "check:dcf7a62deb559.1_vs_0.dimensionality",
+          "check:dcf7a62deb559.1_vs_0.baseline_modifiers",
+          "falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed",
+          "falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed",
+          "falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed",
+          "falsification:dcf7a62deb559.1_vs_0.graph_independences.passed"
+        ],
+        "comparisons": []
+      },
+      "errors": []
+    }
+  ],
+  "trace_spans": 89,
+  "trace_gates": [],
+  "readback": "readbacks/protocol_conditional-dowhy-a349a942.txt",
+  "primary_summaries": {
+    "d8e18cc42fb7d": [
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "-3.25144 to -0.703383"
+      },
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "-0.703383 to -0.0719542"
+      },
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "-0.0719542 to 0.566655"
+      },
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "0.566655 to 2.57167"
+      }
+    ],
+    "dcf7a62deb559": [
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "-3.25144 to -0.703383"
+      },
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "-0.703383 to -0.0719542"
+      },
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "-0.0719542 to 0.566655"
+      },
+      {
+        "contrast": "1_vs_0",
+        "modifier": "x",
+        "level": "0.566655 to 2.57167"
+      }
+    ]
+  },
+  "interpretation_verification": {
+    "trace_id": "01a13779-5077-7bb0-b96a-0de1cc9fcf1c",
+    "readback": "readbacks/conditional-primary-interpretation.json",
+    "interpretations": [
+      {
+        "contrast": "all",
+        "answer": "The treatment effect on y varies across different ranges of x. For design d8e18cc42fb7d, the effect of treatment on y increases as x increases, ranging from 1.36 (95% CI: 1.20, 1.50) for x in [-3.25, -0.70] to 2.62 (95% CI: 2.41, 2.79) for x in [0.57, 2.57]. Design dcf7a62deb559 shows identical results, with effects ranging from 1.36 (95% CI: 1.20, 1.50) to 2.62 (95% CI: 2.41, 2.79) across the same x ranges. Both designs assume unconfoundedness, consistency, and no interference, with graph relationships explicitly stated as assumptions.",
+        "caveats": [
+          "Design d8e18cc42fb7d assumes unconfoundedness given x, while design dcf7a62deb559 assumes unconfoundedness without explicitly conditioning on x in its identification adjustment set.",
+          "The diagnostic score model for design d8e18cc42fb7d shows weak arm distinguishability with an AUC of 0.51 (check:d8e18cc42fb7d.1_vs_0.separation).",
+          "Both designs passed data subset refuter tests (falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed, falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed) and graph independence tests (falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed, falsification:dcf7a62deb559.1_vs_0.graph_independences.passed)."
+        ],
+        "cites": [
+          "design:d8e18cc42fb7d.target",
+          "design:d8e18cc42fb7d.assumptions",
+          "design:d8e18cc42fb7d.model",
+          "design:d8e18cc42fb7d.confidence_level",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.3_25144_to_0_703383.ci",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.value",
+          "estimate:d8e18cc42fb7d.1_vs_0.by.x.0_566655_to_2_57167.ci",
+          "check:d8e18cc42fb7d.1_vs_0.overlap",
+          "check:d8e18cc42fb7d.1_vs_0.balance.x",
+          "check:d8e18cc42fb7d.1_vs_0.separation",
+          "design:dcf7a62deb559.target",
+          "design:dcf7a62deb559.assumptions",
+          "design:dcf7a62deb559.model",
+          "design:dcf7a62deb559.confidence_level",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.3_25144_to_0_703383.ci",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_703383_to_0_0719542.ci",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_0719542_to_0_566655.ci",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.value",
+          "estimate:dcf7a62deb559.1_vs_0.by.x.0_566655_to_2_57167.ci",
+          "check:dcf7a62deb559.1_vs_0.overlap",
+          "falsification:d8e18cc42fb7d.1_vs_0.data_subset_refuter.passed",
+          "falsification:d8e18cc42fb7d.1_vs_0.graph_independences.passed",
+          "falsification:dcf7a62deb559.1_vs_0.data_subset_refuter.passed",
+          "falsification:dcf7a62deb559.1_vs_0.graph_independences.passed"
+        ],
+        "comparisons": [
+          "Design d8e18cc42fb7d and design dcf7a62deb559 report identical treatment effects on y across all subgroups of x."
+        ]
+      }
+    ]
+  }
+}

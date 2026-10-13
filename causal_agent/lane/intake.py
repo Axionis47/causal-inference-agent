@@ -6,7 +6,7 @@ block's), the scope's row filter and time window applied, and a record of everyt
 
 The filter grammar is small on purpose: `col == v`, `col != v`, `col >= v`, `col <= v`, `col > v`, `col < v`,
 `col in [a, b]`, joined by `and`. The window grammar: `from A to B`, `A..B`, `A to B`, `>= A`, `<= A`, `after A`,
-`before A`, `since A`, `until A`. A filter or window the code cannot read is a Decline, never a guess."""
+`before A`, `since A`, `until A`. A filter or window the code cannot read stops intake before any fit."""
 
 from __future__ import annotations
 
@@ -54,13 +54,13 @@ def wanted_columns(h: Handoff, extra: list[str] | None = None) -> list[str]:
     the outcome first."""
     t, y = (_key(h.treatment) if h.treatment else None), _key(h.outcome)
     carried = [b.key for b in h.columns]
-    return [k for k in dict.fromkeys([t, y] + carried + design_columns(h) + [_key(x) for x in (extra or []) if x]) if k]
+    restrictions = [_key(c) for c, _, _ in (parse_filter(h.scope.population_filter or "") or [])]
+    return [k for k in dict.fromkeys([t, y] + carried + design_columns(h) + restrictions + [_key(x) for x in (extra or []) if x]) if k]
 
 
 # ------------------------------------------------------------------ the filter
 
 
-_OPS = ("==", "!=", ">=", "<=", ">", "<", "=", " in ")
 _CLAUSE = re.compile(r"^\s*(?P<col>.+?)\s*(?P<op>==|!=|>=|<=|>|<|=|\bin\b)\s*(?P<val>.+?)\s*$", re.IGNORECASE)
 
 
@@ -98,16 +98,15 @@ def parse_filter(text: str) -> list[tuple[str, str, list[str]]] | None:
     return out or None
 
 
-_BLANK = re.compile(r"^\s*(?:null|none|n/?a|no filter|no window|whole|the whole|all|every|everyone)\b", re.IGNORECASE)
+_BLANK = re.compile(
+    r"(?:null|none|n/?a|no filter|no window|whole|the whole|whole table|the whole table|all|everyone|all (?:rows|records|observations|years)|every (?:row|record|observation|year))",
+    re.IGNORECASE,
+)
 
 
 def blank(text: str | None) -> bool:
-    """A scope the frame wrote as words for the whole table: null, none, every row, all students who sat the exam. Not a decline;
-    there is nothing to apply. A sentence that starts so but carries a comparison (all rows with lunch == standard) is a filter."""
-    if not text:
-        return True
-    t = str(text)
-    return bool(_BLANK.match(t)) and not any(op in t for op in _OPS)
+    """Only explicit unrestricted scopes are blank. Population prose must be executable."""
+    return text is None or not str(text).strip() or bool(_BLANK.fullmatch(str(text).strip()))
 
 
 def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> tuple[pd.DataFrame, Decline | None, dict]:
@@ -124,7 +123,7 @@ def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> 
                 about="scope.population_filter",
                 pack_value=text,
                 check="intake.filter_unparsed",
-                reason="the filter is not in a form the code can apply (col == v, !=, >=, <=, >, <, in [a, b], joined by and); every row was kept",
+                reason="the filter is not in a form the code can apply (col == v, !=, >=, <=, >, <, in [a, b], joined by and); the restriction was not applied",
             ),
             {},
         )
@@ -140,7 +139,7 @@ def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> 
                     about="scope.population_filter",
                     pack_value=text,
                     check="intake.filter_unknown_column",
-                    reason=f"the filter names {col!r}, which is not a column in the table; every row was kept",
+                    reason=f"the filter names {col!r}, which is not a column in the table; the restriction was not applied",
                 ),
                 {},
             )
@@ -156,7 +155,7 @@ def apply_filter(table: pd.DataFrame, text: str | None, stage: str = "load") -> 
                     about="scope.population_filter",
                     pack_value=text,
                     check="intake.filter_value_type",
-                    reason=f"the filter compares {col!r} with {vals}, which is not a number like the column; every row was kept",
+                    reason=f"the filter compares {col!r} with {vals}, which is not a number like the column; the restriction was not applied",
                 ),
                 {},
             )
@@ -218,7 +217,7 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
                 about="scope.window",
                 pack_value=text,
                 check="intake.window_no_time_column",
-                reason="the question names a time window but the pack names no time column in the table; every row was kept",
+                reason="the question names a time window but the pack names no time column in the table; the restriction was not applied",
             ),
             {},
         )
@@ -232,7 +231,7 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
                 about="scope.window",
                 pack_value=text,
                 check="intake.window_unparsed",
-                reason="the window is not in a form the code can apply (from A to B, A..B, >= A, <= A, after A, before A); every row was kept",
+                reason="the window is not in a form the code can apply (from A to B, A..B, >= A, <= A, after A, before A); the restriction was not applied",
             ),
             {},
         )
@@ -250,7 +249,7 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
                     about="scope.window",
                     pack_value=text,
                     check="intake.window_time_unparsed",
-                    reason=f"{time_key!r} is neither numeric nor a date the code can read; every row was kept",
+                    reason=f"{time_key!r} is neither numeric nor a date the code can read; the restriction was not applied",
                 ),
                 {},
             )
@@ -271,7 +270,7 @@ def apply_window(table: pd.DataFrame, text: str | None, time_key: str | None, st
                 about="scope.window",
                 pack_value=text,
                 check="intake.window_value_type",
-                reason=f"the window's bounds are not like the values of {time_key!r}; every row was kept",
+                reason=f"the window's bounds are not like the values of {time_key!r}; the restriction was not applied",
             ),
             {},
         )
@@ -294,12 +293,18 @@ def time_key(h: Handoff, entry: dict | None = None) -> str | None:
 
 
 def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool = True, stage: str = "load") -> Intake:
-    """The table for one run. Raises IntakeStop when the outcome or the treatment is missing; every other trouble is a Decline."""
+    """The table for one run. Raises IntakeStop for unavailable columns or invalid required restrictions."""
     entry = DS.dataset_entries().get(h.pack_name) or {}  # through the module, so a test can point it at its own index
     csv = h.csv or entry.get("csv")
     if not csv:
         raise IntakeStop(
-            Feasibility(stage=stage, reason="the hand-off names no file", facts=[f"pack {h.pack_name!r}"], what_would_fix="a hand-off with a csv path")
+            Feasibility(
+                terminal_kind="execution_failure",
+                stage=stage,
+                reason="the hand-off names no file",
+                facts=[f"pack {h.pack_name!r}"],
+                what_would_fix="a hand-off with a csv path",
+            )
         )
     raw = pd.read_csv(Path(DS.ROOT) / csv)
     columns = {_key(c): c for c in raw.columns}
@@ -310,13 +315,33 @@ def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool =
         missing = [k for k in (t, y) if k and k not in raw.columns]
         raise IntakeStop(
             Feasibility(
+                terminal_kind="unsupported_method",
                 stage=stage,
                 reason="a column the hand-off names is not in the file",
                 facts=[f"missing: {missing}"],
                 what_would_fix="a hand-off whose columns exist in the file",
             )
         )
+    restrictions = [_key(c) for c, _, _ in (parse_filter(h.scope.population_filter or "") or [])]
+    blocked = []
+    for name in restrictions:
+        card = h.column(name)
+        if name in {y, t} or (card is not None and (card.when == "after" or card.moved_by_change is True)):
+            blocked.append(name)
+    if blocked:
+        raise IntakeStop(
+            Feasibility(
+                terminal_kind="unsupported_method",
+                stage=stage,
+                reason="the population restriction conditions on treatment, response or a variable affected by treatment",
+                facts=[f"blocked restriction columns: {blocked}", f"filter: {h.scope.population_filter}"],
+                what_would_fix="confirm a restriction on a variable recorded before treatment, or request the effect on treated units while retaining comparison observations",
+            )
+        )
     wanted = wanted_columns(h, extra)
+    clock = time_key(h, entry)
+    if not blank(h.scope.window) and clock and clock not in wanted:
+        wanted.append(clock)
     for k in [k for k in wanted if k not in raw.columns]:
         declines.append(
             Decline(
@@ -332,11 +357,27 @@ def load(h: Handoff, tag: str, *, extra: list[str] | None = None, dropna: bool =
     facts: dict = {}
     table, d, f = apply_filter(table, h.scope.population_filter, stage)
     if d:
-        declines.append(d)
+        raise IntakeStop(
+            Feasibility(
+                terminal_kind="unsupported_method",
+                stage=stage,
+                reason="the authorized restriction could not be applied",
+                facts=[d.check, f"{d.about}: {d.pack_value}", d.reason],
+                what_would_fix="a new admitted context with an executable restriction; no unrestricted fit was performed",
+            )
+        )
     facts.update(f)
     table, d, f = apply_window(table, h.scope.window, time_key(h, entry), stage)
     if d:
-        declines.append(d)
+        raise IntakeStop(
+            Feasibility(
+                terminal_kind="unsupported_method",
+                stage=stage,
+                reason="the authorized restriction could not be applied",
+                facts=[d.check, f"{d.about}: {d.pack_value}", d.reason],
+                what_would_fix="a new admitted context with an executable restriction; no unrestricted fit was performed",
+            )
+        )
     facts.update(f)
     if dropna:
         table = table.dropna()

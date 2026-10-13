@@ -30,7 +30,7 @@ each step in a worker thread and keeps the interrupt payload as the prompt is [s
 | `stage` | busy, waiting, ended, stale, error, new |
 | `phase`, `ready`, `prompt` | before or after the run; whether the matrix says ready; the current prompt and its kind: `question`, `chat` (nothing asked), `ask` (a question with its chips, the recommended one named, and for a readback one item per draft), `ready` (the design, waiting for the word), `after` |
 | `claims`, `status` | every claim with its status and source; the matrix as the page draws it |
-| `runs` | one `RunView` per design: the decision, the checks, the estimates, the refutations, the interpretations, the declines, the figures, the pictures drawn after it |
+| `runs` | one `RunView` per design: the decision, the checks, the estimates, the falsifications and sensitivities, the interpretations, the declines, the figures, the pictures drawn after it |
 | `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |
 | `journal`, `analysis` | the conversation's steps and its id |
 | `artifacts` | the artifacts about the data before any run |
@@ -56,7 +56,7 @@ that opens the inspector.
 | the handoff view | [HandoffPanel.tsx](../web/src/components/HandoffPanel.tsx) | at the ready moment, every field the run rests on, editable in place; a change sends `address = value` |
 | the status strip | [StatusStrip.tsx](../web/src/components/StatusStrip.tsx) | one mark per claim kind, settled or open |
 | the claims tab | [inspector/StatusMatrix.tsx](../web/src/components/inspector/StatusMatrix.tsx), [ClaimsTable.tsx](../web/src/components/inspector/ClaimsTable.tsx) | the matrix, claim kinds down and families across, a struck family marked; every claim with its source and sentence |
-| the results tab | [inspector/RunDetail.tsx](../web/src/components/inspector/RunDetail.tsx), [RunTables.tsx](../web/src/components/inspector/RunTables.tsx) | a run's effect and interval, its figures, the estimates, checks, refutations and declines as tables |
+| the results tab | [inspector/RunDetail.tsx](../web/src/components/inspector/RunDetail.tsx), [RunTables.tsx](../web/src/components/inspector/RunTables.tsx) | a run's effect and interval, its figures, the estimates, checks, falsifications and sensitivities and declines as tables |
 | the files tab | [inspector/FilesView.tsx](../web/src/components/inspector/FilesView.tsx) | the run folder: the report, the design, the artifacts |
 | the journal tab | [inspector/JournalView.tsx](../web/src/components/inspector/JournalView.tsx) | the conversation's steps, each with the addresses it read |
 | a run figure | [Figure.tsx](../web/src/components/Figure.tsx) | a `FigureSpec` drawn as SVG: bars, lines, points, density, interval, graph |

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 
 def summarise(result: dict) -> dict:
-    d = result.get("design") or {}
-    est = [e for e in result.get("estimates") or [] if not e.get("secondary") and e.get("error") is None]
+    d = (result.get("designs") or {}).get(result.get("lead_design_id")) or {}
+    est = [e for e in result.get("estimates") or [] if e.get("design_id") == result.get("lead_design_id") and not e.get("secondary") and e.get("error") is None]
     refs: dict[str, dict[str, bool | None]] = {}
-    for r in result.get("refutations") or []:
-        refs.setdefault(r["contrast"], {})[r["refuter"]] = r.get("passed")
+    for r in result.get("falsifications") or []:
+        refs.setdefault(r["design_id"] + "." + r["contrast"], {})[r["refuter"]] = r.get("passed")
     f = result.get("feasibility") or {}
     checks = (d.get("checks") or {}).get("results") or []
     return {
@@ -20,7 +20,11 @@ def summarise(result: dict) -> dict:
         "estimator": (d.get("estimator") or {}).get("name"),
         "contrasts": len(d.get("contrasts") or []) or None,
         "effects": {e["contrast"]: e["value"] for e in est},
-        "refuters": refs,
+        "falsifications": refs,
+        "endpoint_ids": sorted({x["endpoint_id"] for x in (result.get("designs") or {}).values()}),
+        "terminal": result.get("terminal"),
+        "designs": {k: {"endpoint_id": v["endpoint_id"], "target": v["target"]} for k, v in (result.get("designs") or {}).items()},
+        "estimates": result.get("estimates") or [],
         "hard_flags": sorted({c["name"] for c in checks if c["level"] == "hard"}),
         "run_dir": result.get("run_dir"),
     }

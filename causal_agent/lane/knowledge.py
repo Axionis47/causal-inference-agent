@@ -47,11 +47,9 @@ class Knowledge:
         *,
         estimator: type[Any],
         inference: type[Any] | None = None,
-        placebo: type[Any] | None = None,
-        refuter: type[Any] | None = None,
     ) -> None:
         self.directory = Path(directory)
-        self._cls = {"estimators": estimator, "inference": inference, "placebos": placebo, "refuters": refuter}
+        self._cls = {"estimators": estimator, "inference": inference}
         self._cache: dict[str, Any] = {}
 
     def _entries(self, file: str) -> list[Any]:
@@ -77,29 +75,11 @@ class Knowledge:
     def inference(self) -> list[Any]:
         return self._entries("inference")
 
-    def placebos(self) -> list[Any]:
-        return self._entries("placebos")
-
-    def refuters(self) -> list[Any]:
-        return self._entries("refuters")
-
     def checks(self) -> dict[str, Any]:
         return self._yaml("checks")
 
-    def beliefs(self) -> dict[str, Any]:
-        """What the person's beliefs, the unknowns, and the contradictions mean to this lane (see lane.case)."""
-        return self._yaml("beliefs")
-
-    # ------------------------------------------------------------------ lookups
-
     def estimator(self, name: str) -> Any:
         return self._by_name(self.estimators(), name)
-
-    def placebo(self, name: str) -> Any:
-        return self._by_name(self.placebos(), name)
-
-    def refuter(self, name: str) -> Any:
-        return self._by_name(self.refuters(), name)
 
     @staticmethod
     def _by_name(entries: Sequence[Any], name: str) -> Any:

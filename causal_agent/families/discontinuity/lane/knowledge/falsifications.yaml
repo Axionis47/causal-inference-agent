@@ -1,0 +1,12 @@
+placebo_cutoffs:
+  in_words: an artificial cutoff on each side, at that side's median score, fitted
+    on that side's rows only, where no jump should exist
+  source: Foundations 5.3 (artificial cutoffs above the real one use only treated
+    observations, and below it only control observations)
+  spec: sharp_reduced_form
+  placement: side_median
+  applies_when:
+    engine:
+    - local_polynomial
+  pass_when:
+    interval_covers_zero: true

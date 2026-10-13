@@ -1,0 +1,35 @@
+dimensions:
+  framework:
+    values:
+    - continuity
+    - local_randomisation
+    decided_by: assumptions
+  kind:
+    values:
+    - sharp
+    - fuzzy
+    decided_by: shape_table
+  estimand:
+    values:
+    - effect_at_cutoff
+    - complier_effect_at_cutoff
+    - itt_at_cutoff
+    - effect_in_window
+    - complier_effect_in_window
+    - itt_in_window
+    decided_by: rivals
+  support_regime:
+    values:
+    - dense
+    - coarse
+    decided_by: shape_table
+  dependence:
+    values:
+    - independent
+    - clustered
+    decided_by: load
+unsupported:
+- when:
+    framework: local_randomisation
+    dependence: clustered
+  reason: the installed randomisation engine does not permute assignment clusters

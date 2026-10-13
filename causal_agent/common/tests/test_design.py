@@ -15,8 +15,8 @@ def test_every_built_family_block_is_registered_by_its_kind():
 
 
 def test_a_dict_becomes_the_registered_block_and_an_unknown_kind_is_refused():
-    d = parse_design({"kind": "diff_in_diff", "unit": "state", "time": "year", "controls_allowed": ["price"]})
-    assert isinstance(d, DidDesign) and d.columns() == ["state", "year", "price"] and d.time_column() == "year"
+    d = parse_design({"kind": "diff_in_diff", "unit": "state", "time": "year", "treated_group": {"column": "treated", "level": "1"}})
+    assert isinstance(d, DidDesign) and d.columns() == ["state", "year", "treated"] and d.time_column() == "year"
     assert parse_design(None) is None and parse_design(d) is d
     with pytest.raises(ValueError, match="no family block is registered for kind 'lottery'"):
         parse_design({"kind": "lottery"})

@@ -54,3 +54,32 @@ def test_the_cite_gate_resolves_a_cite_in_another_spelling_and_keeps_it_normalis
         and reply.numbers[0].address == "col:math_score.profile.bounds.low"
     )
     assert "cites not in the material" in X._gate(AfterReply(kind="answer", text="x", cites=["col:nothing.here"]), mat, "after")[0]
+
+
+def test_inline_only_citations_are_normalised_deduplicated_and_numeric_intervals_are_not_citations():
+    material = M.Material()
+    material.add("run.context_policy", "Frozen context is the analysis source.")
+    material.add("col:Math Score.profile.bounds.low", "0.1", 0.1)
+    material.add("col:Math Score.profile.bounds.high", "0.3", 0.3)
+    material.close()
+    reply = AfterReply(
+        kind="answer",
+        text="The fixed account [run.context_policy, col:Math Score.profile.bounds.low] has interval [0.1, 0.3]. The same policy [run.context_policy].",
+        cites=[],
+    )
+    assert X._gate(reply, material) == []
+    assert reply.cites == ["run.context_policy", "col:math_score.profile.bounds.low"]
+
+
+def test_unresolved_inline_citations_are_refused_even_with_valid_structured_citations():
+    material = M.Material()
+    material.add("run.context_policy", "Frozen context is the analysis source.")
+    material.close()
+    reply = AfterReply(
+        kind="answer",
+        text="The account is fixed [run.context_policy, `invented:missing`]. Another unsupported claim [run.missing].",
+        cites=["run.context_policy"],
+    )
+    errors = X._gate(reply, material)
+    assert errors == ["cites not in the material: ['invented:missing', 'run.missing']"]
+    assert reply.cites == ["run.context_policy", "invented:missing", "run.missing"]

@@ -1,5 +1,5 @@
 import { count } from "../../fmt";
-import type { CheckRow, DeclineRow, EstimateRow, RefutationRow } from "../../inspector/rows";
+import type { CheckRow, DeclineRow, EstimateRow, FalsificationRow } from "../../inspector/rows";
 
 export function EstimatesTable({ rows }: { rows: EstimateRow[] }) {
   if (!rows.length) return null;
@@ -10,6 +10,7 @@ export function EstimatesTable({ rows }: { rows: EstimateRow[] }) {
         <table>
           <thead>
             <tr>
+              <th>design / endpoint</th>
               <th>method</th>
               <th>estimate</th>
               <th>95% interval</th>
@@ -24,6 +25,11 @@ export function EstimatesTable({ rows }: { rows: EstimateRow[] }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className={r.primary ? "primary" : r.error ? "err" : undefined}>
+                <td className="mono">
+                  {r.design}
+                  <br />
+                  {r.endpoint}
+                </td>
                 <td className="k">{r.method}</td>
                 <td className="num">{r.value}</td>
                 <td className="num">{r.ci}</td>
@@ -77,11 +83,11 @@ export function ChecksTable({ rows, title }: { rows: CheckRow[]; title: string }
   );
 }
 
-export function RefutationsTable({ rows }: { rows: RefutationRow[] }) {
+export function FalsificationsTable({ rows }: { rows: FalsificationRow[] }) {
   const failed = rows.filter((r) => r.passed === "failed").length;
   return (
     <section>
-      <h3>Falsifications{rows.length ? ` · ${rows.length - failed} passed${failed ? `, ${failed} failed` : ""}` : ""}</h3>
+      <h3>Falsifications{rows.length ? ` · ${rows.filter((r) => r.passed === "passed").length} passed${failed ? `, ${failed} failed` : ""}` : ""}</h3>
       {!rows.length ? (
         <p className="muted">none run</p>
       ) : (
@@ -90,7 +96,7 @@ export function RefutationsTable({ rows }: { rows: RefutationRow[] }) {
             <thead>
               <tr>
                 <th>refuter</th>
-                <th>kind</th>
+                <th>design</th>
                 <th>result</th>
                 <th>p value</th>
                 <th>new effect</th>

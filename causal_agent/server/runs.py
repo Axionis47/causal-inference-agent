@@ -11,8 +11,7 @@ from causal_agent.server.settings import Settings
 RUN_ID = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
 KNOWN = {
     "artifacts.json": "application/json",
-    "design.json": "application/json",
-    "design.md": "text/markdown",
+    "result.json": "application/json",
     "report.md": "text/plain",
     "figures.json": "application/json",
     "table.csv": "text/csv",

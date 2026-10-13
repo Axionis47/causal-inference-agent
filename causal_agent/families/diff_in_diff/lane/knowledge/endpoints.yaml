@@ -1,0 +1,467 @@
+endpoints:
+- id: paired_two_wave_att
+  title: Paired before-after effect
+  targets:
+  - att
+  configuration:
+    shape: wide
+    comparison: untreated
+  requirements:
+  - &id001
+    id: unit
+    address: claim:grain.row_is
+  - &id002
+    id: assignment
+    address: claim:assignment.kind
+  - &id003
+    id: sampling
+    address: claim:sampling.how
+    allow_unknown: true
+  - &id004
+    id: parallel_account
+    address: claim:trend_continues.believed
+    allow_unknown: true
+    values:
+    - true
+  - &id005
+    id: spillover_account
+    address: claim:spillover.possible
+    allow_unknown: true
+  - &id006
+    id: treated_group
+    address: claim:assignment.treated_level
+  - &id007
+    id: cluster
+    address: claim:assignment.level_column
+  - id: target_population
+    address: claim:target.population
+    values:
+    - treated
+  - id: layout
+    address: claim:grain.layout
+    values:
+    - wide
+  - id: before_measurement
+    address: claim:grain.before_column
+  - id: after_measurement
+    address: claim:grain.after_column
+  - id: comparison_support
+    address: claim:assignment.never_treated_exists
+    values:
+    - true
+  - &id008
+    id: target_averaging_policy
+    address: claim:target.weighting
+    values:
+    - treated_cell_shares
+    - residualized_treatment_projection
+    - linear_response_horizon_projection
+    - clean_adopter_projection
+  assumptions:
+  - parallel trends for the declared comparison population
+  - no unsupported anticipation or spillover
+  trajectory: &id009
+  - load
+  - seed
+  - mechanism
+  - comparison
+  - controls
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - execute
+  - interpret
+  checks:
+  - shape
+  - support
+  - cluster
+  - rank
+  - pre_trends
+  estimators:
+  - twfe_static
+  inference:
+  - row_robust
+  - cluster_crv1
+  - wild_webb
+  - wild_rademacher
+  - inference_unavailable
+  terminal_failures:
+  - context_deficiency
+  - unidentified_effect
+  - unsupported_method
+  - inadequate_support
+  - exhausted_reasoning
+  - execution_failure
+  scope_targets:
+  - on_treated
+  - average
+  activation:
+    claim:grain.layout:
+    - wide
+  activation_required: true
+- id: common_adoption_projection_effect
+  title: Common adoption panel effect
+  targets:
+  - att
+  - att_horizon
+  - att_horizon_profile
+  configuration:
+    shape: long
+    cohorts: 1
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - id: unit_keys
+    address: claim:grain.key_columns
+  - id: clock
+    address: claim:change.date_column
+  - id: target_population
+    address: claim:target.population
+    values:
+    - treated
+  - id: layout
+    address: claim:grain.layout
+    values:
+    - long
+  - id: comparison_support
+    address: claim:assignment.never_treated_exists
+    values:
+    - true
+  - *id008
+  assumptions:
+  - parallel trends for the declared comparison population
+  - no unsupported anticipation or spillover
+  trajectory: *id009
+  checks:
+  - shape
+  - support
+  - cluster
+  - rank
+  - pre_trends
+  estimators:
+  - twfe_static
+  - twfe_dynamic
+  inference:
+  - cluster_crv1
+  - cluster_crv3
+  - wild_webb
+  - wild_rademacher
+  - inference_unavailable
+  terminal_failures:
+  - context_deficiency
+  - unidentified_effect
+  - unsupported_method
+  - inadequate_support
+  - exhausted_reasoning
+  - execution_failure
+  scope_targets:
+  - on_treated
+  - average
+  - horizon
+  - horizon_profile
+  activation:
+    claim:grain.layout:
+    - long
+    claim:assignment.never_treated_exists:
+    - true
+  activation_required: true
+- id: untreated_imputation_att
+  title: Untreated-cell imputation effect
+  targets:
+  - att
+  - att_horizon
+  - att_horizon_profile
+  - att_cohort
+  - att_cohort_profile
+  configuration:
+    shape: long
+    comparison: untreated
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - id: unit_keys
+    address: claim:grain.key_columns
+  - id: clock
+    address: claim:change.date_column
+  - id: target_population
+    address: claim:target.population
+    values:
+    - treated
+  - id: layout
+    address: claim:grain.layout
+    values:
+    - long
+  - id: comparison_support
+    address: claim:assignment.never_treated_exists
+    values:
+    - true
+  - *id008
+  assumptions:
+  - parallel trends for the declared comparison population
+  - no unsupported anticipation or spillover
+  trajectory: *id009
+  checks:
+  - shape
+  - support
+  - cluster
+  - rank
+  - pre_trends
+  estimators:
+  - did2s
+  - did2s_dynamic
+  - did2s_cohort
+  inference:
+  - native_gmm
+  - inference_unavailable
+  terminal_failures:
+  - context_deficiency
+  - unidentified_effect
+  - unsupported_method
+  - inadequate_support
+  - exhausted_reasoning
+  - execution_failure
+  scope_targets:
+  - on_treated
+  - average
+  - horizon
+  - horizon_profile
+  - cohort
+  - cohort_profile
+  activation:
+    claim:grain.layout:
+    - long
+    claim:assignment.never_treated_exists:
+    - true
+  activation_required: true
+- id: untreated_prefix_imputation_att
+  title: Imputation before the last cohort adopts
+  targets:
+  - att
+  - att_horizon
+  - att_horizon_profile
+  - att_cohort
+  - att_cohort_profile
+  configuration:
+    shape: long
+    support: pre_last_adoption_prefix
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - id: unit_keys
+    address: claim:grain.key_columns
+  - id: clock
+    address: claim:change.date_column
+  - id: target_population
+    address: claim:target.population
+    values:
+    - treated
+  - id: layout
+    address: claim:grain.layout
+    values:
+    - long
+  - id: prefix_scope
+    address: claim:target.prefix_scope_accepted
+    values:
+    - true
+  - id: comparison_support
+    address: claim:assignment.never_treated_exists
+    values:
+    - false
+  - *id008
+  assumptions:
+  - parallel trends for the declared comparison population
+  - no unsupported anticipation or spillover
+  trajectory: *id009
+  checks:
+  - shape
+  - support
+  - cluster
+  - rank
+  - pre_trends
+  estimators:
+  - did2s
+  - did2s_dynamic
+  - did2s_cohort
+  inference:
+  - native_gmm
+  - inference_unavailable
+  terminal_failures:
+  - context_deficiency
+  - unidentified_effect
+  - unsupported_method
+  - inadequate_support
+  - exhausted_reasoning
+  - execution_failure
+  scope_targets:
+  - on_treated
+  - horizon
+  - horizon_profile
+  - cohort
+  - cohort_profile
+  activation:
+    claim:grain.layout:
+    - long
+    claim:assignment.never_treated_exists:
+    - false
+  activation_required: true
+- id: never_cohort_cell_att
+  title: Cohort effects against never-treated units
+  targets:
+  - att
+  - att_horizon
+  - att_horizon_profile
+  - att_cohort
+  - att_cohort_profile
+  - att_cohort_horizon
+  configuration:
+    shape: long
+    comparison: never_treated
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - id: unit_keys
+    address: claim:grain.key_columns
+  - id: clock
+    address: claim:change.date_column
+  - id: target_population
+    address: claim:target.population
+    values:
+    - treated
+  - id: layout
+    address: claim:grain.layout
+    values:
+    - long
+  - id: comparison_support
+    address: claim:assignment.never_treated_exists
+    values:
+    - true
+  - *id008
+  assumptions:
+  - parallel trends for the declared comparison population
+  - no unsupported anticipation or spillover
+  trajectory: *id009
+  checks:
+  - shape
+  - support
+  - cluster
+  - rank
+  - pre_trends
+  estimators:
+  - saturated_event_study
+  inference:
+  - native_crv1
+  - inference_unavailable
+  terminal_failures:
+  - context_deficiency
+  - unidentified_effect
+  - unsupported_method
+  - inadequate_support
+  - exhausted_reasoning
+  - execution_failure
+  scope_targets:
+  - on_treated
+  - average
+  - horizon
+  - horizon_profile
+  - cohort
+  - cohort_profile
+  - cohort_horizon
+  activation:
+    claim:grain.layout:
+    - long
+    claim:assignment.never_treated_exists:
+    - true
+  activation_required: true
+- id: clean_projection_att
+  title: Clean-control projection effect
+  targets:
+  - att
+  - att_horizon
+  - att_horizon_profile
+  configuration:
+    shape: long
+    comparison: clean_through_horizon
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - id: unit_keys
+    address: claim:grain.key_columns
+  - id: clock
+    address: claim:change.date_column
+  - id: target_population
+    address: claim:target.population
+    values:
+    - treated
+  - id: layout
+    address: claim:grain.layout
+    values:
+    - long
+  - id: comparison_support
+    address: claim:assignment.never_treated_exists
+  - id: accepted_clean_prefix
+    address: claim:target.prefix_scope_accepted
+    values:
+    - true
+    when:
+      claim:assignment.never_treated_exists:
+      - false
+  - *id008
+  assumptions:
+  - parallel trends for the declared comparison population
+  - no unsupported anticipation or spillover
+  trajectory: *id009
+  checks:
+  - shape
+  - support
+  - cluster
+  - rank
+  - pre_trends
+  estimators:
+  - lpdid
+  inference:
+  - native_crv1
+  - native_crv3
+  - inference_unavailable
+  terminal_failures:
+  - context_deficiency
+  - unidentified_effect
+  - unsupported_method
+  - inadequate_support
+  - exhausted_reasoning
+  - execution_failure
+  scope_targets:
+  - on_treated
+  - average
+  - horizon
+  - horizon_profile
+  activation:
+    claim:grain.layout:
+    - long
+  activation_required: true

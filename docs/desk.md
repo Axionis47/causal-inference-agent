@@ -1,13 +1,23 @@
 # The desk
 
-One LangGraph, and the only graph: the question first, one question per turn until the matrix says ready, the run, then the
+One desk LangGraph: the question first, one question per turn until the matrix says ready, the run, then the
 chat after. The desk is an operator. It receives, classifies, dispatches to a tool, gates what comes back, writes it, and asks
 the next thing. No node reasons on its own; the amber nodes are the ones that call a model, each through a gate.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/desk-graph-dark.svg">
-  <img alt="The desk graph in four bands: the question first, the interview, the routing and the run, the chat after; interrupts marked, judgements amber" src="diagrams/desk-graph-light.svg">
-</picture>
+```mermaid
+flowchart TD
+    upload[CSV and initial study material] --> question[Causal question and target]
+    question --> prepare[Prepare and confirm context]
+    prepare --> matrix[Endpoint readiness matrix]
+    matrix -->|Missing required context| prepare
+    matrix -->|Ready| snapshot[Show admitted snapshot]
+    snapshot -->|Human run instruction| lane[Lane reasoning and frozen execution]
+    lane -->|Essential deficiency| prepare
+    lane --> chat[Artifact discussion]
+    chat -->|Correction or supposition| prepare
+    chat -->|New question| question
+    chat --> done[Done]
+```
 
 The node list is `build()` in [desk/graph.py:63](../causal_agent/desk/graph.py). Static edges are a dozen; the rest of the
 routing is a `Command(goto=...)` returned by the node, so the route is always a decision code made from a typed result.
@@ -52,10 +62,7 @@ writes a `fit` step when a cell moves. `ask` composes the next thing by code ([d
    bets on. The person corrects any line there, in words or on the page's handoff view (which sends `address = value` lines:
    their word on each field, written confirmed, read by no model), or says yes, and the yes is what launches.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/decisions-dark.svg">
-  <img alt="What each design decision rests on: the three families' decisions against six kinds of claim" src="diagrams/decisions-light.svg">
-</picture>
+Exact endpoint requirements and decisions are generated in the [lane catalogues](lanes.md).
 
 `listen` takes the answer. `infer` is the Reader over it; on the story turn the desk also keeps the account whole, as the
 one verbatim field only it may write. `explore` and `explain` serve an artifact or an answer before the next ask. A decision model (Laya, or Jev on the same wire;
@@ -68,13 +75,13 @@ several do; `gate` checks the decision; `design` is the Designer writing the bri
 memory snapshot, the pack, the brief and the matrix.
 
 **The run.** `run` starts the lane in its own process on `handoff.json` ([desk/pipeline.py](../causal_agent/desk/pipeline.py)),
-absorbs the run's graph back into the memory as drafts, and writes the record. A lane that needs one more thing returns an ask;
-`ask_back` puts it to the person like any other question and the run repeats on the memory as it then stands.
+writes source-backed relationship proposals as memory drafts, and writes the record.
+`context_deficiency` returns essential omitted addresses to the desk, clears readiness, and requests clarification. The corrected context receives a new identity and requires another human run authorization.
 
 **The chat after.** `brief` renders the opening message from the material ([desk/material.py](../causal_agent/desk/material.py)):
-the answer, the caveats, the checks that did not pass clean, the refutations, where the lane disagreed with the pack, the figures.
+the answer, the caveats, the checks that did not pass clean, the falsifications and sensitivities, where the lane disagreed with the pack, the figures.
 `turn` is the Explainer routing each message: answer, revise (back through the gate and the checks), what_if (on a copy of the
-memory, a new design), requestion, explore, done.
+memory, a new context snapshot and a fresh authorization), requestion, explore, done.
 
 ## Watching the desk in Studio
 

@@ -1,84 +1,211 @@
-# Estimators the adjustment lane may run. Method knowledge, written for the model to choose from.
-# The harness filters by applies_when before the model sees the list, and rejects any pick outside it. `target` names the
-# units an entry can be asked the effect for: the propensity estimators branch on it in DoWhy; the regressions, the
-# instrument and the front door compute the average whatever they are asked, so they declare [ate] alone.
-# `params` are declarations passed straight to DoWhy; the model never sees or sets them.
-# num_simulations is the bootstrap budget for confidence intervals, a cost setting, not a judgement.
-# `rank` orders the filtered list, lowest first. `also_run` names one secondary estimator run beside
-# the primary so the report shows the effect under two methods.
-
 linear_regression:
-  dowhy: backdoor.linear_regression
-  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous], adjustment_set: [empty, nonempty], target: [ate]}
-  in_words: fit a straight-line model of the outcome on the treatment and the adjustment set, and read the treatment's coefficient
-  assumes: the outcome moves linearly with each adjustment variable and the treatment effect is the same for everyone
-  weak_when: the adjustment set has strong nonlinear effects, or the two arms differ a lot on the adjustment set so the line is extrapolating
-  prefer_over: {}
-  params: {}
+  method: backdoor.linear_regression
+  endpoints:
+  - total.unadjusted
+  - total.backdoor
+  targets:
+  - ate
+  outcomes:
+  - continuous
   rank: 3
-
-propensity_score_stratification:
-  dowhy: backdoor.propensity_score_stratification
-  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous, binary], adjustment_set: [nonempty], target: [ate, att, atc]}
-  in_words: score each row's chance of treatment from the adjustment set, cut rows into strata of similar score, compare arms within each stratum, and average
-  assumes: the score model is roughly right and every stratum holds rows from both arms
-  weak_when: an arm is small so strata run thin; or overlap is poor so some strata hold one arm only
-  prefer_over:
-    linear_regression: when the adjustment set is large or categorical and a linear outcome model would be a stretch; stratification makes no assumption about the outcome's shape
-  params: {num_strata: auto, clipping_threshold: 10, num_simulations: 100}
-  rank: 1
-  also_run: linear_regression
-
-propensity_score_weighting:
-  dowhy: backdoor.propensity_score_weighting
-  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous, binary], adjustment_set: [nonempty], target: [ate, att, atc]}
-  in_words: score each row's chance of treatment from the adjustment set and reweight rows so the two arms look alike on it, then compare
-  assumes: the score model is roughly right and no score sits near zero or one
-  weak_when: overlap is thin at the edges, so a few rows carry huge weights
-  prefer_over:
-    propensity_score_stratification: when the sample is large and scores are spread evenly, weighting uses every row instead of coarse strata
-  params: {weighting_scheme: ips_weight, min_ps_score: 0.05, max_ps_score: 0.95, num_simulations: 100}
-  rank: 2
-  also_run: linear_regression
-
-propensity_score_matching:
-  dowhy: backdoor.propensity_score_matching
-  applies_when: {estimand: backdoor, treatment: [binary], outcome: [continuous, binary], adjustment_set: [nonempty], target: [ate, att, atc]}
-  in_words: pair each treated row with the untreated row of closest score and compare the pairs
-  assumes: close scores mean comparable rows and enough untreated rows exist to pair with
-  weak_when: the treated arm is a large share of the data so good matches run out; or the adjustment set is coarse so many rows share a score and matches are arbitrary
-  prefer_over: {}
-  params: {num_simulations: 100}
-  rank: 4
-
+  in_words: average intervention contrast from a linear outcome model
+  assumes: additive linear outcome model
+  params: {}
 generalized_linear_model:
-  dowhy: backdoor.generalized_linear_model
-  applies_when: {estimand: backdoor, treatment: [binary], outcome: [binary], adjustment_set: [empty, nonempty], target: [ate]}
-  in_words: fit a logistic model of a yes/no outcome on the treatment and the adjustment set
-  assumes: the log-odds of the outcome move linearly with each adjustment variable
-  weak_when: the outcome is rare so the fit is unstable
-  prefer_over: {}
-  params: {glm_family: binomial}
+  method: backdoor.generalized_linear_model
+  endpoints:
+  - total.unadjusted
+  - total.backdoor
+  targets:
+  - ate
+  outcomes:
+  - binary
   rank: 2
-
+  in_words: average probability contrast from a logistic outcome model
+  assumes: linear log odds
+  params:
+    glm_family: binomial
+    predict_score: true
+propensity_score_stratification:
+  method: backdoor.propensity_score_stratification
+  endpoints:
+  - total.backdoor
+  targets:
+  - ate
+  - att
+  - atc
+  outcomes:
+  - continuous
+  - binary
+  rank: 1
+  in_words: compare units using treatment propensity estimated from the adjustment
+    set
+  assumes: valid propensity model and sufficient common support
+  params:
+    num_strata: auto
+    clipping_threshold: 10
+propensity_score_weighting:
+  method: backdoor.propensity_score_weighting
+  endpoints:
+  - total.backdoor
+  targets:
+  - ate
+  - att
+  - atc
+  outcomes:
+  - continuous
+  - binary
+  rank: 2
+  in_words: compare units using treatment propensity estimated from the adjustment
+    set
+  assumes: valid propensity model and sufficient common support
+  params:
+    weighting_scheme: ips_weight
+    min_ps_score: 0.05
+    max_ps_score: 0.95
+propensity_score_matching:
+  method: backdoor.propensity_score_matching
+  endpoints:
+  - total.backdoor
+  targets:
+  - ate
+  - att
+  - atc
+  outcomes:
+  - continuous
+  - binary
+  rank: 4
+  in_words: compare units using treatment propensity estimated from the adjustment
+    set
+  assumes: valid propensity model and sufficient common support
+  params: {}
+general_linear:
+  method: general_adjustment.linear_regression
+  endpoints:
+  - total.general_adjustment
+  targets:
+  - ate
+  outcomes:
+  - continuous
+  rank: 3
+  in_words: linear regression with a general adjustment certificate
+  assumes: additive linear model
+  params: {}
+general_glm:
+  method: general_adjustment.generalized_linear_model
+  endpoints:
+  - total.general_adjustment
+  targets:
+  - ate
+  outcomes:
+  - binary
+  rank: 2
+  in_words: logistic average probability contrast with a general adjustment certificate
+  assumes: linear log odds
+  params:
+    glm_family: binomial
+    predict_score: true
+wald:
+  method: iv.instrumental_variable
+  endpoints:
+  - iv.wald_late
+  targets:
+  - late
+  outcomes:
+  - continuous
+  - binary
+  rank: 1
+  in_words: binary instrument Wald contrast on compliers
+  assumes: exclusion, exogeneity and monotonicity
+  params: {}
 instrumental_variable:
-  dowhy: iv.instrumental_variable
-  applies_when: {estimand: iv, treatment: [binary], outcome: [continuous, binary], adjustment_set: [empty, nonempty], target: [ate]}
-  in_words: use the column that pushed units toward the treatment but touches the outcome only through it; scale the outcome's movement with the instrument by the treatment's movement with it
-  assumes: the instrument moved the treatment, and reached the outcome no other way; the person's word on exclusion carries this
-  weak_when: the instrument moves the treatment only a little, so the ratio swings on noise; or the exclusion is doubtful
-  prefer_over:
-    linear_regression: when the person says a hidden factor drove both the treatment and the outcome, so no adjustment set closes the back door and only the instrument identifies the effect
+  method: iv.instrumental_variable
+  endpoints:
+  - iv.linear_single
+  targets:
+  - ate
+  outcomes:
+  - continuous
+  - binary
+  rank: 1
+  in_words: scalar IV effect under a homogeneous additive structural model
+  assumes: exogeneity, exclusion, relevance and constant effect
   params: {}
-  rank: 5
-
+iv_2sls:
+  method: statsmodels.iv2sls
+  endpoints:
+  - iv.linear_multiple
+  - iv.linear_conditional
+  targets:
+  - ate
+  outcomes:
+  - continuous
+  - binary
+  rank: 1
+  in_words: 2SLS with explicit intercept, exogenous controls and excluded instruments
+  assumes: conditional exogeneity, exclusion, rank and constant additive effect
+  params: {}
 frontdoor_two_stage:
-  dowhy: frontdoor.two_stage_regression
-  applies_when: {estimand: frontdoor, treatment: [binary], outcome: [continuous], adjustment_set: [empty, nonempty], target: [ate]}
-  in_words: estimate how the treatment moved the mediator, then how the mediator moved the outcome, and chain the two
-  assumes: the whole effect runs through the mediator, and nothing hidden drives both the treatment and the mediator, or the mediator and the outcome
-  weak_when: part of the effect bypasses the mediator; or the mediator is measured with error
-  prefer_over:
-    instrumental_variable: when the mediator the person named carries the whole effect and no instrument is named, or the instrument is weak
+  method: frontdoor.two_stage_regression
+  endpoints:
+  - frontdoor.linear_total
+  targets:
+  - ate
+  outcomes:
+  - continuous
+  rank: 1
+  in_words: linear two-stage singleton frontdoor total effect
+  assumes: frontdoor criterion and linear additive stages
   params: {}
-  rank: 6
+mediation_two_stage:
+  method: mediation.two_stage_regression
+  endpoints:
+  - mediation.linear_nie
+  - mediation.linear_nde
+  targets:
+  - nie
+  - nde
+  outcomes:
+  - continuous
+  rank: 1
+  in_words: singleton additive linear natural direct or indirect effect
+  assumes: sequential ignorability, no treatment-induced mediator confounding and
+    no treatment-mediator interaction
+  params: {}
+linear_interaction:
+  method: backdoor.linear_regression
+  endpoints:
+  - adjustment.linear_conditional
+  targets:
+  - conditional
+  outcomes:
+  - continuous
+  rank: 1
+  in_words: linear treatment interactions with baseline modifiers
+  assumes: linear conditional outcome model and support
+  params: {}
+general_linear_interaction:
+  method: general_adjustment.linear_regression
+  endpoints:
+  - adjustment.linear_conditional
+  targets:
+  - conditional
+  outcomes:
+  - continuous
+  rank: 2
+  in_words: general adjustment linear baseline modifier interactions
+  assumes: linear conditional model
+  params: {}
+structural_zero:
+  method: structural.zero
+  endpoints:
+  - structural.zero
+  targets:
+  - ate
+  outcomes:
+  - continuous
+  - binary
+  rank: 1
+  in_words: zero implied by absence of every directed causal path
+  assumes: the stated DAG is the causal model
+  params: {}

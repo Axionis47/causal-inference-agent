@@ -56,6 +56,7 @@ class Edge(BaseModel):
     src: str
     dst: str
     cites: list[str] = Field(default_factory=list)
+    status: str = "supported"
 
 
 class FigureSpec(BaseModel):
@@ -85,7 +86,7 @@ class FigureSpec(BaseModel):
 
     def render(self) -> str:
         """The figure as lines with addresses, for the chat's material."""
-        lines = [f"[{self.address}] {self.kind}: {self.title}" + (f" — {self.note}" if self.note else "")]
+        lines = [f"[{self.address}] {self.kind}: {self.title}" + (f": {self.note}" if self.note else "")]
         for i, n in enumerate(self.nodes):
             lines.append(f"  [{self.address}.node.{i}] {n.label or n.id} ({n.role})")
         for i, e in enumerate(self.edges):
@@ -97,7 +98,7 @@ class FigureSpec(BaseModel):
                     tail += f" [{s.lo[i]:.4g}, {s.hi[i]:.4g}]"
                 if s.n is not None:
                     tail += f" (n={s.n[i]})"
-                yv = "—" if y is None else f"{y:.4g}"
+                yv = "unavailable" if y is None else f"{y:.4g}"
                 lines.append(f"  [{self.address}.{s.key}.{i}] {s.name} · {x}: {yv}{tail}")
         for m in self.marks:
             lines.append(f"  mark: {m.label or m.kind} at {m.at}")

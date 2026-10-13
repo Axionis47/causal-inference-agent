@@ -1,112 +1,110 @@
-# The adjustment lane's ladder, declared once. Every node of the graph in the order it runs: what decides it
-# (`decider`: code, pack, judgement or ask, each with when), where it goes on (`exits`; the next rung when not said), whether
-# it may stop (`stop`; yes when not said), the function in nodes.py that picks among several exits or fans out to a worker
-# (`route`), whether it is a worker reached by Send (`worker`), a judgement's tool budget, the addresses it may ask back
-# (`asks`) and the declared causes it stops on (`stops_on`). feasibility, figures and assemble are the builder's nodes.
-# The graph is held to this file by a test; `make ladder` writes docs/ladders/adjustment.md from it, the space, the checks
-# and the beliefs. The dimensions a rung decides are read from space.yaml, not repeated here.
-
 goal: freeze_design
-
-loops:  # the cycles the graph still has
-  - {from: assess, to: merge_graph, max: 3, why: a revision delta on a flagged check}
-  - {from: after_analyse, to: pick_estimator, max: 1, why: a second pick when the estimator failed to fit}
-
+loops:
+- from: rivals
+  to: relate
+  max: 1
+  why: every candidate graph is invalid before any outcome effect is seen
 rungs:
-  - name: load
-    level: the file
-    decider: {code: always}
-    stops_on: [intake]
-  - name: case
-    level: the pack weighed
-    decider: {code: always}
-    stop: false
-  - name: pair
-    level: what is compared
-    decider: {pack: the treated level is confirmed and seen in the table, judgement: otherwise}
-    budget: 2
-    tools: [describe]
-  - name: mechanism
-    level: how assignment happened
-    decider: {judgement: always}
-    budget: 4
-    tools: [describe, cells, association]
-  - name: timing
-    level: the structure
-    decider: {code: always}
-    stop: false
-  - name: roles
-    level: what else touches the outcome
-    decider: {pack: a column whose four claims are confirmed, judgement: every other column set before or at an unknown time}
-    budget: 8
-    tools: [describe, by_arm, association, redundancy, cells, timing]
-  - name: post_roles
-    level: what else touches the outcome
-    decider: {pack: as roles, judgement: every other column set at or after the change}
-    budget: 4
-    tools: [describe, association, timing]
-  - name: merge_graph
-    level: the structure
-    decider: {code: a pure function of the rungs below and the revisions applied}
-    stop: false
-  - name: verify_graph
-    level: the structure
-    decider: {code: always}
-    stops_on: [graph]
-  - name: road
-    level: the identifying judgement
-    decider:
-      pack: the brief's road is open on the graph and runnable
-      code: exactly one road is open and runnable
-      ask: no road is open while a hidden factor stands and the mediator or the exclusion belief is unasked
-      judgement: several roads are open and runnable
-    budget: 0
-    asks: [claim:mediator.exists, claim:exclusion.exists, claim:mediator.column, claim:exclusion.column]
-  - name: heterogeneity
-    level: where the effect differs
-    decider: {code: no candidate, judgement: candidates exist}
-    budget: 4
-    tools: [describe, by_arm]
-  - name: threats
-    level: the risks
-    decider: {code: always}
-    stop: false
-  - name: check_design
-    level: the checks
-    decider: {code: always}
-    stop: false
-    exits: [assess, pick_estimator]
-    route: after_checks
-  - name: assess
-    level: the assessment
-    decider: {code: beliefs.yaml decides a stop or a question before any judgement, judgement: a flag stands}
-    budget: 0
-    exits: [pick_estimator, merge_graph]
-    stops_on: [checks, beliefs, threats, assessment]
-  - name: pick_estimator
-    level: the pick
-    decider: {judgement: always}
-    budget: 0
-  - name: freeze_design
-    level: the design
-    decider: {code: always}
-    stop: false
-    exits: [analyse]
-    route: fan_out_analyse
-  - name: analyse
-    level: the estimate
-    decider: {code: always}
-    worker: true
-    stop: false
-  - name: after_analyse
-    level: the estimate
-    decider: {code: always}
-    exits: [interpret, pick_estimator, figures]
-    stops_on: [engine]
-  - name: interpret
-    level: the answer
-    decider: {judgement: always}
-    worker: true
-    budget: 0
-    stop: false
-    exits: [figures]
+- name: load
+  level: admitted context and table
+  decider:
+    code: always
+  stops_on:
+  - intake
+  - shape
+- name: case
+  level: evidence classifications
+  decider:
+    code: always
+  stop: false
+- name: pair
+  level: treatment comparisons
+  decider:
+    pack: observed confirmed treatment comparison
+    judgement: otherwise
+  budget: 2
+  tools:
+  - describe
+- name: seed
+  level: immutable source assertions
+  decider:
+    code: always
+  stop: false
+- name: mechanism
+  level: assignment mechanism
+  decider:
+    judgement: always
+  budget: 4
+  tools:
+  - describe
+  - cells
+  - association
+- name: relate
+  level: relationship hypotheses
+  decider:
+    judgement: always
+  budget: 8
+  tools:
+  - describe
+  - association
+  - redundancy
+  - timing
+- name: probe
+  level: load-bearing uncertainty
+  decider:
+    judgement: unresolved relationships only
+    code: no uncertainty
+  budget: 4
+  tools:
+  - describe
+  - association
+  - redundancy
+  - timing
+  stop: false
+- name: rivals
+  level: identification endpoints
+  decider:
+    code: always
+  exits:
+  - relate
+  - check_design
+  stops_on:
+  - graph
+- name: check_design
+  level: endpoint-specific checks
+  decider:
+    code: always
+  stops_on:
+  - checks
+- name: pick_estimator
+  level: eligible estimator per design
+  decider:
+    code: exactly one eligible estimator for a design
+    judgement: several eligible estimators for a design
+  budget: 0
+- name: freeze_design
+  level: fixed execution inputs
+  decider:
+    code: always
+  stop: false
+  exits:
+  - analyse
+  route: fan_out_analyse
+- name: analyse
+  level: estimation and diagnostics
+  decider:
+    code: always
+  worker: true
+  stop: false
+- name: after_analyse
+  level: execution status
+  decider:
+    code: always
+  stops_on:
+  - engine
+- name: interpret
+  level: target-aware explanation
+  decider:
+    judgement: any successful estimate
+  budget: 0
+  stop: false

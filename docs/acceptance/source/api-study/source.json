@@ -1,0 +1,12 @@
+{
+  "dataset": "endpoint_policy_release",
+  "csv_fixture": "causal_agent/families/adjustment/evals/data/backdoor.csv",
+  "dataset_sha256": "decefb01e8db3bc0159796292104c173e95b5417c7f0125751e96ae190c2e6e6",
+  "source_files": [
+    "fields.yaml",
+    "columns.yaml",
+    "meta.yaml",
+    "said.jsonl"
+  ],
+  "purpose": "Preserved study accounts and human corrections from the completed real API acceptance conversation. These are static evidence, not a runtime compatibility loader."
+}

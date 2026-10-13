@@ -1,0 +1,626 @@
+{
+  "family": "adjustment",
+  "specialist": "dowhy",
+  "supported_now": true,
+  "outcome": "y",
+  "treatment": "t",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "local",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "protocol_wald",
+  "relevant_columns": [
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "t"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "z"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "y"
+    }
+  ],
+  "chosen_assumption": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+  "reasons": [
+    {
+      "reason": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "cites": [
+        "claim:story.text"
+      ]
+    }
+  ],
+  "question": "What is the effect of t on y for people whose uptake changes with the offer?",
+  "story": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "3120f84b3d68da74ec639853",
+  "dataset_identity": "a5d2448de8546c8b958ecee62c8cc572276ed7105a9e735cf8fa939fe60d002a",
+  "admission": {
+    "family": "adjustment",
+    "contract": "b6f1e723569374947b89",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "total.unadjusted",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "total.backdoor",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "total.general_adjustment",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "iv.wald_late",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:monotonicity.believed",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:monotonicity.believed"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.linear_single",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "iv.linear_multiple",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "iv.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "frontdoor.linear_total",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "mediation.linear_nie",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "mediation.linear_nde",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "adjustment.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "structural.zero",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      },
+      {
+        "endpoint_id": "identification.id_expression",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target local"
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "/Users/sid47/Desktop/Causal Analysis Agent/causal_agent/families/adjustment/evals/data/wald.csv",
+  "dataset_facts": {},
+  "grain": {
+    "row_is": "person"
+  },
+  "sampling": {
+    "how": "all"
+  },
+  "missing": {
+    "why": "none"
+  },
+  "treated_level": "1",
+  "control_level": "0",
+  "columns": [
+    {
+      "name": "t",
+      "key": "t",
+      "role": "treatment",
+      "meaning": "t: Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "z",
+      "key": "z",
+      "role": "instrument",
+      "meaning": "z: Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "y",
+      "key": "y",
+      "role": "outcome",
+      "meaning": "y: Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {
+    "kind": "lottery",
+    "depends_on": [
+      "z"
+    ],
+    "rule": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+  },
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "person"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "lottery"
+    },
+    "claim:assignment.rule": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    },
+    "claim:assignment.depends_on": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": [
+        "z"
+      ]
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "all"
+    },
+    "claim:missing.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "none"
+    },
+    "claim:unobserved.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "claim:spillover.possible": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "claim:story.text": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    },
+    "claim:exclusion.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.column": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z"
+    },
+    "claim:exclusion.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    },
+    "claim:exclusion.exogenous": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:monotonicity.believed": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:t.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "at"
+    },
+    "col:t.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "t: Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    },
+    "col:t.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "before"
+    },
+    "col:z.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z: Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    },
+    "col:z.feeds_treatment": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:z.moves_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z.moved_by_change": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z.measures_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:y.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "after"
+    },
+    "col:y.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "y: Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    },
+    "col:y.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    }
+  },
+  "beliefs": {
+    "unobserved": {
+      "kind": "unobserved",
+      "value": false,
+      "what": "",
+      "why": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "column": null,
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    },
+    "exclusion": {
+      "kind": "exclusion",
+      "value": true,
+      "what": null,
+      "why": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness.",
+      "column": "z",
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    }
+  },
+  "said": [
+    {
+      "turn": 1,
+      "about": "study protocol",
+      "text": "Rows are independent people. A randomized binary offer z pushes treatment t. The offer is fixed before uptake and has no direct or indirect outcome route except through t. No one takes treatment without an offer. Some people comply, some never take treatment; there are no defiers. The treatment effect on compliers is unknown. Outcome is recorded after uptake; no spillovers or missingness."
+    }
+  ],
+  "probes": [],
+  "design": {
+    "kind": "adjustment",
+    "adjustment_candidates": [],
+    "forbidden": [],
+    "instruments": [],
+    "iv_controls": [],
+    "modifiers": [],
+    "instrument": "z",
+    "mediator": null,
+    "unobserved_confounding": false,
+    "voluntary_uptake": null,
+    "target_units": "average",
+    "contrast": "switch"
+  },
+  "brief": null
+}

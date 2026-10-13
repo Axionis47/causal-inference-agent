@@ -1,0 +1,128 @@
+# Reusable illustrative DAGs. These are not endpoint classes or admission rules.
+# Many DAGs share an endpoint, and a single DAG may support several endpoints.
+motifs:
+- id: randomized_treatment
+  title: randomized treatment
+  account: A documented randomized protocol assigns treatment directly.
+  observed: [t, y]
+  edges: [[t, y]]
+  evidence: [randomization protocol, uptake equals assignment, measurement timing]
+  assumptions: [consistency, no interference, no outcome-dependent selection]
+  expected: [{road: backdoor, variables: []}]
+- id: exogenous_assignment
+  title: exogenous assignment
+  account: External baseline z determines assignment independently of outcome causes.
+  observed: [z, t, y]
+  edges: [[z, t], [t, y]]
+  evidence: [external assignment mechanism, exogeneity account, baseline z timing]
+  assumptions: [exogeneity, no interference, consistency]
+  expected: [{road: backdoor, variables: []}, {road: iv, variables: [z]}]
+- id: observed_common_cause
+  title: observed common cause
+  account: Baseline c causes both treatment uptake and outcome.
+  observed: [c, t, y]
+  edges: [[c, t], [c, y], [t, y]]
+  evidence: [common-cause account, c measured before treatment]
+  assumptions: [no omitted common causes, consistency, positivity]
+  expected: [{road: backdoor, variables: [c]}, {road: general_adjustment, variables: [c]}]
+- id: measured_confounding_network
+  title: measured confounding network
+  account: Baseline c1 causes treatment and c2; c2 causes outcome.
+  observed: [c1, c2, t, y]
+  edges: [[c1, t], [c1, c2], [c2, y], [t, y]]
+  evidence: [baseline causal ordering, both common-path variables measured]
+  assumptions: [no omitted common causes, consistency, positivity]
+  expected: [{road: backdoor, variables: [c1, c2]}]
+- id: outcome_predictor
+  title: outcome predictor
+  account: Baseline x predicts outcome but does not cause or share causes with treatment.
+  observed: [x, t, y]
+  edges: [[x, y], [t, y]]
+  evidence: [baseline x timing, independent treatment assignment account]
+  assumptions: [no treatment-outcome confounding, consistency]
+  expected: [{road: backdoor, variables: []}]
+- id: collider_selection_trap
+  title: collider/selection trap
+  account: Both treatment and outcome cause selection marker s. Full rows are observed; conditioning on s is a trap.
+  observed: [t, y, s]
+  edges: [[t, y], [t, s], [y, s]]
+  evidence: [selection-marker meaning, full sampling account, post-outcome measurement]
+  assumptions: [no selection restriction on s, no omitted common causes]
+  expected: [{road: backdoor, variables: []}]
+  forbidden_adjustments: [[s]]
+- id: mediator_with_adjustment
+  title: mediator with adjustment
+  account: Treatment acts through m and directly; baseline c confounds uptake, m and outcome.
+  observed: [c, t, m, y]
+  edges: [[c, t], [c, m], [c, y], [t, m], [m, y], [t, y]]
+  evidence: [mediator timing, c baseline timing, causal path account]
+  assumptions: [no omitted common causes, consistency, positivity]
+  expected: [{road: backdoor, variables: [c]}]
+  forbidden_adjustments: [[c, m]]
+- id: hidden_confounding_iv
+  title: hidden confounding with IV
+  account: Hidden u confounds t and y; baseline z affects treatment only.
+  observed: [z, t, y]
+  latent: [hidden:u]
+  edges: [[hidden:u, t], [hidden:u, y], [z, t], [t, y]]
+  evidence: [instrument mechanism, exclusion account, exogeneity account, hidden-cause account]
+  assumptions: [exclusion, exogeneity, relevance, monotonicity for LATE or homogeneous additive effects for ATE]
+  expected: [{road: iv, variables: [z]}]
+- id: hidden_confounding_frontdoor
+  title: hidden confounding with frontdoor
+  account: Hidden u confounds treatment and outcome, but all directed effects pass through observed m.
+  observed: [t, m, y]
+  latent: [hidden:u]
+  edges: [[hidden:u, t], [hidden:u, y], [t, m], [m, y]]
+  evidence: [all-effects-via-m account, mediator timing, stage-confounding account]
+  assumptions: [frontdoor criteria, additive linear stages for the installed estimator]
+  expected: [{road: frontdoor, variables: [m]}]
+- id: multiple_identification_routes
+  title: multiple identification routes
+  account: Hidden u confounds treatment and outcome; z is an instrument and m fully mediates effects.
+  observed: [z, t, m, y]
+  latent: [hidden:u]
+  edges: [[hidden:u, t], [hidden:u, y], [z, t], [t, m], [m, y]]
+  evidence: [instrument mechanism, full mediation account, timing and stage-confounding account]
+  assumptions: [IV exclusion and exogeneity, frontdoor criteria, homogeneous additive IV effect, additive linear stages]
+  expected: [{road: iv, variables: [z]}, {road: frontdoor, variables: [m]}]
+- id: natural_mediation_variant
+  title: natural direct and indirect mediation variant
+  category: variant
+  account: The adjusted mediator graph supports separately requested natural direct and indirect targets.
+  observed: [c, t, m, y]
+  edges: [[c, t], [c, m], [c, y], [t, m], [m, y], [t, y]]
+  mediator: m
+  evidence: [explicit natural-effect target, mediator timing, sequential ignorability account]
+  assumptions: [sequential ignorability, no treatment-induced mediator-outcome confounder, additive linear stages]
+  expected: [{road: mediation, target: nie}, {road: mediation, target: nde}]
+- id: baseline_modifier_variant
+  title: baseline modifier variant
+  category: variant
+  account: Baseline x modifies treatment response under unconfounded assignment; DAG edges alone cannot encode interaction.
+  observed: [x, t, y]
+  edges: [[x, y], [t, y]]
+  modifiers: [x]
+  evidence: [named modifier target, x measured before treatment, effect-modification account]
+  assumptions: [unconfoundedness, linear interaction model, subgroup support]
+  expected: [{road: backdoor, variables: []}]
+- id: unobserved_only_blocked
+  title: unobserved-only confounding without an identifying route
+  category: blocked
+  account: Hidden u confounds treatment and outcome, with no instrument or frontdoor mediator.
+  observed: [t, y]
+  latent: [hidden:u]
+  edges: [[hidden:u, t], [hidden:u, y], [t, y]]
+  evidence: [hidden common-cause account]
+  assumptions: [retain hidden common cause]
+  stop: unidentified_effect
+- id: post_treatment_descendant_trap
+  title: post-treatment descendant adjustment trap
+  category: blocked
+  account: Treatment affects m, and m affects outcome; controlling m does not identify the total treatment effect.
+  observed: [t, m, y]
+  edges: [[t, m], [m, y], [t, y]]
+  evidence: [m is treatment-induced, total-effect target]
+  assumptions: [do not adjust for treatment descendants in a total-effect design]
+  expected: [{road: backdoor, variables: []}]
+  forbidden_adjustments: [[m]]

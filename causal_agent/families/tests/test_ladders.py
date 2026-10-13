@@ -27,7 +27,7 @@ def _modules(family: str):
 def test_the_compiled_graph_is_the_declaration(family):
     graph, _, knowledge = _modules(family)
     spec: RG.LadderSpec = knowledge.SPEC
-    drawn = graph.build().compile().get_graph()
+    drawn = graph.build().compile(name=f"test:{family}").get_graph()
     assert set(drawn.nodes) == set(spec.names) | {RG.STOP, *RG.TAIL, "__start__", "__end__"}
     edges = {(e.source, e.target) for e in drawn.edges}
     assert edges == spec.edges(), {"drawn, not declared": edges - spec.edges(), "declared, not drawn": spec.edges() - edges}
@@ -73,17 +73,61 @@ def test_the_declaration_names_what_the_code_has(family):
     space = getattr(knowledge, "SPACE", None)
     if space is not None:
         assert {d.decided_by for d in space.dimensions.values()} <= set(spec.names)
-    # the budgets the episodes read are the declared ones, and every rung with tools reads its budget: read in the modules the
-    # rung functions live in, which for a lane split into parts are not the nodes module itself
-    homes = {inspect.getmodule(fn) for r in spec.rungs if inspect.isfunction(fn := getattr(nodes, r.name, None))}
-    read = {
-        str(n.args[0].value)
-        for home in homes
-        for n in ast.walk(ast.parse(inspect.getsource(home)))
-        if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_budget" and n.args and isinstance(n.args[0], ast.Constant)
-    }
-    assert read <= {r.name for r in spec.judgements()}, f"{family}: a budget is read for {read - {r.name for r in spec.judgements()}}, which are not judgements"
-    assert {r.name for r in spec.judgements() if r.tools} <= read, f"{family}: judgements with tools that never read their budget"
+    for rung in spec.judgements():
+        if rung.tools:
+            assert _reads_declared_budget(getattr(nodes, rung.name)), f"{family}.{rung.name}: tool episode does not read its declared budget"
+
+
+def _reads_declared_budget(fn, seen=None) -> bool:
+    """Follow local episode helpers rather than require one helper spelling."""
+    seen = set() if seen is None else seen
+    if fn in seen:
+        return False
+    seen.add(fn)
+    module = inspect.getmodule(fn)
+    calls = [n for n in ast.walk(ast.parse(textwrap.dedent(inspect.getsource(fn)))) if isinstance(n, ast.Call)]
+    for call in calls:
+        if isinstance(call.func, ast.Attribute) and call.func.attr == "budget":
+            return True
+        if isinstance(call.func, ast.Name):
+            child = getattr(module, call.func.id, None)
+            if inspect.isfunction(child) and inspect.getmodule(child) == module and _reads_declared_budget(child, seen):
+                return True
+    return False
+
+
+@pytest.mark.parametrize("family", LANES)
+def test_each_executable_endpoint_has_a_reachable_freeze_and_engine(family):
+    from causal_agent.families import registry as R
+    from causal_agent.lane.endpoints import verify_catalogue
+
+    _, _, knowledge = _modules(family)
+    catalogue = R.needs()[family].endpoints
+    assert catalogue is not None
+    assert not verify_catalogue(catalogue, knowledge.SPEC, {e.name for e in knowledge.load_estimators()})
+    edges = knowledge.SPEC.edges()
+
+    def reachable(start, end):
+        pending = [start]
+        visited = set()
+        while pending:
+            node = pending.pop()
+            if node == end:
+                return True
+            if node in visited:
+                continue
+            visited.add(node)
+            pending.extend(dst for src, dst in edges if src == node)
+        return False
+
+    for endpoint in catalogue.endpoints:
+        if not endpoint.executable:
+            continue
+        stages = ["__start__", *endpoint.trajectory]
+        assert all(reachable(a, b) for a, b in zip(stages, stages[1:])), endpoint.id
+        assert knowledge.SPEC.goal in endpoint.trajectory
+    # An endpoint may have only declared sensitivity or assumption diagnostics. A falsification is not mandatory.
+    assert len({e.id for e in catalogue.endpoints}) == len(catalogue.endpoints)
 
 
 def test_the_ladder_tables_say_what_the_declarations_say():

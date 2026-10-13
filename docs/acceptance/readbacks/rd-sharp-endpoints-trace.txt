@@ -1,0 +1,97 @@
+/Users/sid47/Desktop/Causal Analysis Agent/causal_agent/evals/trace.py:30: DeprecationWarning: list_runs() is deprecated and will be removed after Jan 31, 2027. Use client.runs.query() instead. See https://docs.langchain.com/langsmith/smithdb-sdk-migration#runs-query for the migration guide.
+  return sorted(client.list_runs(project_name=project(), trace_id=trace_id), key=lambda r: r.dotted_order)
+lane:discontinuity [chain] 89.6s 39283tok
+  load [chain] 0.0s
+  validate_context [chain] 0.0s
+  seed [chain] 0.0s
+  score [chain] 0.0s
+  shape_table [chain] 0.0s
+    artifact:canon.csv [tool] 0.0s
+      29431 bytes
+    artifact:scores.csv [tool] 0.0s
+      6816 bytes
+  covariates [chain] 0.0s
+  density [chain] 0.3s
+  balance [chain] 0.7s
+  line [chain] 40.3s 14194tok
+    episode:line [chain] 40.3s 14194tok
+      tries=2 calls=0 refusals=0
+      try 1 [chain] 27.2s 7124tok
+        ! answer the diagnostic check:treated_side_vs_control_side.density or its shown underlying evidence
+        look [chain] 20.1s 3676tok
+          ~ **Assessing Continuity Defense** I'm evaluating the defensibility of the continuity account, focusing on manipulation, coincident interventions, and score timin…
+          ChatVertexAI [llm] 18.6s 3676tok
+        line [chain] 7.1s 3448tok
+          ~ **Assessing Cutoff Continuity** I've determined the continuity account appears "clean" for this cutoff comparison. The score was fixed before assignment and cou…
+          ChatVertexAI [llm] 7.1s 3448tok
+        gate [tool] 0.0s
+          ! answer the diagnostic check:treated_side_vs_control_side.density or its shown underlying evidence
+      try 2 [chain] 13.1s 7070tok
+        look [chain] 6.1s 3538tok
+          ~ **Evaluating Density Diagnostics** The density diagnostic is flagged as not computable locally due to bandwidth issues. However, alternative histogram and mass …
+          ChatVertexAI [llm] 6.1s 3538tok
+        line [chain] 7.0s 3532tok
+          ~ **Confirming Line Cleanliness** I've evaluated the continuity account against manipulation, coincident interventions, and score timing risks. The data confirms …
+          ChatVertexAI [llm] 6.9s 3532tok
+        gate [tool] 0.0s
+  assumptions [chain] 6.7s 4800tok
+    episode:assumptions [chain] 6.7s 4800tok
+      tries=1 calls=0 refusals=0
+      try 1 [chain] 6.7s 4800tok
+        assumptions [chain] 6.7s 4800tok
+          ~ **Evaluating Semantic Endpoints** I am assessing the admissibility of semantic endpoints based on the provided information, focusing on how well stated assumpti…
+          ChatVertexAI [llm] 6.7s 4800tok
+        gate [tool] 0.0s
+  rivals [chain] 0.0s
+  check_candidates [chain] 0.0s
+  freeze_designs [chain] 0.3s
+    artifact:design.json [tool] 0.0s
+      15761 bytes
+    artifact:design.json [tool] 0.0s
+      16234 bytes
+    artifact:lead_selection.json [tool] 0.0s
+      6264 bytes
+  execute [chain] 0.4s
+    estimate [chain] 0.0s
+    falsification:placebo_cutoffs [chain] 0.0s
+    sensitivity:bandwidth_grid [chain] 0.1s
+    sensitivity:donut [chain] 0.0s
+    sensitivity:polynomial_grid [chain] 0.0s
+    sensitivity:kernel_grid [chain] 0.0s
+    sensitivity:inference_rows [chain] 0.0s
+    sensitivity:variance_grid [chain] 0.1s
+  execute [chain] 5.7s
+    estimate [chain] 0.6s
+    sensitivity:window_sensitivity [chain] 3.6s
+    sensitivity:rosenbaum_bounds [chain] 1.4s
+  interpret [chain] 35.4s 20289tok
+    episode:interpret:dbd684ded0278 [chain] 23.6s 14929tok
+      tries=2 calls=0 refusals=0
+      try 1 [chain] 11.9s 7586tok
+        ! structured record could not be parsed: interpret:dbd684ded0278: structured output failed to parse: 1 validation error for RDInterpretation effect_stated Field r…
+        interpret:dbd684ded0278 [chain] 11.9s 7586tok ✗ ValueError("interpret:dbd684ded0278: structured output failed to parse: 1 validation error for RDInterpretation\neffect_stated\n Field required [type=missing, i…
+          ChatVertexAI [llm] 11.9s 7586tok
+        gate [tool] 0.0s
+          ! structured record could not be parsed: interpret:dbd684ded0278: structured output failed to parse: 1 validation error for RDInterpretation effect_stated Field r…
+      try 2 [chain] 11.7s 7343tok
+        interpret:dbd684ded0278 [chain] 11.7s 7343tok
+          ~ **Interpreting RD Results** I've focused on interpreting the regression discontinuity design results. The assignment to the intervention appears to have increas…
+          ChatVertexAI [llm] 11.6s 7343tok
+        gate [tool] 0.0s
+    episode:interpret:dd45da7e2ea07 [chain] 11.8s 5360tok
+      tries=1 calls=0 refusals=0
+      try 1 [chain] 11.8s 5360tok
+        interpret:dd45da7e2ea07 [chain] 11.8s 5360tok
+          ~ **Interpreting Design Results** I'm working on interpreting the results of the frozen design. My current focus is on extracting the relevant estimates and assum…
+          ChatVertexAI [llm] 11.8s 5360tok
+        gate [tool] 0.0s
+  figures [chain] 0.0s
+    artifact:figures.json [tool] 0.0s
+      1572 bytes
+  assemble [chain] 0.0s
+    artifact:report.md [tool] 0.0s
+      102260 bytes
+    artifact:artifacts.json [tool] 0.0s
+      504009 bytes
+    artifact:result.json [tool] 0.0s
+      631969 bytes

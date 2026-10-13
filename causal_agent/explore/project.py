@@ -1,10 +1,10 @@
-"""The no-join rule for free-form code. The lane's tools refuse a join of the outcome with the treatment (`lane/tools.py`); the
-data facts never compute one (`memory/facts.py`); a script may do anything with the table it reads, so before the design has
-run the table sent to the agent has one of the pair taken out. Which one is code: the outcome, unless the ask names the outcome
-and not the treatment, then the treatment. An ask naming both is refused before any model call."""
+"""The outcome fence for free-form code. Before a frozen run, every executable request gets a table without the known
+outcome. Assignment can be reconstructed from other columns, so removing only the treatment cannot protect the reasoning
+boundary. An ask naming both is refused before any model call. Deterministic profiles own univariate outcome summaries."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -13,7 +13,7 @@ import pandas as pd
 from causal_agent.common import trace
 from causal_agent.common.addresses import key
 
-Drop = Literal["outcome", "treatment", "both"]
+Drop = Literal["outcome", "both"]
 ROW = "__row"  # a new version keeps every row's place: the agent sees this column and must keep it on every row it keeps
 
 
@@ -21,20 +21,17 @@ def mentions(text: str, column: str | None) -> bool:
     """Whether the words name the column: by the file's own name or by its key, with underscores read as spaces."""
     if not column:
         return False
-    low = " ".join(text.lower().split())
-    k = key(column)
-    return column.lower() in low or k in low or k.replace("_", " ") in low
+    low = " ".join(text.lower().replace("_", " ").split())
+    forms = {" ".join(value.lower().replace("_", " ").split()) for value in (column, key(column))}
+    return any(form and re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", low) for form in forms)
 
 
 def choose_drop(ask: str, outcome: str | None, treatment: str | None, frozen: bool) -> Drop | None:
-    """Which of the pair to take out of the table, by code. None after the freeze or when either column is unknown."""
-    if frozen or not outcome or not treatment:
+    """Withhold the outcome before the freeze, even for an outcome-only ask or when treatment is unknown."""
+    if frozen or not outcome:
         return None
-    o, t = mentions(ask, outcome), mentions(ask, treatment)
-    if o and t:
+    if mentions(ask, outcome) and mentions(ask, treatment):
         return "both"
-    if o and not t:
-        return "treatment"
     return "outcome"
 
 

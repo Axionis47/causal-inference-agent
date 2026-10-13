@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.handoff:
         raw = json.loads(Path(args.handoff).read_text())
-        question = raw.pop("question", args.question or "")
+        question = raw.get("question", args.question or "")
         result = run_from_handoff(s, Handoff.model_validate(raw), question)
     else:
         if not (args.dataset and args.question):

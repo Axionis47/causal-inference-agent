@@ -1,0 +1,813 @@
+endpoints:
+- id: total.unadjusted
+  title: total unadjusted
+  configuration:
+    road: backdoor
+    adjustment: empty
+  requirements:
+  - &id001
+    id: grain
+    address: claim:grain.row_is
+  - &id002
+    id: assignment
+    address: claim:assignment.kind
+  - &id003
+    id: sampling
+    address: claim:sampling.how
+  - &id004
+    id: hidden
+    address: claim:unobserved.exists
+    allow_unknown: true
+  - &id005
+    id: spillover
+    address: claim:spillover.possible
+  - &id006
+    id: timing
+    address: col:<outcome>.when
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  estimators:
+  - linear_regression
+  - generalized_linear_model
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation: {}
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: total.backdoor
+  title: total backdoor
+  configuration:
+    road: backdoor
+    adjustment: nonempty
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  estimators:
+  - linear_regression
+  - generalized_linear_model
+  - propensity_score_stratification
+  - propensity_score_weighting
+  - propensity_score_matching
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation: {}
+  executable: true
+  scope_targets:
+  - average
+  - on_treated
+  - on_untreated
+  targets:
+  - ate
+  - att
+  - atc
+- id: total.general_adjustment
+  title: total general adjustment
+  configuration:
+    road: general_adjustment
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  estimators:
+  - general_linear
+  - general_glm
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation: {}
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: iv.wald_late
+  title: iv wald late
+  configuration:
+    road: iv
+    instrument: binary
+    target: late
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: instrument
+    address: claim:exclusion.column
+  - id: exclusion
+    address: claim:exclusion.why
+  - id: exogenous
+    address: claim:exclusion.exogenous
+  - id: target_assumption
+    address: claim:monotonicity.believed
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - exclusion
+  - exogeneity
+  - monotonicity
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - first_stage
+  - rank
+  estimators:
+  - wald
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:exclusion.exists:
+    - true
+  executable: true
+  scope_targets:
+  - local
+  targets:
+  - late
+- id: iv.linear_single
+  title: iv linear single
+  configuration:
+    road: iv
+    instruments: one
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: instrument
+    address: claim:exclusion.column
+  - id: exclusion
+    address: claim:exclusion.why
+  - id: exogenous
+    address: claim:exclusion.exogenous
+  - id: target_assumption
+    address: claim:exclusion.homogeneous
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - exclusion
+  - exogeneity
+  - homogeneous_additive_effect
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - first_stage
+  - rank
+  estimators:
+  - instrumental_variable
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:exclusion.exists:
+    - true
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: iv.linear_multiple
+  title: iv linear multiple
+  configuration:
+    road: iv
+    instruments: multiple
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: instrument
+    address: claim:exclusion.column
+  - id: exclusion
+    address: claim:exclusion.why
+  - id: exogenous
+    address: claim:exclusion.exogenous
+  - id: target_assumption
+    address: claim:exclusion.homogeneous
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - exclusion
+  - exogeneity
+  - homogeneous_additive_effect
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - first_stage
+  - rank
+  estimators:
+  - iv_2sls
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:exclusion.exists:
+    - true
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: iv.linear_conditional
+  title: iv linear conditional
+  configuration:
+    road: iv
+    controls: nonempty
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: instrument
+    address: claim:exclusion.column
+  - id: exclusion
+    address: claim:exclusion.why
+  - id: exogenous
+    address: claim:exclusion.exogenous
+  - id: target_assumption
+    address: claim:exclusion.homogeneous
+  - id: controls
+    address: claim:exclusion.controls
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - exclusion
+  - conditional_exogeneity
+  - homogeneous_additive_effect
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - first_stage
+  - rank
+  estimators:
+  - iv_2sls
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:exclusion.exists:
+    - true
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: frontdoor.linear_total
+  title: frontdoor linear total
+  configuration:
+    road: frontdoor
+    mediators: one
+    outcome: continuous
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: mediator
+    address: claim:mediator.column
+  - id: mechanism
+    address: claim:mediator.why
+  - id: linear
+    address: claim:mediator.linear_additive
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - linear_additive_stages
+  - complete_mediation
+  - frontdoor_criterion
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - mediator_variation
+  - stage_identification
+  estimators:
+  - frontdoor_two_stage
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:mediator.exists:
+    - true
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: mediation.linear_nie
+  title: mediation linear nie
+  configuration:
+    road: mediation
+    target: nie
+    outcome: continuous
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: mediator
+    address: claim:mediator.column
+  - id: mechanism
+    address: claim:mediator.why
+  - id: linear
+    address: claim:mediator.linear_additive
+  - id: sequential
+    address: claim:mediator.sequential_ignorability
+  - id: no_induced_confounder
+    address: claim:mediator.no_treatment_confounder
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - linear_additive_stages
+  - sequential_ignorability
+  - no_treatment_induced_mediator_outcome_confounding
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - mediator_variation
+  - stage_identification
+  estimators:
+  - mediation_two_stage
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:mediator.column:
+    - '*'
+  executable: true
+  scope_targets:
+  - natural_indirect
+  targets:
+  - nie
+- id: mediation.linear_nde
+  title: mediation linear nde
+  configuration:
+    road: mediation
+    target: nde
+    outcome: continuous
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: mediator
+    address: claim:mediator.column
+  - id: mechanism
+    address: claim:mediator.why
+  - id: linear
+    address: claim:mediator.linear_additive
+  - id: sequential
+    address: claim:mediator.sequential_ignorability
+  - id: no_induced_confounder
+    address: claim:mediator.no_treatment_confounder
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - linear_additive_stages
+  - sequential_ignorability
+  - no_treatment_induced_mediator_outcome_confounding
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  - mediator_variation
+  - stage_identification
+  estimators:
+  - mediation_two_stage
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:mediator.column:
+    - '*'
+  executable: true
+  scope_targets:
+  - natural_direct
+  targets:
+  - nde
+- id: adjustment.linear_conditional
+  title: adjustment linear conditional
+  configuration:
+    road: adjustment
+    target: conditional
+    outcome: continuous
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - id: modifiers
+    address: col:<modifier>.may_modify
+  - id: modifier_timing
+    address: col:<modifier>.when
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  estimators:
+  - linear_interaction
+  - general_linear_interaction
+  inference:
+  - bootstrap_100
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation: {}
+  executable: true
+  scope_targets:
+  - conditional
+  targets:
+  - conditional
+- id: structural.zero
+  title: structural zero
+  configuration:
+    road: zero
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id005
+  - *id006
+  - id: explicit_no_causal_path
+    address: claim:change.no_causal_path
+    values:
+    - true
+  assumptions:
+  - consistency
+  - no_interference
+  - graph_relationships_are_explicit_assumptions
+  - a supported absence of every directed treatment-outcome path, not merely an omitted
+    edge
+  trajectory:
+  - load
+  - case
+  - pair
+  - seed
+  - mechanism
+  - relate
+  - probe
+  - rivals
+  - check_design
+  - pick_estimator
+  - freeze_design
+  - analyse
+  - after_analyse
+  - interpret
+  checks:
+  - arms
+  - encoding
+  - support
+  - identification_certificate
+  estimators:
+  - structural_zero
+  inference:
+  - graph_implication
+  terminal_failures:
+  - context_deficient
+  - invalid_graph
+  - nonidentified
+  - unsupported_shape
+  - support_failure
+  - fit_failed
+  activation:
+    claim:change.no_causal_path:
+    - true
+  executable: true
+  scope_targets:
+  - average
+  targets:
+  - ate
+- id: identification.id_expression
+  title: observable symbolic identification diagnostic
+  configuration:
+    road: id
+    observed_only: true
+  requirements:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  assumptions:
+  - fully_observed_DAG
+  trajectory:
+  - rivals
+  checks:
+  - observable_expression
+  estimators: []
+  inference: []
+  terminal_failures:
+  - unsupported_latent_representation
+  - expression_only
+  activation: {}
+  executable: false
+  scope_targets:
+  - average
+  targets:
+  - ate

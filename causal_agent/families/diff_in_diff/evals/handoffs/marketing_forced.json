@@ -2,123 +2,589 @@
   "family": "diff_in_diff",
   "specialist": "pyfixest",
   "supported_now": true,
-  "outcome": "SalesInThousands",
-  "treatment": "Promotion",
+  "outcome": "salesinthousands",
+  "treatment": "promotion",
   "scope": {
     "population_filter": null,
     "window": null,
-    "contrast": "level_vs_level",
-    "target": "average"
+    "contrast": "switch",
+    "target": "on_treated",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
   },
   "pack_name": "marketing",
   "relevant_columns": [
     {
-      "reason": "named in the forced hand-off",
+      "reason": "documented benchmark input",
       "cites": [
         "col:salesinthousands.note"
       ],
-      "column": "SalesInThousands"
+      "column": "salesinthousands"
     },
     {
-      "reason": "named in the forced hand-off",
+      "reason": "documented benchmark input",
       "cites": [
         "col:promotion.note"
       ],
-      "column": "Promotion"
+      "column": "promotion"
     },
     {
-      "reason": "named in the forced hand-off",
+      "reason": "documented benchmark input",
+      "cites": [
+        "col:locationid.note"
+      ],
+      "column": "locationid"
+    },
+    {
+      "reason": "documented benchmark input",
       "cites": [
         "col:week.note"
       ],
       "column": "week"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:marketsize.note"
-      ],
-      "column": "MarketSize"
-    },
-    {
-      "reason": "named in the forced hand-off",
-      "cites": [
-        "col:locationid.note"
-      ],
-      "column": "LocationID"
     }
   ],
-  "chosen_assumption": "forced into the diff-in-diff lane: the note says there is no week before the promotions began",
-  "reasons": [
-    {
-      "reason": "the outcome the question names",
-      "cites": [
-        "col:salesinthousands.note"
-      ]
-    },
-    {
-      "reason": "the change asked about",
-      "cites": [
-        "col:promotion.note"
-      ]
-    }
-  ],
-  "question": "Which of the three promotions produced the highest weekly sales?",
-  "story": null,
+  "chosen_assumption": "parallel untreated paths",
+  "reasons": [],
+  "question": "Which promotion changed weekly sales?",
+  "story": "# Fast Food Marketing Campaign\n\n## About the dataset\nEach row is one store's sales for one week. A fast food chain tested three promotions for a new menu item across 137 stores in 10 markets over four weeks. Every store appears in all four weeks, so there are 548 rows and each store plus week identifies a row. Stores are in separate locations and do not share customers or stock. Sales are in thousands of dollars. Source is the IBM Watson Analytics sample used for this test. [docs/marketing/readme.md]\n\n## What changed\n**Promotion test, weeks 1 to 4.** Each store ran one of three promotions for the new item from the first week of the test, and kept the same promotion for all four weeks. Which promotion a store got was assigned at random by the chain's marketing team; it did not depend on the store's market, size, or age. There is no week before the test in the file, so every row is under a promotion. [docs/marketing/test_plan.md]\n\n## About each column\n**MarketID** — Which of the 10 markets the store belongs to. Fixed per store. [readme.md]\n\n**MarketSize** — Small, medium, or large, the chain's classification of the market. Fixed per store and set before the test. [readme.md]\n\n**LocationID** — Store number. Fixed. [readme.md]\n\n**AgeOfStore** — Years since the store opened, at the start of the test. Fixed per store, known before the test. [readme.md]\n\n**Promotion** — 1, 2, or 3. Which promotion the store ran. Assigned at random by the marketing team before week 1 and held constant for all four weeks. A decision, and one that did not depend on anything else in the file. [test_plan.md]\n\n**week** — Test week, 1 to 4. [readme.md]\n\n**SalesInThousands** — Sales of the new item in that store in that week, in thousands of dollars. The week's result. [readme.md]\n",
   "intent": "effect_of_change",
   "design_id": 0,
-  "memory_version": 35,
-  "why": "forced",
+  "memory_version": 0,
+  "context_id": "7eb0f6d5743008057666f351",
+  "dataset_identity": "4caaf6f222d364f5a88ce3876521edc7c7a725e19b93c59b701fab981565fd24",
+  "admission": {
+    "family": "diff_in_diff",
+    "contract": "370efe79b5ea9893ec80",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "paired_two_wave_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "common_adoption_projection_effect",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "untreated_imputation_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "untreated_prefix_imputation_att",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "never_cohort_cell_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "clean_projection_att",
+        "status": "conditional",
+        "obligations": [
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "parallel_account",
+            "address": "claim:trend_continues.believed",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:trend_continues.believed"
+            ]
+          },
+          {
+            "id": "spillover_account",
+            "address": "claim:spillover.possible",
+            "status": "assumed",
+            "reason": "the contract permits this explicit unknown",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "treated_group",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "cluster",
+            "address": "claim:assignment.level_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:assignment.level_column"
+            ]
+          },
+          {
+            "id": "unit_keys",
+            "address": "claim:grain.key_columns",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.key_columns"
+            ]
+          },
+          {
+            "id": "clock",
+            "address": "claim:change.date_column",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:change.date_column"
+            ]
+          },
+          {
+            "id": "target_population",
+            "address": "claim:target.population",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:target.population"
+            ]
+          },
+          {
+            "id": "layout",
+            "address": "claim:grain.layout",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.study_account",
+            "cites": [
+              "claim:grain.layout"
+            ]
+          },
+          {
+            "id": "comparison_support",
+            "address": "claim:assignment.never_treated_exists",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.never_treated_exists"
+            ]
+          },
+          {
+            "id": "target_averaging_policy",
+            "address": "claim:target.weighting",
+            "status": "met",
+            "reason": "confirmed by fixture:marketing.requested_target",
+            "cites": [
+              "claim:target.weighting"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
   "over": {},
   "csv": "data/raw/fast-food-marketing-campaign-ab-test/WA_Marketing-Campaign.csv",
-  "dataset_facts": {
-    "rows": 548,
-    "columns": 7,
-    "duplicate_rows": 0,
-    "grain": [
-      "LocationID",
-      "week"
-    ],
-    "time_coverage": {
-      "column": "week",
-      "first": "1",
-      "last": "4",
-      "inferred_frequency": "integer period, step 1",
-      "gaps": 0
-    },
-    "entity_summary": {
-      "columns": [
-        "LocationID"
-      ],
-      "entities": 137,
-      "rows_per_entity_min": 4,
-      "rows_per_entity_median": 4.0,
-      "rows_per_entity_max": 4
-    },
-    "format_issues": []
-  },
-  "grain": {
-    "panel": true,
-    "key_columns": [
-      "LocationID",
-      "week"
-    ],
-    "row_is": "one store's sales for one week"
-  },
-  "sampling": {
-    "how": "whole"
-  },
-  "missing": {
-    "why": "none"
-  },
+  "dataset_facts": {},
+  "grain": {},
+  "sampling": {},
+  "missing": {},
   "treated_level": null,
   "control_level": null,
   "columns": [
     {
-      "name": "SalesInThousands",
+      "name": "salesinthousands",
       "key": "salesinthousands",
       "role": "outcome",
-      "meaning": "Sales of the new item in that store in that week, in thousands of dollars",
+      "meaning": "salesinthousands: documented benchmark measurement",
       "stands_for": null,
       "proxy": null,
       "when": "after",
@@ -130,23 +596,11 @@
       "same_as": null,
       "nested_in": null,
       "may_modify": null,
-      "source": "doc:context",
+      "source": null,
       "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "measures_outcome": {
-          "status": "drafted",
-          "source": "doc:context",
+          "status": "confirmed",
+          "source": "fixture:marketing.study_account",
           "said": null,
           "reason": null
         }
@@ -157,17 +611,8 @@
         "null_rate": 0.0,
         "distinct": 517,
         "constant": false,
-        "varies_over": "both",
-        "numeric": {
-          "min": 17.34,
-          "max": 99.65,
-          "mean": 53.466204,
-          "p01": 24.3154,
-          "p25": 42.545,
-          "p50": 50.2,
-          "p75": 60.4775,
-          "p99": 94.67379999999999
-        },
+        "varies_over": "unknown",
+        "numeric": null,
         "top_values": [],
         "datetime": null,
         "switch": null,
@@ -179,10 +624,10 @@
       }
     },
     {
-      "name": "Promotion",
+      "name": "promotion",
       "key": "promotion",
       "role": "treatment",
-      "meaning": "1, 2, or 3. Which promotion the store ran",
+      "meaning": "promotion: documented benchmark measurement",
       "stands_for": null,
       "proxy": null,
       "when": "before",
@@ -190,50 +635,71 @@
       "feeds_treatment": null,
       "moves_outcome": null,
       "moved_by_change": null,
-      "measures_outcome": null,
+      "measures_outcome": false,
       "same_as": null,
       "nested_in": null,
       "may_modify": null,
-      "source": "doc:context",
+      "source": null,
       "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
+          "status": "confirmed",
+          "source": "fixture:marketing.study_account",
           "said": null,
           "reason": null
         }
       },
       "facts": {
-        "kind": "categorical",
+        "kind": "numeric",
         "nulls": 0,
         "null_rate": 0.0,
         "distinct": 3,
         "constant": false,
-        "varies_over": "entity",
+        "varies_over": "unknown",
         "numeric": null,
-        "top_values": [
-          {
-            "value": "3",
-            "count": 188,
-            "share": 0.3431
-          },
-          {
-            "value": "2",
-            "count": 188,
-            "share": 0.3431
-          },
-          {
-            "value": "1",
-            "count": 172,
-            "share": 0.3139
-          }
-        ],
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "locationid",
+      "key": "locationid",
+      "role": "unit",
+      "meaning": "locationid: documented benchmark measurement",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": false,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "fixture:marketing.study_account",
+          "said": null,
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 137,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
         "datetime": null,
         "switch": null,
         "sentinels": [],
@@ -247,7 +713,7 @@
       "name": "week",
       "key": "week",
       "role": "time",
-      "meaning": "Test week, 1 to 4",
+      "meaning": "week: documented benchmark measurement",
       "stands_for": null,
       "proxy": null,
       "when": "unknown",
@@ -255,298 +721,15 @@
       "feeds_treatment": null,
       "moves_outcome": null,
       "moved_by_change": null,
-      "measures_outcome": null,
+      "measures_outcome": false,
       "same_as": null,
       "nested_in": null,
       "may_modify": null,
-      "source": "doc:context",
+      "source": null,
       "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "categorical",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 4,
-        "constant": false,
-        "varies_over": "time",
-        "numeric": null,
-        "top_values": [
-          {
-            "value": "1",
-            "count": 137,
-            "share": 0.25
-          },
-          {
-            "value": "2",
-            "count": 137,
-            "share": 0.25
-          },
-          {
-            "value": "3",
-            "count": 137,
-            "share": 0.25
-          },
-          {
-            "value": "4",
-            "count": 137,
-            "share": 0.25
-          }
-        ],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "MarketSize",
-      "key": "marketsize",
-      "role": "candidate",
-      "meaning": "Small, medium, or large, the chain's classification of the market",
-      "stands_for": null,
-      "proxy": null,
-      "when": "before",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
         "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "categorical",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 3,
-        "constant": false,
-        "varies_over": "entity",
-        "numeric": null,
-        "top_values": [
-          {
-            "value": "Medium",
-            "count": 320,
-            "share": 0.5839
-          },
-          {
-            "value": "Large",
-            "count": 168,
-            "share": 0.3066
-          },
-          {
-            "value": "Small",
-            "count": 60,
-            "share": 0.1095
-          }
-        ],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "LocationID",
-      "key": "locationid",
-      "role": "unit",
-      "meaning": "Store number",
-      "stands_for": null,
-      "proxy": null,
-      "when": "before",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "id",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 137,
-        "constant": false,
-        "varies_over": "entity",
-        "numeric": {
-          "min": 1.0,
-          "max": 920.0,
-          "mean": 479.656934,
-          "p01": 2.0,
-          "p25": 216.0,
-          "p50": 504.0,
-          "p75": 708.0,
-          "p99": 919.0
-        },
-        "top_values": [],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "MarketID",
-      "key": "marketid",
-      "role": "candidate",
-      "meaning": "Which of the 10 markets the store belongs to",
-      "stands_for": null,
-      "proxy": null,
-      "when": "before",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        }
-      },
-      "facts": {
-        "kind": "categorical",
-        "nulls": 0,
-        "null_rate": 0.0,
-        "distinct": 10,
-        "constant": false,
-        "varies_over": "entity",
-        "numeric": null,
-        "top_values": [
-          {
-            "value": "3",
-            "count": 88,
-            "share": 0.1606
-          },
-          {
-            "value": "10",
-            "count": 80,
-            "share": 0.146
-          },
-          {
-            "value": "5",
-            "count": 60,
-            "share": 0.1095
-          },
-          {
-            "value": "6",
-            "count": 60,
-            "share": 0.1095
-          },
-          {
-            "value": "7",
-            "count": 60,
-            "share": 0.1095
-          },
-          {
-            "value": "1",
-            "count": 52,
-            "share": 0.0949
-          },
-          {
-            "value": "8",
-            "count": 48,
-            "share": 0.0876
-          },
-          {
-            "value": "9",
-            "count": 40,
-            "share": 0.073
-          }
-        ],
-        "datetime": null,
-        "switch": null,
-        "sentinels": [],
-        "format_issues": [],
-        "binary_like": false,
-        "bounds": null,
-        "role_hints": []
-      }
-    },
-    {
-      "name": "AgeOfStore",
-      "key": "ageofstore",
-      "role": "candidate",
-      "meaning": "Years since the store opened, at the start of the test",
-      "stands_for": null,
-      "proxy": null,
-      "when": "before",
-      "set_by": null,
-      "feeds_treatment": null,
-      "moves_outcome": null,
-      "moved_by_change": null,
-      "measures_outcome": null,
-      "same_as": null,
-      "nested_in": null,
-      "may_modify": null,
-      "source": "doc:context",
-      "provenance": {
-        "meaning": {
-          "status": "drafted",
-          "source": "doc:context",
-          "said": null,
-          "reason": null
-        },
-        "when": {
-          "status": "drafted",
-          "source": "doc:context",
+          "status": "confirmed",
+          "source": "fixture:marketing.study_account",
           "said": null,
           "reason": null
         }
@@ -555,19 +738,10 @@
         "kind": "numeric",
         "nulls": 0,
         "null_rate": 0.0,
-        "distinct": 25,
+        "distinct": 4,
         "constant": false,
-        "varies_over": "entity",
-        "numeric": {
-          "min": 1.0,
-          "max": 28.0,
-          "mean": 8.50365,
-          "p01": 1.0,
-          "p25": 4.0,
-          "p50": 7.0,
-          "p75": 12.0,
-          "p99": 27.0
-        },
+        "varies_over": "unknown",
+        "numeric": null,
         "top_values": [],
         "datetime": null,
         "switch": null,
@@ -579,351 +753,168 @@
       }
     }
   ],
-  "change": {
-    "what": "a promotion for a new menu item",
-    "to_whom": "each store",
-    "when": "from week 1 to week 4 of the test"
-  },
-  "assignment": {
-    "kind": "lottery",
-    "rule": "assigned at random by the chain's marketing team",
-    "treatment_column": "Promotion"
-  },
+  "change": {},
+  "assignment": {},
   "facts": {
-    "claim:missing.why": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "# Fast Food Marketing Campaign\n\n## About the dataset\nEach row is one store's sales for one week. A fast food chain tested three promotions for a new menu item across 137 stores in 10 markets over four weeks. Every store appears in all four weeks, so there are 548 rows and each store plus week identifies a row. Stores are in separate locations and do not share customers or stock. Sales are in thousands of dollars. Source is the IBM Watson Analytics sample used for this test. [docs/marketing/readme.md]\n\n## What changed\n**Promotion test, weeks 1 to 4.** Each store ran one of three promotions for the new item from the first week of the test, and kept the same promotion for all four weeks. Which promotion a store got was assigned at random by the chain's marketing team; it did not depend on the store's market, size, or age. There is no week before the test in the file, so every row is under a promotion. [docs/marketing/test_plan.md]\n\n## About each column\n**MarketID** — Which of the 10 markets the store belongs to. Fixed per store. [readme.md]\n\n**MarketSize** — Small, medium, or large, the chain's classification of the market. Fixed per store and set before the test. [readme.md]\n\n**LocationID** — Store number. Fixed. [readme.md]\n\n**AgeOfStore** — Years since the store opened, at the start of the test. Fixed per store, known before the test. [readme.md]\n\n**Promotion** — 1, 2, or 3. Which promotion the store ran. Assigned at random by the marketing team before week 1 and held constant for all four weeks. A decision, and one that did not depend on anything else in the file. [test_plan.md]\n\n**week** — Test week, 1 to 4. [readme.md]\n\n**SalesInThousands** — Sales of the new item in that store in that week, in thousands of dollars. The week's result. [readme.md]\n",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "one unit observed over declared periods"
+    },
+    "claim:grain.layout": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "time representation in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "long"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "study assignment account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "lottery"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "record of exposure or group",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "promotion"
+    },
+    "claim:assignment.treated_level": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "treated group or on indicator",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "2"
+    },
+    "claim:assignment.level_column": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "assignment level in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "locationid"
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "benchmark population only",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "benchmark supplied units"
+    },
+    "claim:trend_continues.believed": {
+      "status": "unknown",
+      "source": "fixture:marketing.study_account",
+      "said": "not asserted by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:spillover.possible": {
+      "status": "unknown",
+      "source": "fixture:marketing.study_account",
+      "said": "not established by the benchmark account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": null
+    },
+    "claim:target.population": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "effect on treated units in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "treated"
+    },
+    "claim:assignment.never_treated_exists": {
       "status": "confirmed",
       "source": "data",
-      "said": null,
-      "reason": null,
-      "value": "none"
-    },
-    "claim:grain.panel": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
+      "said": "unit-level exposure histories have never-treated units",
+      "reason": "benchmark source account supplied as evaluation context",
       "value": true
     },
     "claim:grain.key_columns": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "unit and period identifiers",
+      "reason": "benchmark source account supplied as evaluation context",
       "value": [
-        "LocationID",
+        "locationid",
         "week"
       ]
     },
-    "claim:grain.row_is": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "one store's sales for one week"
+    "claim:change.date_column": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "time column in the benchmark",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "week"
     },
-    "claim:change.what": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "a promotion for a new menu item"
-    },
-    "claim:change.to_whom": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "each store"
-    },
-    "claim:change.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "from week 1 to week 4 of the test"
-    },
-    "claim:assignment.kind": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "lottery"
-    },
-    "claim:assignment.rule": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "assigned at random by the chain's marketing team"
-    },
-    "claim:assignment.treatment_column": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Promotion"
-    },
-    "col:marketid.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Which of the 10 markets the store belongs to"
-    },
-    "col:marketid.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "before"
-    },
-    "col:marketsize.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Small, medium, or large, the chain's classification of the market"
-    },
-    "col:marketsize.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "before"
-    },
-    "col:locationid.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Store number"
-    },
-    "col:locationid.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "before"
-    },
-    "col:ageofstore.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Years since the store opened, at the start of the test"
-    },
-    "col:ageofstore.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "before"
-    },
-    "col:promotion.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "1, 2, or 3. Which promotion the store ran"
-    },
-    "col:promotion.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "before"
-    },
-    "col:week.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Test week, 1 to 4"
-    },
-    "col:salesinthousands.meaning": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "Sales of the new item in that store in that week, in thousands of dollars"
+    "claim:change.period_value": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "earliest assignment date",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "1"
     },
     "col:salesinthousands.when": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
       "value": "after"
     },
-    "col:salesinthousands.measures_outcome": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": true
+    "col:promotion.when": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
     },
-    "claim:sampling.how": {
-      "status": "drafted",
-      "source": "doc:context",
-      "said": null,
-      "reason": null,
-      "value": "whole"
+    "col:locationid.when": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "before"
+    },
+    "col:week.when": {
+      "status": "confirmed",
+      "source": "fixture:marketing.study_account",
+      "said": "measurement timing in the source account",
+      "reason": "benchmark source account supplied as evaluation context",
+      "value": "unknown"
+    },
+    "claim:target.weighting": {
+      "status": "confirmed",
+      "source": "fixture:marketing.requested_target",
+      "said": "Requested summary gives each treated unit-period equal weight within its requested cohort or horizon.",
+      "reason": "explicit benchmark target policy",
+      "value": "treated_cell_shares"
     }
   },
   "beliefs": {},
   "said": [],
-  "probes": [
-    {
-      "family": "adjustment",
-      "name": "arms",
-      "value": null,
-      "passed": null,
-      "detail": "treatment column not settled"
-    },
-    {
-      "family": "diff_in_diff",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
-    },
-    {
-      "family": "interrupted_series",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
-    },
-    {
-      "family": "synthetic_control",
-      "name": "pre_periods",
-      "value": null,
-      "passed": null,
-      "detail": "period column or change period not settled"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.week",
-      "value": 0.012520427376337321,
-      "passed": null,
-      "detail": "'week' against the outcome 'SalesInThousands': correlation ratio 0.01"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.marketsize",
-      "value": 0.7047605217974089,
-      "passed": null,
-      "detail": "'MarketSize' against the outcome 'SalesInThousands': correlation ratio 0.70"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.locationid",
-      "value": -0.18785182678380313,
-      "passed": null,
-      "detail": "'LocationID' against the outcome 'SalesInThousands': correlation -0.19"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.marketid",
-      "value": 0.9242811697257368,
-      "passed": null,
-      "detail": "'MarketID' against the outcome 'SalesInThousands': correlation ratio 0.92"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.ageofstore",
-      "value": -0.028532881102495657,
-      "passed": null,
-      "detail": "'AgeOfStore' against the outcome 'SalesInThousands': correlation -0.03"
-    },
-    {
-      "family": "data",
-      "name": "assoc.marketsize~locationid",
-      "value": 0.3210084370305247,
-      "passed": null,
-      "detail": "'MarketSize' and 'LocationID': correlation ratio 0.32"
-    },
-    {
-      "family": "data",
-      "name": "redundancy.marketsize~locationid",
-      "value": 1.0,
-      "passed": null,
-      "detail": "'LocationID' sits inside 'MarketSize': every value of 'LocationID' maps to one value of 'MarketSize', and 'MarketSize' has fewer levels"
-    },
-    {
-      "family": "data",
-      "name": "assoc.marketsize~marketid",
-      "value": 1.0,
-      "passed": null,
-      "detail": "'MarketSize' and 'MarketID': Cram\u00e9r's V 1.00"
-    },
-    {
-      "family": "data",
-      "name": "redundancy.marketsize~marketid",
-      "value": 1.0,
-      "passed": null,
-      "detail": "'MarketID' sits inside 'MarketSize': every value of 'MarketID' maps to one value of 'MarketSize', and 'MarketSize' has fewer levels"
-    },
-    {
-      "family": "data",
-      "name": "assoc.locationid~marketid",
-      "value": 0.9998732120490957,
-      "passed": null,
-      "detail": "'LocationID' and 'MarketID': correlation ratio 1.00"
-    },
-    {
-      "family": "data",
-      "name": "redundancy.locationid~marketid",
-      "value": 1.0,
-      "passed": null,
-      "detail": "'LocationID' sits inside 'MarketID': every value of 'LocationID' maps to one value of 'MarketID', and 'MarketID' has fewer levels"
-    },
-    {
-      "family": "data",
-      "name": "redundancy.locationid~ageofstore",
-      "value": 1.0,
-      "passed": null,
-      "detail": "'LocationID' sits inside 'AgeOfStore': every value of 'LocationID' maps to one value of 'AgeOfStore', and 'AgeOfStore' has fewer levels"
-    },
-    {
-      "family": "data",
-      "name": "assoc.marketid~ageofstore",
-      "value": 0.2648278150215145,
-      "passed": null,
-      "detail": "'MarketID' and 'AgeOfStore': correlation ratio 0.26"
-    },
-    {
-      "family": "data",
-      "name": "assoc.quiet",
-      "value": null,
-      "passed": null,
-      "detail": "associations below 0.2 among the candidates: 'week' and 'MarketSize' (0.00); 'week' and 'LocationID' (0.00); 'week' and 'MarketID' (0.00); 'week' and 'AgeOfStore' (0.00); 'MarketSize' and 'AgeOfStore' (0.16); 'LocationID' and 'AgeOfStore' (-0.05)"
-    },
-    {
-      "family": "data",
-      "name": "timing",
-      "value": null,
-      "passed": null,
-      "detail": "before: Promotion, MarketSize, LocationID, MarketID, AgeOfStore; at: none; after: SalesInThousands; unknown: week"
-    }
-  ],
+  "probes": [],
   "design": {
     "kind": "diff_in_diff",
     "unit": "locationid",
     "time": "week",
     "period_kind": "integer",
-    "change_period": null,
-    "treated_group": {},
-    "staggered": null,
-    "pre_periods": null,
-    "post_periods": null,
-    "controls_allowed": [
-      "marketsize",
-      "marketid",
-      "ageofstore"
-    ],
-    "cluster_level": "locationid",
-    "trend_belief": null,
-    "spillover": null
+    "change_period": "1",
+    "treated_group": {
+      "column": "promotion",
+      "level": "2"
+    },
+    "before_column": null,
+    "after_column": null,
+    "adoption_representation": "label",
+    "aggregation": "pooled",
+    "target_weighting": "treated_cell_shares",
+    "horizons": [],
+    "cohorts": [],
+    "prefix_scope_accepted": false,
+    "cluster_level": "locationid"
   },
   "brief": null
 }

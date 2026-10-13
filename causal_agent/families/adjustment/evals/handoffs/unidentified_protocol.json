@@ -1,0 +1,607 @@
+{
+  "family": "adjustment",
+  "specialist": "dowhy",
+  "supported_now": true,
+  "outcome": "y",
+  "treatment": "t",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "protocol_unidentified",
+  "relevant_columns": [
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "t"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "y"
+    }
+  ],
+  "chosen_assumption": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+  "reasons": [
+    {
+      "reason": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "cites": [
+        "claim:story.text"
+      ]
+    }
+  ],
+  "question": "What is the effect of t on y?",
+  "story": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "7909bb480ca162c17cc63d26",
+  "dataset_identity": "e122e5dd1e449ce50a469a63ac0636ee84f34f458ec40cf98616205f99a8d6ca",
+  "admission": {
+    "family": "adjustment",
+    "contract": "b6f1e723569374947b89",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "total.unadjusted",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.backdoor",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.general_adjustment",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.wald_late",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "iv.linear_single",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "iv.linear_multiple",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "iv.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "frontdoor.linear_total",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "mediation.linear_nie",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "mediation.linear_nde",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "adjustment.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "structural.zero",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "identification.id_expression",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "/Users/sid47/Desktop/Causal Analysis Agent/causal_agent/families/adjustment/evals/data/unidentified.csv",
+  "dataset_facts": {},
+  "grain": {
+    "row_is": "person"
+  },
+  "sampling": {
+    "how": "all"
+  },
+  "missing": {
+    "why": "none"
+  },
+  "treated_level": "1",
+  "control_level": "0",
+  "columns": [
+    {
+      "name": "t",
+      "key": "t",
+      "role": "treatment",
+      "meaning": "t: Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "y",
+      "key": "y",
+      "role": "outcome",
+      "meaning": "y: Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {
+    "kind": "own_choice",
+    "depends_on": [],
+    "rule": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness."
+  },
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "person"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "own_choice"
+    },
+    "claim:assignment.rule": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness."
+    },
+    "claim:assignment.depends_on": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": []
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "all"
+    },
+    "claim:missing.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "none"
+    },
+    "claim:unobserved.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:spillover.possible": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "claim:story.text": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness."
+    },
+    "col:t.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "at"
+    },
+    "col:t.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "t: Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness."
+    },
+    "col:t.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:y.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "after"
+    },
+    "col:y.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "y: Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness."
+    },
+    "col:y.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    }
+  },
+  "beliefs": {
+    "unobserved": {
+      "kind": "unobserved",
+      "value": true,
+      "what": "u",
+      "why": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness.",
+      "column": null,
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    }
+  },
+  "said": [
+    {
+      "turn": 1,
+      "about": "study protocol",
+      "text": "Independent people choose treatment t. An unobserved common cause drives both uptake and outcome. Treatment may affect outcome; its magnitude is unknown. No measured common cause, instrument or mediator is available. Outcome follows treatment. No spillovers or missingness."
+    }
+  ],
+  "probes": [],
+  "design": {
+    "kind": "adjustment",
+    "adjustment_candidates": [],
+    "forbidden": [],
+    "instruments": [],
+    "iv_controls": [],
+    "modifiers": [],
+    "instrument": null,
+    "mediator": null,
+    "unobserved_confounding": true,
+    "voluntary_uptake": null,
+    "target_units": "average",
+    "contrast": "switch"
+  },
+  "brief": null
+}

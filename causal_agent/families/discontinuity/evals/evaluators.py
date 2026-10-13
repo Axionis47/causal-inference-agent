@@ -52,22 +52,22 @@ def checks_ran(run, example):
     return {"score": int(not missing), "comment": f"checks not run: {sorted(missing)}" if missing else "all ran"}
 
 
-def assess_cites(run, example):
-    want = exp(example).get("assess_cites_contain") or []
+def line_cites(run, example):
+    want = exp(example).get("line_cites_contain") or []
     if not want:
         return {"score": 1, "comment": "not graded"}
-    cites = outs(run).get("assess_cites") or []
+    cites = outs(run).get("line_cites") or []
     if cites is None:
-        return {"score": 0, "comment": "assess did not run"}
+        return {"score": 0, "comment": "line did not run"}
     missing = [w for w in want if not any(w in c for c in cites)]
-    return {"score": int(not missing), "comment": f"assess did not cite {missing}" if missing else "cited"}
+    return {"score": int(not missing), "comment": f"line did not cite {missing}" if missing else "cited"}
 
 
-def secondaries_contain(run, example):
-    want = set(exp(example).get("secondaries_contain") or [])
+def endpoints_contain(run, example):
+    want = set(exp(example).get("endpoints_contain") or [])
     if not want:
         return {"score": 1, "comment": "not graded"}
-    got = set(outs(run).get("secondaries") or [])
+    got = set(outs(run).get("endpoints") or [])
     missing = want - got
     return {"score": int(not missing), "comment": f"missing secondaries {sorted(missing)}" if missing else "all reported"}
 
@@ -78,4 +78,4 @@ def thoughts_present(run, example):
     return {"score": int(bool(nodes)), "comment": f"thoughts from {sorted(nodes)}" if nodes else "no thoughts logged"}
 
 
-ALL = [*SHARED, score_match, kind_match, cluster_match, checks_ran, assess_cites, secondaries_contain, thoughts_present]
+ALL = [*SHARED, score_match, kind_match, cluster_match, checks_ran, line_cites, endpoints_contain, thoughts_present]

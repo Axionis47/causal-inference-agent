@@ -8,7 +8,10 @@
     "population_filter": null,
     "window": null,
     "contrast": "switch",
-    "target": "average"
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
   },
   "pack_name": "students",
   "relevant_columns": [
@@ -75,6 +78,53 @@
   "intent": "effect_of_change",
   "design_id": 0,
   "memory_version": 109,
+  "context_id": "6a5468954af46dedaed5b403",
+  "dataset_identity": "ade5869dba8b2d3e2b96379359fb2f61cb0308e8394d9b1ba37e174cfe3bee69",
+  "admission": {
+    "family": "discontinuity",
+    "contract": "7d36eb41166c467c92ef",
+    "memory_version": 109,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "sharp_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "eligibility_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "sharp_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "eligibility_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      }
+    ]
+  },
+  "data_version": 0,
   "why": "forced",
   "over": {},
   "csv": "data/raw/students-performance-in-exams/StudentsPerformance.csv",
@@ -1219,24 +1269,10 @@
     },
     {
       "family": "data",
-      "name": "with_outcome.reading_score",
-      "value": 0.8175796636720541,
-      "passed": null,
-      "detail": "'reading score' against the outcome 'math score': correlation 0.82"
-    },
-    {
-      "family": "data",
       "name": "by_arm.writing_score",
       "value": 0.6976647141710418,
       "passed": null,
       "detail": "'writing score' by arm: mean 74.4 among the treated, 64.5 among the others; standardised difference 0.70"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.writing_score",
-      "value": 0.8026420459498079,
-      "passed": null,
-      "detail": "'writing score' against the outcome 'math score': correlation 0.80"
     },
     {
       "family": "data",
@@ -1247,24 +1283,10 @@
     },
     {
       "family": "data",
-      "name": "with_outcome.lunch",
-      "value": 0.35087664559186027,
-      "passed": null,
-      "detail": "'lunch' against the outcome 'math score': correlation ratio 0.35"
-    },
-    {
-      "family": "data",
       "name": "by_arm.parental_level_of_education",
       "value": 0.061643954819958574,
       "passed": null,
       "detail": "'parental level of education' by arm: some college: 22% of the treated, 23% of the others; associate's degree: 23% of the treated, 22% of the others; high school: 16% of the treated, 22% of the others; some high school: 22% of the treated, 16% of the others; 2 more levels; largest share gap 0.06"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.parental_level_of_education",
-      "value": 0.17822113210851498,
-      "passed": null,
-      "detail": "'parental level of education' against the outcome 'math score': correlation ratio 0.18"
     },
     {
       "family": "data",
@@ -1275,24 +1297,10 @@
     },
     {
       "family": "data",
-      "name": "with_outcome.gender",
-      "value": 0.16798223810035545,
-      "passed": null,
-      "detail": "'gender' against the outcome 'math score': correlation ratio 0.17"
-    },
-    {
-      "family": "data",
       "name": "by_arm.race_ethnicity",
       "value": 0.05132355244609196,
       "passed": null,
       "detail": "'race/ethnicity' by arm: group C: 33% of the treated, 31% of the others; group D: 23% of the treated, 28% of the others; group B: 19% of the treated, 19% of the others; group E: 17% of the treated, 12% of the others; 1 more levels; largest share gap 0.05"
-    },
-    {
-      "family": "data",
-      "name": "with_outcome.race_ethnicity",
-      "value": 0.23540942311277233,
-      "passed": null,
-      "detail": "'race/ethnicity' against the outcome 'math score': correlation ratio 0.24"
     },
     {
       "family": "data",
@@ -1376,7 +1384,10 @@
     ],
     "cluster": null,
     "sampled_by_side": false,
-    "cutoff_only": null
+    "cutoff_only": null,
+    "exclusion": null,
+    "monotonicity": null,
+    "local_randomisation": null
   },
   "brief": null
 }

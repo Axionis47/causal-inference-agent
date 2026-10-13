@@ -1,0 +1,1044 @@
+{
+  "family": "discontinuity",
+  "specialist": "rdrobust",
+  "supported_now": true,
+  "outcome": "outcome",
+  "treatment": "receipt",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "window_fuzzy",
+  "relevant_columns": [
+    {
+      "reason": "the assignment score, receipt and outcome",
+      "cites": [
+        "col:score"
+      ],
+      "column": "score"
+    },
+    {
+      "reason": "the assignment score, receipt and outcome",
+      "cites": [
+        "col:receipt"
+      ],
+      "column": "receipt"
+    },
+    {
+      "reason": "the assignment score, receipt and outcome",
+      "cites": [
+        "col:outcome"
+      ],
+      "column": "outcome"
+    }
+  ],
+  "chosen_assumption": "the declared evaluation study assumptions",
+  "reasons": [],
+  "question": "Did actual receipt of the intervention change the outcome inside a score window?",
+  "story": null,
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "a20ab65ea86e96c11b369c67",
+  "dataset_identity": "baaee4f8af52e2f5b91456060cab35f9a3f4e33cad0ea0901c427ac3621c1e77",
+  "admission": {
+    "family": "discontinuity",
+    "contract": "7d36eb41166c467c92ef",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "sharp_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_polynomial",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "target_locality",
+            "address": "claim:target.locality",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.locality"
+            ]
+          },
+          {
+            "id": "target_comparison",
+            "address": "claim:target.comparison",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.comparison"
+            ]
+          },
+          {
+            "id": "rule",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "score",
+            "address": "claim:assignment.score_column",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.score_column"
+            ]
+          },
+          {
+            "id": "cutoff",
+            "address": "claim:assignment.cutoff",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff"
+            ]
+          },
+          {
+            "id": "side",
+            "address": "claim:assignment.treated_side",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treated_side"
+            ]
+          },
+          {
+            "id": "equality",
+            "address": "claim:assignment.cutoff_value_treated",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff_value_treated"
+            ]
+          },
+          {
+            "id": "timing:col:score.when",
+            "address": "col:score.when",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "col:score.when"
+            ]
+          },
+          {
+            "id": "movability",
+            "address": "claim:assignment.movable",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.movable"
+            ]
+          },
+          {
+            "id": "other_changes",
+            "address": "claim:cutoff_only.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:cutoff_only.believed"
+            ]
+          },
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "receipt",
+            "address": "claim:assignment.treatment_column",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treatment_column"
+            ]
+          },
+          {
+            "id": "receipt_level",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:exclusion.believed"
+            ]
+          },
+          {
+            "id": "monotonicity",
+            "address": "claim:monotonicity.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:monotonicity.believed"
+            ]
+          },
+          {
+            "id": "compliance",
+            "address": "claim:assignment.compliance",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.compliance"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "eligibility_local_polynomial",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "target_locality",
+            "address": "claim:target.locality",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.locality"
+            ]
+          },
+          {
+            "id": "target_comparison",
+            "address": "claim:target.comparison",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.comparison"
+            ]
+          },
+          {
+            "id": "rule",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "score",
+            "address": "claim:assignment.score_column",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.score_column"
+            ]
+          },
+          {
+            "id": "cutoff",
+            "address": "claim:assignment.cutoff",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff"
+            ]
+          },
+          {
+            "id": "side",
+            "address": "claim:assignment.treated_side",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treated_side"
+            ]
+          },
+          {
+            "id": "equality",
+            "address": "claim:assignment.cutoff_value_treated",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff_value_treated"
+            ]
+          },
+          {
+            "id": "timing:col:score.when",
+            "address": "col:score.when",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "col:score.when"
+            ]
+          },
+          {
+            "id": "movability",
+            "address": "claim:assignment.movable",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.movable"
+            ]
+          },
+          {
+            "id": "other_changes",
+            "address": "claim:cutoff_only.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:cutoff_only.believed"
+            ]
+          },
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "compliance",
+            "address": "claim:assignment.compliance",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.compliance"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "sharp_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_randomisation",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "target_locality",
+            "address": "claim:target.locality",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.locality"
+            ]
+          },
+          {
+            "id": "target_comparison",
+            "address": "claim:target.comparison",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.comparison"
+            ]
+          },
+          {
+            "id": "rule",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "score",
+            "address": "claim:assignment.score_column",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.score_column"
+            ]
+          },
+          {
+            "id": "cutoff",
+            "address": "claim:assignment.cutoff",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff"
+            ]
+          },
+          {
+            "id": "side",
+            "address": "claim:assignment.treated_side",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treated_side"
+            ]
+          },
+          {
+            "id": "equality",
+            "address": "claim:assignment.cutoff_value_treated",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff_value_treated"
+            ]
+          },
+          {
+            "id": "timing:col:score.when",
+            "address": "col:score.when",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "col:score.when"
+            ]
+          },
+          {
+            "id": "movability",
+            "address": "claim:assignment.movable",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.movable"
+            ]
+          },
+          {
+            "id": "other_changes",
+            "address": "claim:cutoff_only.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:cutoff_only.believed"
+            ]
+          },
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "randomisation_account",
+            "address": "claim:local_randomisation.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:local_randomisation.believed"
+            ]
+          },
+          {
+            "id": "receipt",
+            "address": "claim:assignment.treatment_column",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treatment_column"
+            ]
+          },
+          {
+            "id": "receipt_level",
+            "address": "claim:assignment.treated_level",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treated_level"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:exclusion.believed"
+            ]
+          },
+          {
+            "id": "monotonicity",
+            "address": "claim:monotonicity.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:monotonicity.believed"
+            ]
+          },
+          {
+            "id": "compliance",
+            "address": "claim:assignment.compliance",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.compliance"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "eligibility_local_randomisation",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "target_locality",
+            "address": "claim:target.locality",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.locality"
+            ]
+          },
+          {
+            "id": "target_comparison",
+            "address": "claim:target.comparison",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:target.comparison"
+            ]
+          },
+          {
+            "id": "rule",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "score",
+            "address": "claim:assignment.score_column",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.score_column"
+            ]
+          },
+          {
+            "id": "cutoff",
+            "address": "claim:assignment.cutoff",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff"
+            ]
+          },
+          {
+            "id": "side",
+            "address": "claim:assignment.treated_side",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.treated_side"
+            ]
+          },
+          {
+            "id": "equality",
+            "address": "claim:assignment.cutoff_value_treated",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.cutoff_value_treated"
+            ]
+          },
+          {
+            "id": "timing:col:score.when",
+            "address": "col:score.when",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "col:score.when"
+            ]
+          },
+          {
+            "id": "movability",
+            "address": "claim:assignment.movable",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.movable"
+            ]
+          },
+          {
+            "id": "other_changes",
+            "address": "claim:cutoff_only.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:cutoff_only.believed"
+            ]
+          },
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "randomisation_account",
+            "address": "claim:local_randomisation.believed",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:local_randomisation.believed"
+            ]
+          },
+          {
+            "id": "compliance",
+            "address": "claim:assignment.compliance",
+            "status": "met",
+            "reason": "confirmed by eval:declared_assignment_account",
+            "cites": [
+              "claim:assignment.compliance"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "/Users/sid47/Desktop/Causal Analysis Agent/causal_agent/families/discontinuity/evals/handoffs/window_fuzzy.csv",
+  "dataset_facts": {},
+  "grain": {},
+  "sampling": {},
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "score",
+      "key": "score",
+      "role": "candidate",
+      "meaning": "assignment score fixed on a symmetric grid before the intervention",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {},
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 800,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "receipt",
+      "key": "receipt",
+      "role": "candidate",
+      "meaning": "actual receipt",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {},
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "outcome",
+      "key": "outcome",
+      "role": "candidate",
+      "meaning": "post-assignment numeric outcome",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": null,
+      "provenance": {},
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 800,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {
+    "kind": "cutoff_rule",
+    "score_column": "score",
+    "cutoff": 0.0,
+    "treated_side": "above",
+    "cutoff_value_treated": true,
+    "movable": false,
+    "compliance": "fuzzy",
+    "treatment_column": "receipt",
+    "treated_level": "1"
+  },
+  "facts": {
+    "claim:target.locality": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "window"
+    },
+    "claim:target.comparison": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "receipt"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "cutoff_rule"
+    },
+    "claim:assignment.score_column": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "score"
+    },
+    "claim:assignment.cutoff": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": 0.0
+    },
+    "claim:assignment.treated_side": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "above"
+    },
+    "claim:assignment.cutoff_value_treated": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": true
+    },
+    "claim:assignment.movable": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": false
+    },
+    "claim:assignment.compliance": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "fuzzy"
+    },
+    "claim:assignment.treatment_column": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "receipt"
+    },
+    "claim:assignment.treated_level": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "1"
+    },
+    "claim:cutoff_only.believed": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": true
+    },
+    "claim:cutoff_only.why": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "The declared generating process changes only eligibility and receipt at the threshold; there is no concurrent intervention."
+    },
+    "claim:exclusion.why": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "The generating equation changes the outcome solely through actual receipt; eligibility has no direct term."
+    },
+    "claim:monotonicity.why": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "Only units above the cutoff can receive treatment, and no unit loses receipt when becoming eligible."
+    },
+    "claim:local_randomisation.why": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "Potential-outcome errors are independent identically distributed draws independent of score, with constant effect two; units inside a score-only window are exchangeable under the declared complete-randomisation analysis premise."
+    },
+    "claim:exclusion.believed": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": true
+    },
+    "claim:monotonicity.believed": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": true
+    },
+    "claim:local_randomisation.believed": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": true
+    },
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "one independently generated evaluation unit"
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": "Scores are fixed on a balanced symmetric support grid before assignment; potential-outcome noise is independent of score; a strict mechanical threshold establishes eligibility. The stated randomisation, exclusion and monotonicity assumptions are evaluation premises.",
+      "reason": null,
+      "value": "random sample"
+    },
+    "col:score.when": {
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null,
+      "reason": null,
+      "value": "before"
+    }
+  },
+  "beliefs": {
+    "cutoff_only": {
+      "kind": "cutoff_only",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    },
+    "exclusion": {
+      "kind": "exclusion",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    },
+    "monotonicity": {
+      "kind": "monotonicity",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    },
+    "local_randomisation": {
+      "kind": "local_randomisation",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    }
+  },
+  "said": [],
+  "probes": [],
+  "design": {
+    "kind": "discontinuity",
+    "score": "score",
+    "cutoff": 0.0,
+    "treated_side": "above",
+    "cutoff_value_treated": true,
+    "score_fixed_before": true,
+    "movable": false,
+    "takeup": {
+      "column": "receipt",
+      "level": "1"
+    },
+    "covariates_allowed": [],
+    "cluster": null,
+    "sampled_by_side": false,
+    "cutoff_only": {
+      "kind": "cutoff_only",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    },
+    "exclusion": {
+      "kind": "exclusion",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    },
+    "monotonicity": {
+      "kind": "monotonicity",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    },
+    "local_randomisation": {
+      "kind": "local_randomisation",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:declared_assignment_account",
+      "said": null
+    }
+  },
+  "brief": null
+}

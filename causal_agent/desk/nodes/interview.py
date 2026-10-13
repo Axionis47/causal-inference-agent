@@ -72,7 +72,7 @@ def check(state: DeskState) -> dict:
                 refs[fd.address] = refs.get(fd.address, 0) + 1
                 if refs[fd.address] >= max_asks:
                     memory.mark(fd.address, "contradiction")
-    return {"findings": [Finding.of(f) for f in findings], "refutations": refs, **F.saved(memory)}
+    return {"findings": [Finding.of(f) for f in findings], "refutations": refs, **F.saved(memory, state)}
 
 
 def probe_fit(state: DeskState) -> dict:
@@ -82,10 +82,106 @@ def probe_fit(state: DeskState) -> dict:
     needs = focused_needs(state)
     columns = _columns_in_play(memory, fr)
     probes = probes_and_facts(memory, df, fr, columns)
-    status = ops.fit(memory, probes, needs, columns=columns, cat=CAT)
+    selected = state.get("context_family")
+    status = ops.fit(
+        memory,
+        probes,
+        needs,
+        columns=columns,
+        cat=CAT,
+        target=fr.scope.target if fr else "average",
+        outcome=fr.outcome if fr else None,
+        selected_family=selected,
+        modifiers=fr.scope.modifiers if fr else [],
+    )
+    selection_update = {}
+    if selected and selected not in status.surviving:
+        selected = None
+        selection_update = {"context_family": None}
+        needs = {n: spec for n, spec in R.needs().items() if not state.get("focus") or n in state["focus"]}
+        status = ops.fit(
+            memory,
+            probes,
+            needs,
+            columns=columns,
+            cat=CAT,
+            target=fr.scope.target if fr else "average",
+            outcome=fr.outcome if fr else None,
+            modifiers=fr.scope.modifiers if fr else [],
+        )
+    if not selected and getattr(memory.field("claim:assignment.kind"), "status", None) == "confirmed" and fr is not None:
+        from causal_agent.desk.nodes import decide as D
+
+        candidates = [
+            n
+            for n in status.surviving
+            if R.REGISTRY[n].built and any(e.status not in {"excluded", "unsupported"} for e in status.endpoint_admissions.get(n).endpoints)
+        ]
+        if candidates:
+            verdicts = [v.model_copy(update={"admissible": v.family in candidates}) for v in D.verdicts_from(memory, status, probes, R.knowledge())]
+            selection = {**state, "family_verdicts": verdicts, "probes": probes, "gate_errors": [], "decide_attempts": 0}
+            for _ in range(3):
+                selection.update(D.decide(selection, None))
+                checked = D.gate(selection, None)
+                selection.update(checked.update or {})
+                if checked.goto != "decide":
+                    break
+            choice = selection.get("decision")
+            if choice and choice.chosen in candidates and not selection.get("gate_errors"):
+                selected = choice.chosen
+                needs = {selected: needs[selected]}
+                selection_update = {"context_family": selected, "debug": selection.get("debug", [])[len(state.get("debug") or []) :]}
+                status = ops.fit(
+                    memory,
+                    probes,
+                    needs,
+                    columns=columns,
+                    cat=CAT,
+                    target=fr.scope.target,
+                    outcome=fr.outcome,
+                    selected_family=selected,
+                    modifiers=fr.scope.modifiers if fr else [],
+                )
     opened = ops.open(memory, status, needs, CAT, columns=columns, exclude=[x for x in (fr.outcome if fr else None, fr.cause if fr else None) if x])
+    deficiency_open = []
+    for address in state.get("deficiency_addresses") or []:
+        fact = memory.field(address)
+        if fact is not None and fact.status == "confirmed" and not (fact.source or "").startswith("model:"):
+            continue
+        parsed = Memory.parse(address)
+        kind_name = parsed[1] if address.startswith("claim:") else "measured"
+        kind = CAT.kinds.get(kind_name)
+        field = parsed[2]
+        if kind and field in kind.fields and address not in {o.address for o in opened}:
+            spec = kind.fields[field]
+            options = [str(x) for x in spec.options] if spec.type == "choice" else ["yes", "no"] if spec.type == "bool" else []
+            deficiency_open.append(
+                ops.Open(
+                    address=address,
+                    kind=kind_name,
+                    field=field,
+                    status=fact.status if fact else "empty",
+                    options=options,
+                    because=[selected] if selected else [],
+                )
+            )
+    opened = deficiency_open + opened
+    if deficiency_open:
+        status.ready = False
     prev = state.get("matrix") if isinstance(state.get("matrix"), Matrix) else Matrix()
-    matrix = prev.update(memory, probes, needs, columns=columns, cat=CAT)
+    matrix = prev.update(
+        memory,
+        probes,
+        needs,
+        columns=columns,
+        cat=CAT,
+        target=fr.scope.target if fr else "average",
+        outcome=fr.outcome if fr else None,
+        selected_family=selected,
+        modifiers=fr.scope.modifiers if fr else [],
+    )
+    if deficiency_open:
+        matrix.ready = False
     changed = matrix.diff(prev)
     if changed:  # the matrix is a record: a cell that moved is a step of the conversation, with what moved it
         record(
@@ -98,7 +194,16 @@ def probe_fit(state: DeskState) -> dict:
             note="; ".join(c.line() for c in changed),
         )
     _writer()({"fit": {"surviving": status.surviving, "struck": status.struck, "open": [o.address for o in opened], "ready": status.ready}})
-    return {"probes": probes, "status": status, "fit_status": status.model_dump(), "matrix": matrix, "open": opened, "ready": status.ready}
+    return {
+        "probes": probes,
+        "status": status,
+        "fit_status": status.model_dump(),
+        "matrix": matrix,
+        "open": opened,
+        "ready": status.ready,
+        **selection_update,
+        **F.saved(memory, state),
+    }
 
 
 # ------------------------------------------------------------------ ask (code)
@@ -373,7 +478,7 @@ def ask(state: DeskState) -> Command[Literal["listen", "fit"]]:
 
 def after_design(state: DeskState) -> Literal["judge", "handoff"]:
     """Where the design goes: to the judge and then the ready moment when the interview sent the routing nodes to show it, else
-    on to the hand-off (the word, or a what-if)."""
+    on to the hand-off after the word authorizes the displayed snapshot."""
     return "judge" if state.get("convincing") else "handoff"
 
 
@@ -416,9 +521,7 @@ def convince(state: DeskState, runtime: Runtime[Context]) -> dict:
         f"It bets on: {brief.bets_on if brief else fam.assumes}",
     ]
     if brief is not None:
-        lines += [f"[{dm.address}] {brief.road + ': ' if dm.name == 'road' and brief.road else ''}{dm.choice}" for dm in brief.decisions]
-        if brief.road is not None and brief.decision("road") is None:
-            lines.append(f"[design.brief.road] {brief.road}")
+        lines += [f"[{dm.address}] {dm.choice}" for dm in brief.decisions]
         if brief.threats:
             lines.append("What would break it: " + "; ".join(f"{t.reason} [{', '.join(t.cites)}]" for t in brief.threats))
     lines.append(f"Evidence: {evidence}. " + " ".join(fields))
@@ -459,7 +562,8 @@ def listen(state: DeskState) -> Command[Literal["infer", "__end__"]]:
     turn = int(state.get("turn") or 0) + 1
     _remember(memory, turn, ", ".join((("lane:" + x) if a.from_lane else x) for x in a.addresses) if a else "", answer)
     return Command(
-        goto="infer", update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None, **F.saved(memory)}
+        goto="infer",
+        update={"turn": turn, "message": answer, "infer_errors": [], "infer_attempts": 0, "settled_now": [], "artifact": None, **F.saved(memory, state)},
     )
 
 
@@ -552,7 +656,7 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "transform", 
         }
     )
     update = {
-        **F.saved(memory),
+        **F.saved(memory, state),
         "infer_errors": rejected,
         "infer_attempts": attempts,
         "settled_now": settled,
@@ -566,6 +670,17 @@ def infer(state: DeskState) -> Command[Literal["infer", "explore", "transform", 
     if rejected and attempts < INFER_ATTEMPTS:
         return Command(goto="infer", update=update)
     update["infer_attempts"] = 0
+    if rejected:
+        return Command(
+            goto="check",
+            update={
+                **update,
+                "note": "I could not accept that message: " + "; ".join(rejected) + ". Please restate the correction or run instruction.\n\n",
+                "preview": None,
+                "convinced_version": -1,
+                "ready": False,
+            },
+        )
     if settled:
         record(state, "claim", by="person", memory=memory, design=design_now(state), read=[src], note=", ".join(settled))
     if out.kind == "run":
@@ -692,7 +807,7 @@ def transform(state: DeskState) -> Command[Literal["explain", "check"]]:
         assert decline is not None
         update: dict = {"transformed": f"I could not change the table: {decline.reason}"}
     else:
-        update = {"transformed": switch_to(state, memory, version, turn), **F.saved(memory)}
+        update = {"transformed": switch_to(state, memory, version, turn), **F.saved(memory, state)}
     update.update({"transform_request": None, "debug": thoughts})
     if state.get("desk_question"):
         return Command(goto="explain", update={**update, "explain_errors": [], "explain_attempts": 0})

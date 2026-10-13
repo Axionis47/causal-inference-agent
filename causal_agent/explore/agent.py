@@ -40,6 +40,7 @@ def explore(req: ExploreRequest) -> Trail:
         gate=lambda r, _log: gate_record(r, req, tools),
         node="explore",
         tries=int(cfg["tries"]),
+        commit_system=P.COMMIT_SYSTEM,
     )
     return Trail(
         record=record,

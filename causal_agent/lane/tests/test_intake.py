@@ -1,4 +1,4 @@
-"""The table a lane starts from: the filter and the window by code, pack-named columns loaded, declines never stops."""
+"""The table a lane starts from: the filter and the window by code, pack-named columns loaded, invalid restrictions stop before fitting."""
 
 from __future__ import annotations
 
@@ -123,15 +123,67 @@ def test_load_takes_every_carried_column_and_the_design_blocks_and_declines_a_mi
     assert [d.check for d in it.declines] == ["intake.column_missing"] and it.declines[0].about == "col:offer_rank"
 
 
-def test_a_prose_filter_is_a_decline_not_a_stop_and_a_missing_outcome_is_a_stop():
-    h = students(Scope(population_filter="students at the school"))
-    it = intake.load(h, "test")
-    assert len(it.table) == 1000 and [d.check for d in it.declines] == ["intake.filter_unparsed"]
+@pytest.mark.parametrize(
+    "scope",
+    [
+        Scope(population_filter="students at the school"),
+        Scope(population_filter="all patients aged over 60"),
+        Scope(population_filter="grade == 12"),
+        Scope(population_filter="math_score >= old"),
+        Scope(window="the years around the exam"),
+        Scope(window="from eighty to ninety"),
+    ],
+)
+def test_invalid_authorized_restrictions_stop_without_writing_a_working_table(scope):
+    with pytest.raises(intake.IntakeStop) as exc:
+        intake.load(students(scope), "test")
+    assert exc.value.feasibility.terminal_kind == "unsupported_method"
+    assert exc.value.feasibility.stage == "load"
+    from causal_agent.common import config
+
+    assert not list(config.get().paths.runs.rglob("table.csv"))
+
+
+def test_missing_outcome_is_a_stop():
     h = students()
     h.outcome = "final grade"
-    with pytest.raises(intake.IntakeStop) as e:
+    with pytest.raises(intake.IntakeStop) as exc:
         intake.load(h, "test")
-    assert e.value.feasibility.stage == "load" and "final_grade" in e.value.feasibility.facts[0]
+    assert exc.value.feasibility.stage == "load" and "final_grade" in exc.value.feasibility.facts[0]
+
+
+def test_filter_columns_load_even_when_the_frame_omits_them():
+    h = students(Scope(population_filter="gender == female"))
+    h.columns = [c for c in h.columns if c.key != "gender"]
+    h.relevant_columns = [c for c in h.relevant_columns if c.column != "gender"]
+    h.design = AdjustmentDesign()
+    assert "gender" in intake.wanted_columns(h)
+    loaded = intake.load(h, "test")
+    assert len(loaded.table) == 518 and set(loaded.table.gender) == {"female"}
+
+
+def test_window_clock_loads_when_omitted_from_the_frame_and_design():
+    h = cigar(Scope(window="from 80 to 92"))
+    h.columns = [c for c in h.columns if c.key != "year"]
+    h.relevant_columns = [c for c in h.relevant_columns if c.column != "year"]
+    h.design = None
+    h.change["date_column"] = "year"
+    loaded = intake.load(h, "test")
+    assert "year" in loaded.columns
+    assert loaded.table.year.min() == 80 and loaded.table.year.max() == 92
+
+
+@pytest.mark.parametrize("column", ["math_score", "test_preparation_course", "reading_score", "lunch"])
+def test_response_exposure_and_posttreatment_restrictions_are_rejected(column):
+    h = students(Scope(population_filter=f"{column} != missing"))
+    if column == "reading_score":
+        h.column(column).when = "after"
+    if column == "lunch":
+        h.column(column).moved_by_change = True
+    with pytest.raises(intake.IntakeStop) as exc:
+        intake.load(h, "test")
+    assert exc.value.feasibility.terminal_kind == "unsupported_method"
+    assert column in str(exc.value.feasibility.facts)
 
 
 def test_time_key_comes_from_the_panel_block_then_the_change_then_the_entry():
@@ -148,14 +200,14 @@ def test_time_key_comes_from_the_panel_block_then_the_change_then_the_entry():
 
 def test_a_scope_written_as_words_for_nothing_is_not_a_decline():
     df = pd.DataFrame({"year": [70, 80], "lunch": ["a", "b"]})
-    for text in (None, "", "null", "None", "n/a", "all students", "every row", "whole", "no filter"):
+    for text in (None, "", "null", "None", "n/a", "all rows", "every row", "whole", "no filter"):
         kept, d, facts = intake.apply_filter(df, text)
         assert d is None and len(kept) == 2 and facts == {}, text
     for text in ("null", "none", "all years", "no window"):
         kept, d, _ = intake.apply_window(df, text, "year")
         assert d is None and len(kept) == 2, text
     assert intake.blank("gender == female") is False and intake.blank("from 80 to 89") is False and intake.blank("all") is True
-    assert intake.blank("all students who sat the May 2026 exam at the school") is True  # the whole table, in a sentence
+    assert intake.blank("all students who sat the May 2026 exam at the school") is False
     assert intake.blank("all rows with lunch == standard") is False  # starts like the whole table, but carries a comparison
     kept, d, _ = intake.apply_filter(df, "all students who sat the May 2026 exam at the school")
-    assert d is None and len(kept) == 2
+    assert d is not None and len(kept) == 2

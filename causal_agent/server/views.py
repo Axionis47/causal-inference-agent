@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from causal_agent.common.contracts import Decline, RunRecord
+from causal_agent.common.contracts import Decline, Falsification, RunRecord, Sensitivity
 from causal_agent.desk import pipeline
 from causal_agent.memory import journal as J
 from causal_agent.memory import store as MS
@@ -30,7 +30,6 @@ from causal_agent.server.models import (
     JudgeView,
     Prompt,
     QuestionView,
-    RefutationView,
     RunView,
     SessionView,
     StatusView,
@@ -225,6 +224,10 @@ def handoff_view(h, readiness=None) -> HandoffView:
         treatment=h.treatment,
         bets_on=h.brief.bets_on if h.brief is not None else h.chosen_assumption,
         memory_version=h.memory_version,
+        context_id=h.context_id,
+        dataset_identity=h.dataset_identity,
+        data_version=h.data_version,
+        admission=h.admission,
         fields=fields,
         judge=JudgeView(
             verdict=readiness.verdict,
@@ -238,55 +241,21 @@ def handoff_view(h, readiness=None) -> HandoffView:
 
 def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
     sr = r.specialist_result or {}
-    design = sr.get("design") or {}
-    results = (design.get("checks") or {}).get("results") or [] if isinstance(design, dict) else []
-    checks = [
-        CheckView(
-            contrast=c.get("contrast"),
-            name=str(c.get("name")),
-            level=c.get("level"),
-            value=c.get("value"),
-            threshold=c.get("threshold"),
-            detail=c.get("detail"),
-        )
-        for c in results
-    ]
+    checks = [CheckView.model_validate(c) for c in sr.get("checks") or []]
     flags = [c for c in checks if c.level != "pass"]
-    refs = [
-        RefutationView(
-            contrast=x.get("contrast"),
-            refuter=str(x.get("refuter")),
-            kind=x.get("kind"),
-            passed=x.get("passed"),
-            p_value=x.get("p_value"),
-            new_effect=x.get("new_effect"),
-            detail=x.get("detail"),
-        )
-        for x in (sr.get("refutations") or r.artifacts.get("refutations") or [])
-    ]
+    falsifications = [Falsification.model_validate(x) for x in sr.get("falsifications") or []]
+    sensitivities = [Sensitivity.model_validate(x) for x in sr.get("sensitivities") or []]
     interps = [
         InterpretationView(
-            contrast=i.get("contrast"), answer=str(i.get("answer") or ""), caveats=list(i.get("caveats") or []), cites=list(i.get("cites") or [])
+            design_id=i.get("design_id", ""),
+            contrast=i.get("contrast"),
+            answer=str(i.get("answer") or ""),
+            caveats=list(i.get("caveats") or []),
+            cites=list(i.get("cites") or []),
         )
         for i in (sr.get("interpretations") or r.artifacts.get("interpretations") or [])
     ]
-    ests = [
-        EstimateView(
-            contrast=e.get("contrast"),
-            method=e.get("method"),
-            value=e.get("value"),
-            ci_low=e.get("ci_low"),
-            ci_high=e.get("ci_high"),
-            n=e.get("n"),
-            n_treated=e.get("n_treated"),
-            n_control=e.get("n_control"),
-            secondary=bool(e.get("secondary")),
-            error=e.get("error"),
-            p_value=e.get("p_value"),
-            p_value_source=e.get("p_value_source"),
-        )
-        for e in (sr.get("estimates") or r.artifacts.get("estimates") or [])
-    ]
+    ests = [EstimateView.model_validate(e) for e in sr.get("estimates") or []]
     run_id = Path(r.run_dir).name if r.run_dir else None
     files = sorted(p.name for p in Path(r.run_dir).iterdir() if p.is_file()) if r.run_dir and Path(r.run_dir).is_dir() else []
     declines = []
@@ -315,10 +284,27 @@ def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
         decision_record=r.decision_record or "",
         flags=flags,
         checks=checks,
-        refutations=refs,
+        lead_design_id=r.lead_design_id,
+        lead_selection=sr.get("lead_selection") or {},
+        context_id=sr.get("context_id") or "",
+        dataset_identity=sr.get("dataset_identity") or "",
+        context_admission=sr.get("context_admission"),
+        context_deficiency=sr.get("context_deficiency"),
+        terminal=sr.get("terminal") or {},
+        candidate_history=sr.get("candidate_history") or [],
+        reasoning_history=sr.get("reasoning_history") or [],
+        context_facts=sr.get("context_facts") or {},
+        designs=sr.get("designs") or {},
+        ledger=sr.get("ledger") or {},
+        candidates=sr.get("candidates") or [],
+        episode_visits=sr.get("episodes") or {},
+        comparisons=sr.get("comparisons") or [],
+        execution_attempts=sr.get("execution_attempts") or [],
+        falsifications=falsifications,
+        sensitivities=sensitivities,
         interpretations=interps,
         estimates=ests,
-        feasibility=FeasibilityView.model_validate(feas) if (feas := sr.get("feasibility") or r.artifacts.get("feasibility")) else None,
+        feasibility=FeasibilityView.model_validate(feas) if (feas := sr.get("feasibility")) else None,
         files=files,
         what_if=dict(r.what_if or {}),
         differs=list(r.differs or []),

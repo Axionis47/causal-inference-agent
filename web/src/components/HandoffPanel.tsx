@@ -47,6 +47,22 @@ function Row({ f, disabled, onEdit }: { f: HandoffField; disabled: boolean; onEd
 export default function HandoffPanel({ h, disabled, onEdit }: { h: HandoffView; disabled: boolean; onEdit: (address: string, value: string) => void }) {
   return (
     <section className="handoff" aria-label="What the analysis will rest on">
+      <p className="mono">
+        Context {h.context_id}, memory v{h.memory_version}, data v{h.data_version}
+      </p>
+      {h.admission && (
+        <details>
+          <summary>Endpoint admission</summary>
+          <ul>
+            {h.admission.endpoints.map((e) => (
+              <li key={e.endpoint_id}>
+                {e.endpoint_id}: {e.status}
+                {e.reason ? `, ${e.reason}` : ""}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <p className="hh">
         <span className="mono">{h.family}</span> via <span className="mono">{h.specialist}</span> · outcome <span className="addr">{h.outcome}</span>
         {h.treatment && (

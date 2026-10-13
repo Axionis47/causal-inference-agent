@@ -8,7 +8,10 @@
     "population_filter": null,
     "window": null,
     "contrast": "switch",
-    "target": "on_treated"
+    "target": "on_treated",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
   },
   "pack_name": "card_krueger",
   "relevant_columns": [
@@ -54,6 +57,53 @@
   "intent": "effect_of_change",
   "design_id": 0,
   "memory_version": 25,
+  "context_id": "44ca93eedd11bfc1b7b6091a",
+  "dataset_identity": "83e0bb08dfab7707cd01db8ece557f083ca086382ada78b8325cb2067c1225ca",
+  "admission": {
+    "family": "discontinuity",
+    "contract": "7d36eb41166c467c92ef",
+    "memory_version": 25,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "sharp_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "eligibility_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "sharp_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "eligibility_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      }
+    ]
+  },
+  "data_version": 0,
   "why": "forced",
   "over": {},
   "csv": "data/raw/card-krueger-minimum-wage/employment.csv",
@@ -534,13 +584,6 @@
     },
     {
       "family": "data",
-      "name": "with_outcome.total_emp_feb",
-      "value": 0.5537823055899392,
-      "passed": null,
-      "detail": "'total_emp_feb' against the outcome 'total_emp_nov': correlation 0.55"
-    },
-    {
-      "family": "data",
       "name": "timing",
       "value": null,
       "passed": null,
@@ -564,7 +607,10 @@
     ],
     "cluster": null,
     "sampled_by_side": false,
-    "cutoff_only": null
+    "cutoff_only": null,
+    "exclusion": null,
+    "monotonicity": null,
+    "local_randomisation": null
   },
   "brief": null
 }

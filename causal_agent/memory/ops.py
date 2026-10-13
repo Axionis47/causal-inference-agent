@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from pydantic import Field as PField
 
 from causal_agent.common.addresses import key as _key
+from causal_agent.common.contracts.endpoints import assess_context
 from causal_agent.memory import checks as C
 from causal_agent.memory import table as T
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, FamilyNeeds, load_catalogue, load_thresholds
@@ -112,6 +113,12 @@ def _coerce(kind: ClaimKind, name: str, raw: Any, columns: dict[str, str]) -> tu
             c = columns.get(_key(str(part)))
             (cols if c is not None else bad).append(c or part)
         return (cols, None) if not bad else (None, f"{kind.name}.{name}: not columns in the file: {bad}")
+    if spec.type in {"integers", "texts"}:
+        parts = s if isinstance(s, list) else [p.strip() for p in str(s).split(",") if p.strip()]
+        try:
+            return ([int(p) for p in parts] if spec.type == "integers" else [str(p) for p in parts]), None
+        except (ValueError, TypeError):
+            return None, f"{kind.name}.{name}: expected a list of integers"
     return None, f"unknown field type {spec.type}"
 
 
@@ -380,6 +387,7 @@ def check(
 ) -> list[Finding]:
     """The data facts on every drafted or confirmed field the file can check, then the consistency rules."""
     cat, th = cat or load_catalogue(), th or load_thresholds()
+    derive_assignment_facts(memory, df)
     table = memory.to_claims(cat)
     out: list[Finding] = []
     for claim in table.claims.values():
@@ -409,14 +417,131 @@ def check(
 def probe(memory: Memory, df: pd.DataFrame, families: Iterable[Any], th: dict | None = None, cat: Catalogue | None = None) -> list[ProbeResult]:
     """Every family's probes over the table; `families` are the registry's entries, each with its `probes` callable."""
     cat, th = cat or load_catalogue(), th or load_thresholds()
+    families = list(families)
+    for family in families:
+        derive = getattr(family, "context_facts", None)
+        if derive is None:
+            continue
+        for address, value in derive(df, memory.to_claims(cat), th).items():
+            existing = memory.field(address)
+            if existing and existing.value == value and existing.status == "confirmed" and existing.source == "data":
+                continue
+            apply(
+                memory,
+                [Update(address=address, value=value, status="confirmed", source="data", reason="registered outcome-blind assignment/context check")],
+                cat,
+            )
     return run_probes(df, memory.to_claims(cat), families, th)
 
 
-def fit(memory: Memory, probes: list[ProbeResult], needs: Mapping[str, FamilyNeeds], columns: list[str] | None = None, cat: Catalogue | None = None) -> Status:
+def derive_assignment_facts(memory: Memory, df: pd.DataFrame) -> None:
+    """Rule compliance is a score/receipt fact, never a target-outcome comparison."""
+
+    def derived(address, value, reason):
+        existing = memory.field(address)
+        if existing and existing.value == value and existing.status == "confirmed" and existing.source == "data":
+            return
+        apply(memory, [Update(address=address, value=value, status="confirmed", source="data", reason=reason)])
+
+    a = memory.values_of("claim:assignment")
+    g, change = memory.values_of("claim:grain"), memory.values_of("claim:change")
+    from causal_agent.profile import datasets as DS
+
+    entry = DS.dataset_entries().get(memory.name) or {}
+    time = change.get("date_column") or entry.get("time")
+    before, after = g.get("before_column"), g.get("after_column")
+    layout = "long" if time and time in df else "wide" if before in df and after in df else None
+    if layout:
+        derived("claim:grain.layout", layout, "recorded unit/time or paired outcome measurement structure")
+    score, cutoff, side = a.get("score_column"), a.get("cutoff"), a.get("treated_side")
+    if not score or score not in df or cutoff is None or side not in {"above", "below"} or a.get("cutoff_value_treated") is None:
+        return
+    numeric = pd.to_numeric(df[score], errors="coerce")
+    eligible = numeric.gt(float(cutoff)) if side == "above" else numeric.lt(float(cutoff))
+    if a["cutoff_value_treated"]:
+        eligible |= numeric.eq(float(cutoff))
+    treatment, level = a.get("treatment_column"), a.get("treated_level")
+    if treatment and (treatment not in df or level is None):
+        return
+    compliance = "sharp"
+    if treatment and treatment in df and level is not None:
+        valid = numeric.notna() & df[treatment].notna()
+        if not valid.any():
+            return
+        try:
+            receipt = df[treatment].eq(float(level)) if pd.api.types.is_numeric_dtype(df[treatment]) else df[treatment].astype(str).eq(str(level))
+        except (ValueError, TypeError):
+            receipt = df[treatment].astype(str).eq(str(level))
+        compliance = "sharp" if receipt[valid].eq(eligible[valid]).all() else "fuzzy"
+    derived("claim:assignment.compliance", compliance, "receipt compared with the declared eligibility rule")
+
+
+def fit(
+    memory: Memory,
+    probes: list[ProbeResult],
+    needs: Mapping[str, FamilyNeeds],
+    columns: list[str] | None = None,
+    cat: Catalogue | None = None,
+    *,
+    target: str = "average",
+    outcome: str | None = None,
+    selected_family: str | None = None,
+    modifiers: list[str] | None = None,
+) -> Status:
     """The family grid. `needs` says what each family requires; `columns` limits the per-column needs to the columns in play,
     so a column nobody named never blocks."""
     cat = cat or load_catalogue()
-    return T.compute(cat, needs, memory.to_claims(cat, columns=columns), probes)
+    status = T.compute(cat, needs, memory.to_claims(cat, columns=columns), probes)
+    bindings: dict[str, str | list[str]] = {
+        "outcome": _key(outcome or ""),
+        "treatment": _key(memory.value("claim:assignment.treatment_column") or ""),
+        "modifier": [_key(c) for c in modifiers or memory.value("claim:target.modifiers") or []],
+        "column": [_key(c) for c in columns or [] if _key(c) not in {_key(outcome or ""), _key(memory.value("claim:assignment.treatment_column") or "")}],
+    }
+    for label, address in (("score", "claim:assignment.score_column"), ("mediator", "claim:mediator.column"), ("instrument", "claim:exclusion.column")):
+        v = memory.value(address)
+        if v:
+            bindings[label] = _key(str(v))
+    if target == "average":
+        target = {"treated": "on_treated", "untreated": "on_untreated", "compliers": "local"}.get(memory.value("claim:target.population"), target)
+    effect = memory.value("claim:target.effect")
+    if effect in {"natural_direct", "natural_indirect", "conditional"}:
+        target = effect
+    aggregation = memory.value("claim:target.aggregation")
+    if aggregation in {"horizon", "horizon_profile", "cohort", "cohort_profile", "cohort_horizon"}:
+        target = aggregation
+    admissions = {
+        name: assess_context(
+            spec.endpoints, memory.fields, family=name, memory_version=memory.version, data_version=memory.data_version, target=target, bindings=bindings
+        )
+        for name, spec in needs.items()
+        if spec.endpoints and name in status.surviving
+    }
+    for family, admission in admissions.items():
+        if not any(e.status not in {"excluded", "unsupported"} for e in admission.endpoints):
+            status.struck[family] = "no endpoint serves the supplied target and configuration"
+            status.surviving = [f for f in status.surviving if f != family]
+    status.endpoint_admissions = admissions
+    status.selected_family = selected_family if selected_family in status.surviving else None
+    chosen = status.selected_family
+    relevant = [admissions[chosen]] if chosen is not None and chosen in admissions else [a for name, a in admissions.items() if name in status.surviving]
+    if relevant:
+        status.ready = all(a.ready for a in relevant) if status.selected_family else any(a.ready for a in relevant)
+    elif admissions:
+        status.ready = False
+    if chosen is not None and chosen in admissions:
+        obligations = [o for e in admissions[chosen].endpoints if e.status not in {"excluded", "unsupported"} for o in e.obligations]
+
+        def claim_key(address: str) -> str:
+            where, name, _ = Memory.parse(address)
+            return f"col:{name}" if where == "col" else name
+
+        required = list(dict.fromkeys(claim_key(o.address) for o in obligations))
+        missing = {claim_key(o.address) for o in obligations if o.status in {"missing", "failed"}}
+        status.required = required
+        status.open = [name for name in required if name in missing]
+        status.settled = [name for name in required if name not in missing]
+    return status
 
 
 class Open(BaseModel):
@@ -491,6 +616,30 @@ def open(
     then the drafts the model left on settled claims (what the person has not confirmed yet, never blocking), in the table's order.
     A field a surviving family's decision rests on is asked too, when it is empty; it does not block."""
     cat = cat or load_catalogue()
+    if status.endpoint_admissions and status.selected_family in status.endpoint_admissions:
+        admission = status.endpoint_admissions[status.selected_family]
+        opened = []
+        for address in admission.missing:
+            where, name, field = Memory.parse(address)
+            if field is None:
+                continue
+            kind = cat.kinds.get(COLUMN_KIND if where == "col" else name)
+            if kind is None or field not in kind.fields:
+                continue
+            f = memory.field(address) or Field()
+            opened.append(
+                Open(
+                    address=address,
+                    kind=kind.name,
+                    field=field,
+                    status=f.status,
+                    options=_options(kind, field),
+                    optional=False,
+                    because=[status.selected_family],
+                    frame=kind.frame,
+                )
+            )
+        return opened
     requires = {f: fam.requires for f, fam in needs.items()}
     asked = asked_fields(memory, needs, status.surviving, columns, cat, exclude)
     out: list[Open] = []

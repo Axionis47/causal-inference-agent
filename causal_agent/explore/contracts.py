@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from causal_agent.common.contracts import Thought
 
-Dropped = Literal["outcome", "treatment"]
+Dropped = Literal["outcome"]
 Product = Literal["look", "table"]
 
 
@@ -24,7 +24,7 @@ class ExploreRequest(BaseModel):
     out_dir: Path = Field(description="the only place the agent writes: the artifact's folder")
     outcome: str | None = Field(default=None, description="the outcome column, by the file's own name")
     treatment: str | None = Field(default=None, description="the column that records who got the change, by the file's own name")
-    dropped: Dropped | None = Field(default=None, description="which of the pair was taken out of the table sent; None after the freeze")
+    dropped: Dropped | None = Field(default=None, description="the outcome held back from the table before a frozen run")
     frozen: bool = Field(default=False, description="a design has run: the outcome may be seen beside the treatment")
     design: int | None = Field(default=None, description="the design run the ask is about; None before any run")
     memory_version: int = 0
@@ -37,8 +37,6 @@ class ExploreRequest(BaseModel):
     def dropped_name(self) -> str | None:
         if self.dropped == "outcome":
             return self.outcome
-        if self.dropped == "treatment":
-            return self.treatment
         return None
 
 

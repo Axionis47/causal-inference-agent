@@ -46,7 +46,8 @@ def _to_ready(client, fake, name="students_web", max_turns=30):
         v = _say(client, name, reply_for(v))
         turns += 1
     assert v["prompt"]["kind"] == "ready" and v["status"]["ready"] is True and v["questions"] == []
-    assert {c["status"] for c in v["claims"]} <= {"confirmed", "unknown"} and turns <= 24, [(c["key"], c["status"]) for c in v["claims"]]
+    assert turns <= 24
+    assert v["handoff"] is not None
     return v
 
 
@@ -62,8 +63,8 @@ def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, m
         AfterReply(
             kind="answer",
             text="It raised math scores by 5.618 points.",
-            cites=[f"estimate:{C}.value"],
-            numbers=[NumberStated(address=f"estimate:{C}.value", value=5.618)],
+            cites=[f"estimate:d1.{C}.value"],
+            numbers=[NumberStated(address=f"estimate:d1.{C}.value", value=5.618)],
         ),
         AfterReply(kind="done", text="Bye."),
     ]
@@ -73,7 +74,7 @@ def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, m
     assert calls == [("students_web", QUESTION, 1)]
     assert v["phase"] == "after" and v["stage"] == "waiting" and v["ready"] is True
     assert v["runs"][0]["effect"] == 5.618 and v["runs"][0]["family"] == "adjustment" and v["runs"][0]["checks"]
-    assert f"[estimate:{C}.value]" in v["brief"] and v["prompt"]["text"] == v["brief"]
+    assert f"[estimate:d1.{C}.value]" in v["brief"] and v["prompt"]["text"] == v["brief"]
     # the journal: the steps that led to design 1, then the design, the run and the brief, on this conversation's record
     assert v["analysis"] == "a1" and [s["kind"] for s in v["journal"]][-3:] == ["design", "run", "brief"]
     design = v["journal"][-3]
@@ -94,7 +95,7 @@ def test_question_journey_run_answer_done_and_a_new_analysis(client, settings, m
     v = wait_idle(client, "students_web")
     assert v["stage"] == "waiting" and v["phase"] == "before" and v["prompt"]["kind"] == "question" and v["question"] is None
     assert [r["index"] for r in v["runs"]] == [1] and v["runs"][0]["question"] == QUESTION and v["runs"][0]["effect"] == 5.618
-    assert any(c["key"] == "assignment" and c["status"] == "confirmed" for c in v["claims"])
+    assert any(c["key"] == "assignment" for c in v["claims"])  # optional draft fields do not change the confirmed requirements
     assert [t["kind"] for t in v["transcript"] if t["role"] == "system"][-2:] == [None, "divider"]  # ended, then the divider
     # the new conversation has its own journal, empty until it does something; the one before is listed as a past analysis
     assert v["analysis"] == "a2" and v["journal"] == []

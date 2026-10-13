@@ -1,0 +1,2179 @@
+{
+  "family": "discontinuity",
+  "specialist": "rdrobust",
+  "supported_now": true,
+  "outcome": "vote",
+  "treatment": "margin",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "senate",
+  "relevant_columns": [],
+  "chosen_assumption": "forced hand-off",
+  "reasons": [
+    {
+      "reason": "the outcome the question names",
+      "cites": [
+        "col:vote.note"
+      ]
+    },
+    {
+      "reason": "the change asked about",
+      "cites": [
+        "col:margin.note"
+      ]
+    }
+  ],
+  "question": "Does narrowly winning a Senate seat raise Democratic vote share at the next election?",
+  "story": "# US Senate Elections 1914 to 2010\n\n## About the dataset\nEach row is one US Senate election: a state and a year. There are 1,390 rows over 50 states and 49 election years from 1914, the first year of popular Senate elections, to 2010. A state appears 16 to 33 times, once for each election of either of its two seats, so rows within a state are related and state can serve as a cluster. The file is not sampled by side of the cutoff; it holds every election in the period with the needed returns. Data are from Cattaneo, Frandsen and Titiunik's 2015 study and ship inside the rdrobust Python package as data/rdrobust_RDsenate.csv under GPL-3; senate.csv is that table written out unchanged. [rdrobust package data; Cattaneo, Frandsen and Titiunik 2015]\n\n## What changed\n**A Democrat wins the seat at election t.** The score is margin, the Democratic margin of victory at election t in percentage points of the vote. The cutoff is 0. A margin at or above 0 means the Democrat won the seat and the party holds it for the six-year term; a margin below 0 means the Democrat lost. No row sits exactly at 0. Margins run continuously from -100 to 100: 50 elections were decided by less than two points against the Democrat and 52 by less than two points in the Democrat's favour, so elections sit just below and just above the cutoff. There is no take-up column: treatment is the cutoff rule itself, 1 when margin is at or above 0. The outcome is vote, the Democratic vote share at election t+2, the next election for the same seat six years later. [Cattaneo, Frandsen and Titiunik 2015]\n\n## About each column\n**state** - State name. Fixed. Repeated across elections, so usable as a cluster. [rdrobust package docs]\n\n**year** - Year of election t, 1914 to 2010. [rdrobust package docs]\n\n**margin** - The score. Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost. Set by the election t result. [rdrobust package docs; Cattaneo, Frandsen and Titiunik 2015]\n\n**vote** - The outcome. Democratic vote share at election t+2, the next election for the same seat, in percent. Measured six years after the score. Missing for 93 rows. [rdrobust package docs]\n\n**class** - Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0. Fixed before election t. [Cattaneo, Frandsen and Titiunik 2015; rdrobust package docs]\n\n**termshouse** - Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t. Missing for 282 rows. [rdrobust package docs]\n\n**termssenate** - Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t. Missing for 282 rows. [rdrobust package docs]\n\n**dopen** - 1 if the seat was open at election t, that is no incumbent ran. Known before the vote. Missing for 10 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**population** - State population in the election year. Fixed before the vote. [rdrobust package docs]\n\n**presdemvoteshlag1** - Democratic vote share in the state at the presidential election before t (t-1), in percent. Fixed before the score. Missing for 3 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshlag1** - Democratic vote share at the state's previous Senate election (t-1), in percent. A lag of an earlier election, fixed before the score. Missing for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshlag2** - Democratic vote share at the state's Senate election two before t (t-2), in percent. A lag, fixed before the score. Missing for 82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshfor1** - Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat. Measured after the score, so it is a later outcome, not a covariate. Missing for 49 rows. [Cattaneo, Frandsen and Titiunik 2015]\n\n**demwinprv1** - 1 if the Democrat won the state's previous Senate election (t-1). Derived from that earlier result, fixed before the score. Missing for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demwinprv2** - 1 if the Democrat won the state's Senate election two before t (t-2). Derived from that earlier result, fixed before the score. Missing for 82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**dmidterm** - 1 if election t was a midterm election, that is the year is not a presidential year. Set by the calendar. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**dpresdem** - 1 if the sitting president at election t was a Democrat. In the file it is 1 for 1914 to 1920 and 1934 to 1940 and 0 for 1922 to 1932, matching the president's party. Fixed before the vote. [rdrobust package docs; file check]",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 65,
+  "context_id": "3fa5e76bdd62b8a35096782d",
+  "dataset_identity": "b4945c5cb7ddad6c74829bc01954d95ff889ab0491a6d9bedc7ff4d27c84ab35",
+  "admission": {
+    "family": "discontinuity",
+    "contract": "7d36eb41166c467c92ef",
+    "memory_version": 65,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "sharp_local_polynomial",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "target_locality",
+            "address": "claim:target.locality",
+            "status": "met",
+            "reason": "confirmed by eval:senate_cutoff_protocol",
+            "cites": [
+              "claim:target.locality"
+            ]
+          },
+          {
+            "id": "rule",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "score",
+            "address": "claim:assignment.score_column",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:assignment.score_column"
+            ]
+          },
+          {
+            "id": "cutoff",
+            "address": "claim:assignment.cutoff",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:assignment.cutoff"
+            ]
+          },
+          {
+            "id": "side",
+            "address": "claim:assignment.treated_side",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:assignment.treated_side"
+            ]
+          },
+          {
+            "id": "equality",
+            "address": "claim:assignment.cutoff_value_treated",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:assignment.cutoff_value_treated"
+            ]
+          },
+          {
+            "id": "timing:col:margin.when",
+            "address": "col:margin.when",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "col:margin.when"
+            ]
+          },
+          {
+            "id": "movability",
+            "address": "claim:assignment.movable",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:assignment.movable"
+            ]
+          },
+          {
+            "id": "other_changes",
+            "address": "claim:cutoff_only.believed",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:cutoff_only.believed"
+            ]
+          },
+          {
+            "id": "unit",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by eval:senate_study_account",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "compliance",
+            "address": "claim:assignment.compliance",
+            "status": "met",
+            "reason": "confirmed by data",
+            "cites": [
+              "claim:assignment.compliance"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "fuzzy_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "eligibility_local_polynomial",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "sharp_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "fuzzy_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "eligibility_local_randomisation",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "forced",
+  "over": {},
+  "csv": "data/raw/senate-incumbency/senate.csv",
+  "dataset_facts": {
+    "rows": 1390,
+    "columns": 17,
+    "duplicate_rows": 0,
+    "grain": [],
+    "time_coverage": null,
+    "entity_summary": {
+      "columns": [
+        "state"
+      ],
+      "entities": 50,
+      "rows_per_entity_min": 16,
+      "rows_per_entity_median": 28.0,
+      "rows_per_entity_max": 33
+    },
+    "format_issues": []
+  },
+  "grain": {
+    "panel": true,
+    "key_columns": [
+      "state",
+      "year"
+    ],
+    "row_is": "one US Senate election",
+    "nesting": [
+      "state"
+    ],
+    "layout": "long"
+  },
+  "sampling": {
+    "how": "whole",
+    "detail": "every election in the period with the needed returns"
+  },
+  "missing": {},
+  "treated_level": null,
+  "control_level": null,
+  "columns": [
+    {
+      "name": "vote",
+      "key": "vote",
+      "role": "outcome",
+      "meaning": "Democratic vote share at election t+2, the next election for the same seat, in percent.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Democratic vote share at election t+2, the next election for the same seat, in percent.",
+          "reason": "The text explicitly defines 'vote' as 'Democratic vote share at election t+2, the next election for the same seat, in percent'."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Measured six years after the score.",
+          "reason": "The text states the column is 'Measured six years after the score', indicating it is set after the change."
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "The outcome.",
+          "reason": "The text explicitly states 'vote' is 'The outcome'."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 93,
+        "null_rate": 0.066906,
+        "distinct": 1251,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 52.666268,
+          "p01": 0.0,
+          "p25": 42.671333,
+          "p50": 50.547523,
+          "p75": 61.348957,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "margin",
+      "key": "margin",
+      "role": "treatment",
+      "meaning": "Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": true,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost.",
+          "reason": "The text explicitly defines 'margin' and its meaning in relation to the cutoff."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Set by the election t result.",
+          "reason": "The text states the column is 'Set by the election t result', meaning it is set at the time of the election."
+        },
+        "feeds_treatment": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "The cutoff is 0: at or above 0 the Democrat won and the row is treated",
+          "reason": "The 'margin' column is explicitly used to determine treatment status based on the cutoff rule."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1352,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": -100.0,
+          "max": 100.0,
+          "mean": 7.171159,
+          "p01": -67.70837304999999,
+          "p25": -12.205825749999999,
+          "p50": 2.16564845,
+          "p75": 22.76606725,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "year",
+      "key": "year",
+      "role": "time",
+      "meaning": "Year of election t, 1914 to 2010.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Year of election t, 1914 to 2010.",
+          "reason": "The text explicitly defines 'year' as 'Year of election t, 1914 to 2010'."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Year of election t",
+          "reason": "The column is described as the 'Year of election t', meaning it is set at the time of the election."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 49,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 1914.0,
+          "max": 2010.0,
+          "mean": 1964.630216,
+          "p01": 1914.0,
+          "p25": 1940.5,
+          "p50": 1966.0,
+          "p75": 1988.0,
+          "p99": 2010.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "state",
+      "key": "state",
+      "role": "unit",
+      "meaning": "State name.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "State name.",
+          "reason": "The text explicitly defines 'state' as 'State name'."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed.",
+          "reason": "The column is described as 'Fixed', implying its value is set before the change."
+        },
+        "may_modify": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Repeated across elections, so usable as a cluster.",
+          "reason": "The text states 'state can serve as a cluster', indicating that effects might differ by state."
+        }
+      },
+      "facts": {
+        "kind": "id",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 50,
+        "constant": false,
+        "varies_over": "entity",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "class",
+      "key": "class",
+      "role": "candidate",
+      "meaning": "Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": true,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0.",
+          "reason": "The text explicitly defines 'class' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before election t.",
+          "reason": "The text states the column is 'Fixed before election t', indicating it is set before the change."
+        },
+        "may_modify": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "The class fixes which years the seat is contested",
+          "reason": "The class determines when the seat is contested, suggesting the effect of the change could differ by class."
+        }
+      },
+      "facts": {
+        "kind": "categorical",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 3,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "3",
+            "count": 487,
+            "share": 0.3504
+          },
+          {
+            "value": "1",
+            "count": 455,
+            "share": 0.3273
+          },
+          {
+            "value": "2",
+            "count": 448,
+            "share": 0.3223
+          }
+        ],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "termshouse",
+      "key": "termshouse",
+      "role": "candidate",
+      "meaning": "Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t.",
+          "reason": "The text explicitly defines 'termshouse' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "A characteristic at election t.",
+          "reason": "The text states the column is 'A characteristic at election t', meaning it is set at the time of the election."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 282,
+        "null_rate": 0.202878,
+        "distinct": 12,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 0.0,
+          "max": 16.0,
+          "mean": 1.436823,
+          "p01": 0.0,
+          "p25": 0.0,
+          "p50": 0.0,
+          "p75": 2.0,
+          "p99": 8.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "termssenate",
+      "key": "termssenate",
+      "role": "candidate",
+      "meaning": "Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t.",
+          "reason": "The text explicitly defines 'termssenate' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "A characteristic at election t.",
+          "reason": "The text states the column is 'A characteristic at election t', meaning it is set at the time of the election."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 282,
+        "null_rate": 0.202878,
+        "distinct": 19,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 1.0,
+          "max": 20.0,
+          "mean": 4.555957,
+          "p01": 1.0,
+          "p25": 1.0,
+          "p50": 4.0,
+          "p75": 7.0,
+          "p99": 16.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "dopen",
+      "key": "dopen",
+      "role": "candidate",
+      "meaning": "1 if the seat was open at election t, that is no incumbent ran.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "1 if the seat was open at election t, that is no incumbent ran.",
+          "reason": "The text explicitly defines 'dopen' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Known before the vote.",
+          "reason": "The text states the column is 'Known before the vote', indicating it is set before the change."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 10,
+        "null_rate": 0.007194,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": {
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.247101,
+          "p01": 0.0,
+          "p25": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p99": 1.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "population",
+      "key": "population",
+      "role": "candidate",
+      "meaning": "State population in the election year.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "State population in the election year.",
+          "reason": "The text explicitly defines 'population' as 'State population in the election year'."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the vote.",
+          "reason": "The text states the column is 'Fixed before the vote', indicating it is set before the change."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1333,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 78000.0,
+          "max": 37253956.0,
+          "mean": 3827918.925899,
+          "p01": 219340.0,
+          "p25": 997056.0,
+          "p50": 2554388.5,
+          "p75": 4663226.0,
+          "p99": 21230675.59999995
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "presdemvoteshlag1",
+      "key": "presdemvoteshlag1",
+      "role": "candidate",
+      "meaning": "Democratic vote share in the state at the presidential election before t (t-1), in percent.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Democratic vote share in the state at the presidential election before t (t-1), in percent.",
+          "reason": "The text explicitly defines 'presdemvoteshlag1' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the score.",
+          "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 3,
+        "null_rate": 0.002158,
+        "distinct": 1090,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 0.0,
+          "max": 97.034081,
+          "mean": 46.119746,
+          "p01": 0.0,
+          "p25": 38.755337,
+          "p50": 45.483898,
+          "p75": 53.0638235,
+          "p99": 91.392754
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "demvoteshlag1",
+      "key": "demvoteshlag1",
+      "role": "candidate",
+      "meaning": "Democratic vote share at the state's previous Senate election (t-1), in percent.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Democratic vote share at the state's previous Senate election (t-1), in percent.",
+          "reason": "The text explicitly defines 'demvoteshlag1' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the score.",
+          "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 41,
+        "null_rate": 0.029496,
+        "distinct": 1294,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 52.690476,
+          "p01": 0.0,
+          "p25": 42.753513,
+          "p50": 50.176228,
+          "p75": 60.609394,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "demvoteshlag2",
+      "key": "demvoteshlag2",
+      "role": "candidate",
+      "meaning": "Democratic vote share at the state's Senate election two before t (t-2), in percent.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Democratic vote share at the state's Senate election two before t (t-2), in percent.",
+          "reason": "The text explicitly defines 'demvoteshlag2' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the score.",
+          "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 82,
+        "null_rate": 0.058993,
+        "distinct": 1259,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 52.869176,
+          "p01": 0.0,
+          "p25": 43.202616,
+          "p50": 50.191576,
+          "p75": 60.559329250000005,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "demvoteshfor1",
+      "key": "demvoteshfor1",
+      "role": "candidate",
+      "meaning": "Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": true,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat.",
+          "reason": "The text explicitly defines 'demvoteshfor1' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Measured after the score",
+          "reason": "The text states the column is 'Measured after the score', indicating it is set after the change."
+        },
+        "measures_outcome": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "so it is a later outcome, not a covariate.",
+          "reason": "The text explicitly states 'it is a later outcome, not a covariate'."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 49,
+        "null_rate": 0.035252,
+        "distinct": 1288,
+        "constant": false,
+        "varies_over": "both",
+        "numeric": {
+          "min": 0.0,
+          "max": 100.0,
+          "mean": 52.418561,
+          "p01": 0.0,
+          "p25": 42.495945,
+          "p50": 50.206924,
+          "p75": 60.714085,
+          "p99": 100.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "demwinprv1",
+      "key": "demwinprv1",
+      "role": "candidate",
+      "meaning": "1 if the Democrat won the state's previous Senate election (t-1).",
+      "stands_for": null,
+      "proxy": "derived",
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "1 if the Democrat won the state's previous Senate election (t-1).",
+          "reason": "The text explicitly defines 'demwinprv1' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the score.",
+          "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change."
+        },
+        "proxy": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Derived from that earlier result",
+          "reason": "The text states the column is 'Derived from that earlier result'."
+        },
+        "derived_from": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Derived from that earlier result",
+          "reason": "The column 'demwinprv1' is derived from the previous election's result, which is captured by 'demvoteshlag1'."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 41,
+        "null_rate": 0.029496,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": {
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.544107,
+          "p01": 0.0,
+          "p25": 0.0,
+          "p50": 1.0,
+          "p75": 1.0,
+          "p99": 1.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "demwinprv2",
+      "key": "demwinprv2",
+      "role": "candidate",
+      "meaning": "1 if the Democrat won the state's Senate election two before t (t-2).",
+      "stands_for": null,
+      "proxy": "derived",
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "1 if the Democrat won the state's Senate election two before t (t-2).",
+          "reason": "The text explicitly defines 'demwinprv2' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the score.",
+          "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change."
+        },
+        "proxy": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Derived from that earlier result",
+          "reason": "The text states the column is 'Derived from that earlier result'."
+        },
+        "derived_from": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Derived from that earlier result",
+          "reason": "The column 'demwinprv2' is derived from the election result two before t, which is captured by 'demvoteshlag2'."
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 82,
+        "null_rate": 0.058993,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": {
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.543578,
+          "p01": 0.0,
+          "p25": 0.0,
+          "p50": 1.0,
+          "p75": 1.0,
+          "p99": 1.0
+        },
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "dmidterm",
+      "key": "dmidterm",
+      "role": "candidate",
+      "meaning": "1 if election t was a midterm election, that is the year is not a presidential year.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "1 if election t was a midterm election, that is the year is not a presidential year.",
+          "reason": "The text explicitly defines 'dmidterm' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Set by the calendar.",
+          "reason": "The text states the column is 'Set by the calendar', implying it is known and fixed before the election."
+        }
+      },
+      "facts": {
+        "kind": "boolean",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "1",
+            "count": 714,
+            "share": 0.5137
+          },
+          {
+            "value": "0",
+            "count": 676,
+            "share": 0.4863
+          }
+        ],
+        "datetime": null,
+        "switch": {
+          "entities_that_switch": 50,
+          "entities_never_on": 0,
+          "entities_always_on": 0,
+          "switches_per_entity_median": 15.5,
+          "first_on": "0",
+          "last_entity_first_on": "1374"
+        },
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "dpresdem",
+      "key": "dpresdem",
+      "role": "candidate",
+      "meaning": "1 if the sitting president at election t was a Democrat.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": null,
+      "source": "doc:context",
+      "provenance": {
+        "meaning": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "1 if the sitting president at election t was a Democrat.",
+          "reason": "The text explicitly defines 'dpresdem' and its meaning."
+        },
+        "when": {
+          "status": "drafted",
+          "source": "doc:context",
+          "said": "Fixed before the vote.",
+          "reason": "The text states the column is 'Fixed before the vote', indicating it is set before the change."
+        }
+      },
+      "facts": {
+        "kind": "boolean",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "time",
+        "numeric": null,
+        "top_values": [
+          {
+            "value": "0",
+            "count": 850,
+            "share": 0.6115
+          },
+          {
+            "value": "1",
+            "count": 540,
+            "share": 0.3885
+          }
+        ],
+        "datetime": null,
+        "switch": {
+          "entities_that_switch": 50,
+          "entities_never_on": 0,
+          "entities_always_on": 0,
+          "switches_per_entity_median": 7.0,
+          "first_on": "0",
+          "last_entity_first_on": "1374"
+        },
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {
+    "what": "A Democrat wins the seat",
+    "to_whom": "the seat",
+    "when": "at election t",
+    "date_column": "year"
+  },
+  "assignment": {
+    "kind": "cutoff_rule",
+    "rule": "A margin at or above 0 means the Democrat won the seat and the party holds it for the six-year term; a margin below 0 means the Democrat lost.",
+    "score_column": "margin",
+    "cutoff": 0.0,
+    "treated_side": "above",
+    "cutoff_value_treated": true,
+    "treatment_column": "margin",
+    "compliance": "sharp"
+  },
+  "facts": {
+    "claim:grain.panel": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A state appears 16 to 33 times, once for each election of either of its two seats, so rows within a state are related",
+      "reason": "The description indicates that states appear multiple times across different elections, making it a panel dataset.",
+      "value": true
+    },
+    "claim:grain.key_columns": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "a state and a year",
+      "reason": "The text identifies 'a state and a year' as what constitutes one US Senate election, implying they are key identifiers.",
+      "value": [
+        "state",
+        "year"
+      ]
+    },
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "Each row is one US Senate election",
+      "reason": "The text explicitly states what each row represents.",
+      "value": "one US Senate election"
+    },
+    "claim:grain.nesting": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "state can serve as a cluster",
+      "reason": "The text explicitly states that 'state can serve as a cluster', indicating it's a nesting column.",
+      "value": [
+        "state"
+      ]
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "it holds every election in the period with the needed returns",
+      "reason": "The text states that the file contains 'every election' in the specified period, indicating a whole population sample.",
+      "value": "whole"
+    },
+    "claim:sampling.detail": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "it holds every election in the period with the needed returns",
+      "reason": "This is a direct quote describing the sampling method.",
+      "value": "every election in the period with the needed returns"
+    },
+    "claim:change.what": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A Democrat wins the seat at election t.",
+      "reason": "The text directly states 'What changed' is 'A Democrat wins the seat at election t'.",
+      "value": "A Democrat wins the seat"
+    },
+    "claim:change.to_whom": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A Democrat wins the seat at election t.",
+      "reason": "The change is described as happening to 'the seat'.",
+      "value": "the seat"
+    },
+    "claim:change.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A Democrat wins the seat at election t.",
+      "reason": "The text specifies the change occurs 'at election t'.",
+      "value": "at election t"
+    },
+    "claim:change.date_column": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Year of election t",
+      "reason": "The 'year' column is described as the 'Year of election t', which aligns with the 'when' of the change.",
+      "value": "year"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "The cutoff is 0. A margin at or above 0 means the Democrat won the seat",
+      "reason": "The assignment is determined by a numerical cutoff on the 'margin' score.",
+      "value": "cutoff_rule"
+    },
+    "claim:assignment.rule": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A margin at or above 0 means the Democrat won the seat and the party holds it for the six-year term; a margin below 0 means the Democrat lost.",
+      "reason": "This is the explicit rule stated for assignment.",
+      "value": "A margin at or above 0 means the Democrat won the seat and the party holds it for the six-year term; a margin below 0 means the Democrat lost."
+    },
+    "claim:assignment.score_column": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "The score is margin",
+      "reason": "The text explicitly states 'The score is margin'.",
+      "value": "margin"
+    },
+    "claim:assignment.cutoff": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "The cutoff is 0.",
+      "reason": "The text explicitly states 'The cutoff is 0'.",
+      "value": 0.0
+    },
+    "claim:assignment.treated_side": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "A margin at or above 0 means the Democrat won the seat",
+      "reason": "Units with a margin 'at or above 0' are treated, indicating the treated side is 'above' the cutoff.",
+      "value": "above"
+    },
+    "claim:assignment.cutoff_value_treated": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "A margin at or above 0 means the Democrat won the seat",
+      "reason": "The text states 'at or above 0' means the Democrat won, so the cutoff value itself is treated.",
+      "value": true
+    },
+    "claim:assignment.treatment_column": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "treatment is the cutoff rule itself, 1 when margin is at or above 0.",
+      "reason": "The 'margin' column directly determines treatment status based on the cutoff rule.",
+      "value": "margin"
+    },
+    "col:state.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "State name.",
+      "reason": "The text explicitly defines 'state' as 'State name'.",
+      "value": "State name."
+    },
+    "col:state.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed.",
+      "reason": "The column is described as 'Fixed', implying its value is set before the change.",
+      "value": "before"
+    },
+    "col:state.may_modify": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Repeated across elections, so usable as a cluster.",
+      "reason": "The text states 'state can serve as a cluster', indicating that effects might differ by state.",
+      "value": true
+    },
+    "col:year.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Year of election t, 1914 to 2010.",
+      "reason": "The text explicitly defines 'year' as 'Year of election t, 1914 to 2010'.",
+      "value": "Year of election t, 1914 to 2010."
+    },
+    "col:year.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Year of election t",
+      "reason": "The column is described as the 'Year of election t', meaning it is set at the time of the election.",
+      "value": "at"
+    },
+    "col:margin.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost.",
+      "reason": "The text explicitly defines 'margin' and its meaning in relation to the cutoff.",
+      "value": "Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost."
+    },
+    "col:margin.when": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "Set by the election t result.",
+      "reason": "The text states the column is 'Set by the election t result', meaning it is set at the time of the election.",
+      "value": "at"
+    },
+    "col:margin.feeds_treatment": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "The cutoff is 0: at or above 0 the Democrat won and the row is treated",
+      "reason": "The 'margin' column is explicitly used to determine treatment status based on the cutoff rule.",
+      "value": true
+    },
+    "col:vote.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Democratic vote share at election t+2, the next election for the same seat, in percent.",
+      "reason": "The text explicitly defines 'vote' as 'Democratic vote share at election t+2, the next election for the same seat, in percent'.",
+      "value": "Democratic vote share at election t+2, the next election for the same seat, in percent."
+    },
+    "col:vote.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Measured six years after the score.",
+      "reason": "The text states the column is 'Measured six years after the score', indicating it is set after the change.",
+      "value": "after"
+    },
+    "col:vote.measures_outcome": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "The outcome.",
+      "reason": "The text explicitly states 'vote' is 'The outcome'.",
+      "value": true
+    },
+    "col:class.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0.",
+      "reason": "The text explicitly defines 'class' and its meaning.",
+      "value": "Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0."
+    },
+    "col:class.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before election t.",
+      "reason": "The text states the column is 'Fixed before election t', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:class.may_modify": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "The class fixes which years the seat is contested",
+      "reason": "The class determines when the seat is contested, suggesting the effect of the change could differ by class.",
+      "value": true
+    },
+    "col:termshouse.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t.",
+      "reason": "The text explicitly defines 'termshouse' and its meaning.",
+      "value": "Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t."
+    },
+    "col:termshouse.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A characteristic at election t.",
+      "reason": "The text states the column is 'A characteristic at election t', meaning it is set at the time of the election.",
+      "value": "at"
+    },
+    "col:termssenate.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t.",
+      "reason": "The text explicitly defines 'termssenate' and its meaning.",
+      "value": "Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t."
+    },
+    "col:termssenate.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "A characteristic at election t.",
+      "reason": "The text states the column is 'A characteristic at election t', meaning it is set at the time of the election.",
+      "value": "at"
+    },
+    "col:dopen.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "1 if the seat was open at election t, that is no incumbent ran.",
+      "reason": "The text explicitly defines 'dopen' and its meaning.",
+      "value": "1 if the seat was open at election t, that is no incumbent ran."
+    },
+    "col:dopen.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Known before the vote.",
+      "reason": "The text states the column is 'Known before the vote', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:population.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "State population in the election year.",
+      "reason": "The text explicitly defines 'population' as 'State population in the election year'.",
+      "value": "State population in the election year."
+    },
+    "col:population.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the vote.",
+      "reason": "The text states the column is 'Fixed before the vote', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:presdemvoteshlag1.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Democratic vote share in the state at the presidential election before t (t-1), in percent.",
+      "reason": "The text explicitly defines 'presdemvoteshlag1' and its meaning.",
+      "value": "Democratic vote share in the state at the presidential election before t (t-1), in percent."
+    },
+    "col:presdemvoteshlag1.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the score.",
+      "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:demvoteshlag1.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Democratic vote share at the state's previous Senate election (t-1), in percent.",
+      "reason": "The text explicitly defines 'demvoteshlag1' and its meaning.",
+      "value": "Democratic vote share at the state's previous Senate election (t-1), in percent."
+    },
+    "col:demvoteshlag1.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the score.",
+      "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:demvoteshlag2.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Democratic vote share at the state's Senate election two before t (t-2), in percent.",
+      "reason": "The text explicitly defines 'demvoteshlag2' and its meaning.",
+      "value": "Democratic vote share at the state's Senate election two before t (t-2), in percent."
+    },
+    "col:demvoteshlag2.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the score.",
+      "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:demvoteshfor1.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat.",
+      "reason": "The text explicitly defines 'demvoteshfor1' and its meaning.",
+      "value": "Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat."
+    },
+    "col:demvoteshfor1.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Measured after the score",
+      "reason": "The text states the column is 'Measured after the score', indicating it is set after the change.",
+      "value": "after"
+    },
+    "col:demvoteshfor1.measures_outcome": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "so it is a later outcome, not a covariate.",
+      "reason": "The text explicitly states 'it is a later outcome, not a covariate'.",
+      "value": true
+    },
+    "col:demwinprv1.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "1 if the Democrat won the state's previous Senate election (t-1).",
+      "reason": "The text explicitly defines 'demwinprv1' and its meaning.",
+      "value": "1 if the Democrat won the state's previous Senate election (t-1)."
+    },
+    "col:demwinprv1.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the score.",
+      "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:demwinprv1.proxy": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Derived from that earlier result",
+      "reason": "The text states the column is 'Derived from that earlier result'.",
+      "value": "derived"
+    },
+    "col:demwinprv1.derived_from": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Derived from that earlier result",
+      "reason": "The column 'demwinprv1' is derived from the previous election's result, which is captured by 'demvoteshlag1'.",
+      "value": [
+        "demvoteshlag1"
+      ]
+    },
+    "col:demwinprv2.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "1 if the Democrat won the state's Senate election two before t (t-2).",
+      "reason": "The text explicitly defines 'demwinprv2' and its meaning.",
+      "value": "1 if the Democrat won the state's Senate election two before t (t-2)."
+    },
+    "col:demwinprv2.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the score.",
+      "reason": "The text states the column is 'Fixed before the score', indicating it is set before the change.",
+      "value": "before"
+    },
+    "col:demwinprv2.proxy": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Derived from that earlier result",
+      "reason": "The text states the column is 'Derived from that earlier result'.",
+      "value": "derived"
+    },
+    "col:demwinprv2.derived_from": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Derived from that earlier result",
+      "reason": "The column 'demwinprv2' is derived from the election result two before t, which is captured by 'demvoteshlag2'.",
+      "value": [
+        "demvoteshlag2"
+      ]
+    },
+    "col:dmidterm.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "1 if election t was a midterm election, that is the year is not a presidential year.",
+      "reason": "The text explicitly defines 'dmidterm' and its meaning.",
+      "value": "1 if election t was a midterm election, that is the year is not a presidential year."
+    },
+    "col:dmidterm.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Set by the calendar.",
+      "reason": "The text states the column is 'Set by the calendar', implying it is known and fixed before the election.",
+      "value": "before"
+    },
+    "col:dpresdem.meaning": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "1 if the sitting president at election t was a Democrat.",
+      "reason": "The text explicitly defines 'dpresdem' and its meaning.",
+      "value": "1 if the sitting president at election t was a Democrat."
+    },
+    "col:dpresdem.when": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "Fixed before the vote.",
+      "reason": "The text states the column is 'Fixed before the vote', indicating it is set before the change.",
+      "value": "before"
+    },
+    "claim:story.text": {
+      "status": "drafted",
+      "source": "doc:context",
+      "said": "# US Senate Elections 1914 to 2010\n\n## About the dataset\nEach row is one US Senate election: a state and a year. There are 1,390 rows over 50 states and 49 election years from 1914, the first year of popular Senate elections, to 2010. A state appears 16 to 33 times, once for each election of either of its two seats, so rows within a state are related and state can serve as a cluster. The file is not sampled by side of the cutoff; it holds every election in the period with the needed returns. Data are from Cattaneo, Frandsen and Titiunik's 2015 study and ship inside the rdrobust Python package as data/rdrobust_RDsenate.csv under GPL-3; senate.csv is that table written out unchanged. [rdrobust package data; Cattaneo, Frandsen and Titiunik 2015]\n\n## What changed\n**A Democrat wins the seat at election t.** The score is margin, the Democratic margin of victory at election t in percentage points of the vote. The cutoff is 0. A margin at or above 0 means the Democrat won the seat and the party holds it for the six-year term; a margin below 0 means the Democrat lost. No row sits exactly at 0. Margins run continuously from -100 to 100: 50 elections were decided by less than two points against the Democrat and 52 by less than two points in the Democrat's favour, so elections sit just below and just above the cutoff. There is no take-up column: treatment is the cutoff rule itself, 1 when margin is at or above 0. The outcome is vote, the Democratic vote share at election t+2, the next election for the same seat six years later. [Cattaneo, Frandsen and Titiunik 2015]\n\n## About each column\n**state** - State name. Fixed. Repeated across elections, so usable as a cluster. [rdrobust package docs]\n\n**year** - Year of election t, 1914 to 2010. [rdrobust package docs]\n\n**margin** - The score. Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost. Set by the election t result. [rdrobust package docs; Cattaneo, Frandsen and Titiunik 2015]\n\n**vote** - The outcome. Democratic vote share at election t+2, the next election for the same seat, in percent. Measured six years after the score. Missing for 93 rows. [rdrobust package docs]\n\n**class** - Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0. Fixed before election t. [Cattaneo, Frandsen and Titiunik 2015; rdrobust package docs]\n\n**termshouse** - Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t. Missing for 282 rows. [rdrobust package docs]\n\n**termssenate** - Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t. Missing for 282 rows. [rdrobust package docs]\n\n**dopen** - 1 if the seat was open at election t, that is no incumbent ran. Known before the vote. Missing for 10 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**population** - State population in the election year. Fixed before the vote. [rdrobust package docs]\n\n**presdemvoteshlag1** - Democratic vote share in the state at the presidential election before t (t-1), in percent. Fixed before the score. Missing for 3 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshlag1** - Democratic vote share at the state's previous Senate election (t-1), in percent. A lag of an earlier election, fixed before the score. Missing for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshlag2** - Democratic vote share at the state's Senate election two before t (t-2), in percent. A lag, fixed before the score. Missing for 82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshfor1** - Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat. Measured after the score, so it is a later outcome, not a covariate. Missing for 49 rows. [Cattaneo, Frandsen and Titiunik 2015]\n\n**demwinprv1** - 1 if the Democrat won the state's previous Senate election (t-1). Derived from that earlier result, fixed before the score. Missing for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demwinprv2** - 1 if the Democrat won the state's Senate election two before t (t-2). Derived from that earlier result, fixed before the score. Missing for 82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**dmidterm** - 1 if election t was a midterm election, that is the year is not a presidential year. Set by the calendar. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**dpresdem** - 1 if the sitting president at election t was a Democrat. In the file it is 1 for 1914 to 1920 and 1934 to 1940 and 0 for 1922 to 1932, matching the president's party. Fixed before the vote. [rdrobust package docs; file check]\n",
+      "reason": null,
+      "value": "# US Senate Elections 1914 to 2010\n\n## About the dataset\nEach row is one US Senate election: a state and a year. There are 1,390 rows over 50 states and 49 election years from 1914, the first year of popular Senate elections, to 2010. A state appears 16 to 33 times, once for each election of either of its two seats, so rows within a state are related and state can serve as a cluster. The file is not sampled by side of the cutoff; it holds every election in the period with the needed returns. Data are from Cattaneo, Frandsen and Titiunik's 2015 study and ship inside the rdrobust Python package as data/rdrobust_RDsenate.csv under GPL-3; senate.csv is that table written out unchanged. [rdrobust package data; Cattaneo, Frandsen and Titiunik 2015]\n\n## What changed\n**A Democrat wins the seat at election t.** The score is margin, the Democratic margin of victory at election t in percentage points of the vote. The cutoff is 0. A margin at or above 0 means the Democrat won the seat and the party holds it for the six-year term; a margin below 0 means the Democrat lost. No row sits exactly at 0. Margins run continuously from -100 to 100: 50 elections were decided by less than two points against the Democrat and 52 by less than two points in the Democrat's favour, so elections sit just below and just above the cutoff. There is no take-up column: treatment is the cutoff rule itself, 1 when margin is at or above 0. The outcome is vote, the Democratic vote share at election t+2, the next election for the same seat six years later. [Cattaneo, Frandsen and Titiunik 2015]\n\n## About each column\n**state** - State name. Fixed. Repeated across elections, so usable as a cluster. [rdrobust package docs]\n\n**year** - Year of election t, 1914 to 2010. [rdrobust package docs]\n\n**margin** - The score. Democratic margin of victory at election t, in percentage points of the vote, from -100 to 100. The cutoff is 0: at or above 0 the Democrat won and the row is treated; below 0 the Democrat lost. Set by the election t result. [rdrobust package docs; Cattaneo, Frandsen and Titiunik 2015]\n\n**vote** - The outcome. Democratic vote share at election t+2, the next election for the same seat, in percent. Measured six years after the score. Missing for 93 rows. [rdrobust package docs]\n\n**class** - Senate class of the seat, 1 to 3. The class fixes which years the seat is contested: class 1 in years ending 2 modulo 6, class 2 in years ending 4, class 3 in years ending 0. Fixed before election t. [Cattaneo, Frandsen and Titiunik 2015; rdrobust package docs]\n\n**termshouse** - Number of terms served in the House, per the package docstring, which does not say whose terms. A characteristic at election t. Missing for 282 rows. [rdrobust package docs]\n\n**termssenate** - Number of terms served in the Senate, per the package docstring, which does not say whose terms. A characteristic at election t. Missing for 282 rows. [rdrobust package docs]\n\n**dopen** - 1 if the seat was open at election t, that is no incumbent ran. Known before the vote. Missing for 10 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**population** - State population in the election year. Fixed before the vote. [rdrobust package docs]\n\n**presdemvoteshlag1** - Democratic vote share in the state at the presidential election before t (t-1), in percent. Fixed before the score. Missing for 3 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshlag1** - Democratic vote share at the state's previous Senate election (t-1), in percent. A lag of an earlier election, fixed before the score. Missing for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshlag2** - Democratic vote share at the state's Senate election two before t (t-2), in percent. A lag, fixed before the score. Missing for 82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demvoteshfor1** - Democratic vote share at election t+1, the state's next Senate election two years after t, which is for the other seat. Measured after the score, so it is a later outcome, not a covariate. Missing for 49 rows. [Cattaneo, Frandsen and Titiunik 2015]\n\n**demwinprv1** - 1 if the Democrat won the state's previous Senate election (t-1). Derived from that earlier result, fixed before the score. Missing for 41 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**demwinprv2** - 1 if the Democrat won the state's Senate election two before t (t-2). Derived from that earlier result, fixed before the score. Missing for 82 rows. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**dmidterm** - 1 if election t was a midterm election, that is the year is not a presidential year. Set by the calendar. [Cattaneo, Idrobo and Titiunik 2024, Table 2.2]\n\n**dpresdem** - 1 if the sitting president at election t was a Democrat. In the file it is 1 for 1914 to 1920 and 1934 to 1940 and 0 for 1922 to 1932, matching the president's party. Fixed before the vote. [rdrobust package docs; file check]"
+    },
+    "claim:grain.layout": {
+      "status": "confirmed",
+      "source": "data",
+      "said": null,
+      "reason": "recorded unit/time or paired outcome measurement structure",
+      "value": "long"
+    },
+    "claim:assignment.compliance": {
+      "status": "confirmed",
+      "source": "data",
+      "said": null,
+      "reason": "receipt compared with the declared eligibility rule",
+      "value": "sharp"
+    },
+    "claim:assignment.movable": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "Certified vote margins are fixed before the ensuing term; this evaluation explicitly assumes no precise sorting of certified margins.",
+      "reason": null,
+      "value": false
+    },
+    "claim:cutoff_only.believed": {
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": "The identification account treats seat attainment and incumbency as the intervention at zero margin; it assumes no coincident intervention.",
+      "reason": null,
+      "value": true
+    },
+    "claim:target.locality": {
+      "status": "confirmed",
+      "source": "eval:senate_cutoff_protocol",
+      "said": "This evaluation explicitly requests the effect at the Senate-election score cutoff.",
+      "reason": null,
+      "value": "cutoff"
+    },
+    "claim:target.comparison": {
+      "status": "confirmed",
+      "source": "eval:senate_cutoff_protocol",
+      "said": "Under the sharp rule, receipt and assignment coincide.",
+      "reason": null,
+      "value": "receipt"
+    }
+  },
+  "beliefs": {},
+  "said": [],
+  "probes": [
+    {
+      "family": "adjustment",
+      "name": "arms",
+      "value": 640.0,
+      "passed": true,
+      "detail": "750 treated rows and 640 others; floor 20 an arm"
+    },
+    {
+      "family": "diff_in_diff",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "diff_in_diff",
+      "name": "treated_units",
+      "value": 50.0,
+      "passed": true,
+      "detail": "50 distinct units got the change"
+    },
+    {
+      "family": "discontinuity",
+      "name": "rows_by_side",
+      "value": 640.0,
+      "passed": true,
+      "detail": "640 rows below 0.0 and 750 above on 'margin'; floor 20 a side"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "interrupted_series",
+      "name": "treated_units",
+      "value": 50.0,
+      "passed": false,
+      "detail": "50 treated units by 'state'; needs one or at most 3"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "pre_periods",
+      "value": null,
+      "passed": null,
+      "detail": "period column or change period not settled"
+    },
+    {
+      "family": "synthetic_control",
+      "name": "treated_units",
+      "value": 50.0,
+      "passed": false,
+      "detail": "50 treated units by 'state'; needs one or at most 3"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.year",
+      "value": 0.08558369438227828,
+      "passed": null,
+      "detail": "'year' by arm: mean 1.96e+03 among the treated, 1.97e+03 among the others; standardised difference 0.09"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.state",
+      "value": 0.019708333333333335,
+      "passed": null,
+      "detail": "'state' by arm: Maryland: 3% of the treated, 2% of the others; Arizona: 2% of the treated, 2% of the others; Utah: 1% of the treated, 3% of the others; Oklahoma: 2% of the treated, 2% of the others; 46 more levels; largest share gap 0.02"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.class",
+      "value": 0.04843750000000002,
+      "passed": null,
+      "detail": "'class' by arm: 3: 35% of the treated, 35% of the others; 1: 35% of the treated, 30% of the others; 2: 30% of the treated, 35% of the others; largest share gap 0.05"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.termshouse",
+      "value": 0.056791666666666664,
+      "passed": null,
+      "detail": "'termshouse' by arm: 0.0: 50% of the treated, 53% of the others; 2.0: 8% of the treated, 2% of the others; 3.0: 4% of the treated, 6% of the others; 5.0: 4% of the treated, 5% of the others; 8 more levels; largest share gap 0.06"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.termssenate",
+      "value": 0.2264386204788385,
+      "passed": null,
+      "detail": "'termssenate' by arm: mean 4.92 among the treated, 4.09 among the others; standardised difference 0.23"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.dopen",
+      "value": 0.072375,
+      "passed": null,
+      "detail": "'dopen' by arm: 0.0: 78% of the treated, 71% of the others; 1.0: 21% of the treated, 28% of the others; largest share gap 0.07"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.population",
+      "value": 0.03314580218202118,
+      "passed": null,
+      "detail": "'population' by arm: mean 3.9e+06 among the treated, 3.75e+06 among the others; standardised difference 0.03"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.presdemvoteshlag1",
+      "value": 0.5179503465355266,
+      "passed": null,
+      "detail": "'presdemvoteshlag1' by arm: mean 49.4 among the treated, 42.3 among the others; standardised difference 0.52"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.demvoteshlag1",
+      "value": 0.8362447249185999,
+      "passed": null,
+      "detail": "'demvoteshlag1' by arm: mean 59.1 among the treated, 45.2 among the others; standardised difference 0.84"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.demvoteshlag2",
+      "value": 1.1608438474885212,
+      "passed": null,
+      "detail": "'demvoteshlag2' by arm: mean 61.2 among the treated, 43.1 among the others; standardised difference 1.16"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.demvoteshfor1",
+      "value": 0.8586971370427455,
+      "passed": null,
+      "detail": "'demvoteshfor1' by arm: mean 58.9 among the treated, 44.6 among the others; standardised difference 0.86"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.demwinprv1",
+      "value": 0.3035833333333333,
+      "passed": null,
+      "detail": "'demwinprv1' by arm: 1.0: 67% of the treated, 37% of the others; 0.0: 30% of the treated, 61% of the others; largest share gap 0.30"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.demwinprv2",
+      "value": 0.4875625,
+      "passed": null,
+      "detail": "'demwinprv2' by arm: 1.0: 74% of the treated, 25% of the others; 0.0: 21% of the treated, 69% of the others; largest share gap 0.49"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.dmidterm",
+      "value": 0.0007291666666666696,
+      "passed": null,
+      "detail": "'dmidterm' by arm: 1: 51% of the treated, 51% of the others; 0: 49% of the treated, 49% of the others; largest share gap 0.00"
+    },
+    {
+      "family": "data",
+      "name": "by_arm.dpresdem",
+      "value": 0.012645833333333356,
+      "passed": null,
+      "detail": "'dpresdem' by arm: 0: 62% of the treated, 60% of the others; 1: 38% of the treated, 40% of the others; largest share gap 0.01"
+    },
+    {
+      "family": "data",
+      "name": "redundancy.year~class",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'year' sits inside 'class': every value of 'year' maps to one value of 'class', and 'class' has fewer levels"
+    },
+    {
+      "family": "data",
+      "name": "assoc.year~population",
+      "value": 0.28878318178923645,
+      "passed": null,
+      "detail": "'year' and 'population': correlation 0.29"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~class",
+      "value": 0.5031859350380617,
+      "passed": null,
+      "detail": "'state' and 'class': Cramér's V 0.50"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~termshouse",
+      "value": 0.3355607369008809,
+      "passed": null,
+      "detail": "'state' and 'termshouse': Cramér's V 0.34"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~termssenate",
+      "value": 0.32217369213753727,
+      "passed": null,
+      "detail": "'state' and 'termssenate': correlation ratio 0.32"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~dopen",
+      "value": 0.24710432685152875,
+      "passed": null,
+      "detail": "'state' and 'dopen': Cramér's V 0.25"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~population",
+      "value": 0.8330295750011608,
+      "passed": null,
+      "detail": "'state' and 'population': correlation ratio 0.83"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~presdemvoteshlag1",
+      "value": 0.4228830000442949,
+      "passed": null,
+      "detail": "'state' and 'presdemvoteshlag1': correlation ratio 0.42"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~demvoteshlag1",
+      "value": 0.6017934760044384,
+      "passed": null,
+      "detail": "'state' and 'demvoteshlag1': correlation ratio 0.60"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~demvoteshlag2",
+      "value": 0.6153548350771457,
+      "passed": null,
+      "detail": "'state' and 'demvoteshlag2': correlation ratio 0.62"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~demvoteshfor1",
+      "value": 0.5721080569357279,
+      "passed": null,
+      "detail": "'state' and 'demvoteshfor1': correlation ratio 0.57"
+    },
+    {
+      "family": "data",
+      "name": "assoc.state~demwinprv1",
+      "value": 0.4292151939951195,
+      "passed": null,
+      "detail": "'state' and 'demwinprv1': Cramér's V 0.43"
+    },
+    {
+      "family": "data",
+      "name": "assoc.termssenate~dopen",
+      "value": 0.37066783088324146,
+      "passed": null,
+      "detail": "'termssenate' and 'dopen': correlation ratio 0.37"
+    },
+    {
+      "family": "data",
+      "name": "assoc.termssenate~demvoteshlag2",
+      "value": 0.2259435979772536,
+      "passed": null,
+      "detail": "'termssenate' and 'demvoteshlag2': correlation 0.23"
+    },
+    {
+      "family": "data",
+      "name": "assoc.presdemvoteshlag1~demvoteshlag1",
+      "value": 0.4498880129734157,
+      "passed": null,
+      "detail": "'presdemvoteshlag1' and 'demvoteshlag1': correlation 0.45"
+    },
+    {
+      "family": "data",
+      "name": "assoc.presdemvoteshlag1~demvoteshlag2",
+      "value": 0.38399448797224195,
+      "passed": null,
+      "detail": "'presdemvoteshlag1' and 'demvoteshlag2': correlation 0.38"
+    },
+    {
+      "family": "data",
+      "name": "assoc.presdemvoteshlag1~demvoteshfor1",
+      "value": 0.4126043605830352,
+      "passed": null,
+      "detail": "'presdemvoteshlag1' and 'demvoteshfor1': correlation 0.41"
+    },
+    {
+      "family": "data",
+      "name": "assoc.presdemvoteshlag1~demwinprv1",
+      "value": 0.31683773984384606,
+      "passed": null,
+      "detail": "'presdemvoteshlag1' and 'demwinprv1': correlation ratio 0.32"
+    },
+    {
+      "family": "data",
+      "name": "assoc.demvoteshlag1~demvoteshlag2",
+      "value": 0.6274161549399702,
+      "passed": null,
+      "detail": "'demvoteshlag1' and 'demvoteshlag2': correlation 0.63"
+    },
+    {
+      "family": "data",
+      "name": "assoc.demvoteshlag1~demvoteshfor1",
+      "value": 0.7266161177026429,
+      "passed": null,
+      "detail": "'demvoteshlag1' and 'demvoteshfor1': correlation 0.73"
+    },
+    {
+      "family": "data",
+      "name": "assoc.demvoteshlag1~demwinprv1",
+      "value": 0.6893205535541207,
+      "passed": null,
+      "detail": "'demvoteshlag1' and 'demwinprv1': correlation ratio 0.69"
+    },
+    {
+      "family": "data",
+      "name": "redundancy.demvoteshlag1~demwinprv1",
+      "value": 1.0,
+      "passed": null,
+      "detail": "'demvoteshlag1' sits inside 'demwinprv1': every value of 'demvoteshlag1' maps to one value of 'demwinprv1', and 'demwinprv1' has fewer levels"
+    },
+    {
+      "family": "data",
+      "name": "assoc.demvoteshlag2~demvoteshfor1",
+      "value": 0.5928135617606614,
+      "passed": null,
+      "detail": "'demvoteshlag2' and 'demvoteshfor1': correlation 0.59"
+    },
+    {
+      "family": "data",
+      "name": "assoc.demvoteshlag2~demwinprv1",
+      "value": 0.38217627782411273,
+      "passed": null,
+      "detail": "'demvoteshlag2' and 'demwinprv1': correlation ratio 0.38"
+    },
+    {
+      "family": "data",
+      "name": "assoc.demvoteshfor1~demwinprv1",
+      "value": 0.5544403899134989,
+      "passed": null,
+      "detail": "'demvoteshfor1' and 'demwinprv1': correlation ratio 0.55"
+    },
+    {
+      "family": "data",
+      "name": "assoc.quiet",
+      "value": null,
+      "passed": null,
+      "detail": "associations below 0.2 among the candidates: 'year' and 'state' (0.13); 'year' and 'class' (0.07); 'year' and 'termshouse' (0.18); 'year' and 'termssenate' (0.16); 'year' and 'dopen' (0.00); 'year' and 'presdemvoteshlag1' (-0.14); 'year' and 'demvoteshlag1' (-0.11); 'year' and 'demvoteshlag2' (-0.11); 'year' and 'demvoteshfor1' (-0.13); 'year' and 'demwinprv1' (0.02); 'class' and 'termshouse' (0.18); 'class' and 'termssenate' (0.04); 'class' and 'dopen' (0.05); 'class' and 'population' (0.10); 'class' and 'presdemvoteshlag1' (0.12); 'class' and 'demvoteshlag1' (0.10); 'class' and 'demvoteshlag2' (0.02); 'class' and 'demvoteshfor1' (0.09); 'class' and 'demwinprv1' (0.05); 'termshouse' and 'termssenate' (0.09); 'termshouse' and 'dopen' (0.07); 'termshouse' and 'population' (0.13); 'termshouse' and 'presdemvoteshlag1' (0.15); 'termshouse' and 'demvoteshlag1' (0.18); 'termshouse' and 'demvoteshlag2' (0.16); 'termshouse' and 'demvoteshfor1' (0.18); 'termshouse' and 'demwinprv1' (0.14); 'termssenate' and 'population' (-0.06); 'termssenate' and 'presdemvoteshlag1' (0.01); 'termssenate' and 'demvoteshlag1' (0.15); 'termssenate' and 'demvoteshfor1' (0.14); 'termssenate' and 'demwinprv1' (0.09); 'dopen' and 'population' (0.02); 'dopen' and 'presdemvoteshlag1' (0.00); 'dopen' and 'demvoteshlag1' (0.04); 'dopen' and 'demvoteshlag2' (0.04); 'dopen' and 'demvoteshfor1' (0.01); 'dopen' and 'demwinprv1' (0.01); 'population' and 'presdemvoteshlag1' (0.04); 'population' and 'demvoteshlag1' (-0.01); 'population' and 'demvoteshlag2' (-0.02); 'population' and 'demvoteshfor1' (-0.01); 'population' and 'demwinprv1' (0.02)"
+    },
+    {
+      "family": "data",
+      "name": "timing",
+      "value": null,
+      "passed": null,
+      "detail": "before: state, class, dopen, population, presdemvoteshlag1, demvoteshlag1, demvoteshlag2, demwinprv1, demwinprv2, dmidterm, dpresdem; at: margin, year, termshouse, termssenate; after: vote, demvoteshfor1; unknown: none"
+    }
+  ],
+  "design": {
+    "kind": "discontinuity",
+    "score": "margin",
+    "cutoff": 0.0,
+    "treated_side": "above",
+    "cutoff_value_treated": true,
+    "score_fixed_before": true,
+    "movable": false,
+    "takeup": null,
+    "covariates_allowed": [
+      "class",
+      "dopen",
+      "population",
+      "presdemvoteshlag1",
+      "demvoteshlag1",
+      "demvoteshlag2",
+      "demwinprv1",
+      "demwinprv2",
+      "dmidterm",
+      "dpresdem"
+    ],
+    "cluster": "state",
+    "sampled_by_side": false,
+    "cutoff_only": {
+      "kind": "cutoff_only",
+      "value": true,
+      "what": null,
+      "why": null,
+      "column": null,
+      "status": "confirmed",
+      "source": "eval:senate_study_account",
+      "said": null
+    },
+    "exclusion": null,
+    "monotonicity": null,
+    "local_randomisation": null
+  },
+  "brief": null
+}

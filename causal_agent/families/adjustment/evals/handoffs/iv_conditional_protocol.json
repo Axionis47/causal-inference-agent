@@ -1,0 +1,1263 @@
+{
+  "family": "adjustment",
+  "specialist": "dowhy",
+  "supported_now": true,
+  "outcome": "y",
+  "treatment": "t",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "protocol_iv_conditional",
+  "relevant_columns": [
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "t"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "z1"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "z2"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "c"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "y"
+    }
+  ],
+  "chosen_assumption": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+  "reasons": [
+    {
+      "reason": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "cites": [
+        "claim:story.text"
+      ]
+    }
+  ],
+  "question": "What is the effect of t on y?",
+  "story": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "511ea793f333438fbc6462d9",
+  "dataset_identity": "36d6de06189bcbd21764d7a5bd38c22a9d60c1b7c8ef2e15b947d79c2ac20ab7",
+  "admission": {
+    "family": "adjustment",
+    "contract": "b6f1e723569374947b89",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "total.unadjusted",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.backdoor",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.general_adjustment",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.wald_late",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "iv.linear_single",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:exclusion.homogeneous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.homogeneous"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.linear_multiple",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:exclusion.homogeneous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.homogeneous"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.linear_conditional",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:exclusion.homogeneous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.homogeneous"
+            ]
+          },
+          {
+            "id": "controls",
+            "address": "claim:exclusion.controls",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.controls"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "frontdoor.linear_total",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "mediation.linear_nie",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "mediation.linear_nde",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "adjustment.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "structural.zero",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "identification.id_expression",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "/Users/sid47/Desktop/Causal Analysis Agent/causal_agent/families/adjustment/evals/data/iv_conditional.csv",
+  "dataset_facts": {},
+  "grain": {
+    "row_is": "person"
+  },
+  "sampling": {
+    "how": "all"
+  },
+  "missing": {
+    "why": "none"
+  },
+  "treated_level": "1",
+  "control_level": "0",
+  "columns": [
+    {
+      "name": "t",
+      "key": "t",
+      "role": "treatment",
+      "meaning": "t: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "z1",
+      "key": "z1",
+      "role": "instrument",
+      "meaning": "z1: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "z2",
+      "key": "z2",
+      "role": "instrument",
+      "meaning": "z2: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "c",
+      "key": "c",
+      "role": "candidate",
+      "meaning": "c: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "y",
+      "key": "y",
+      "role": "outcome",
+      "meaning": "y: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {
+    "kind": "own_choice",
+    "depends_on": [
+      "z1",
+      "z2",
+      "c"
+    ],
+    "rule": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+  },
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "person"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "own_choice"
+    },
+    "claim:assignment.rule": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "claim:assignment.depends_on": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": [
+        "z1",
+        "z2",
+        "c"
+      ]
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "all"
+    },
+    "claim:missing.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "none"
+    },
+    "claim:unobserved.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:spillover.possible": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "claim:story.text": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "claim:exclusion.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.column": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z1"
+    },
+    "claim:exclusion.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "claim:exclusion.exogenous": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.homogeneous": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.columns": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": [
+        "z1",
+        "z2"
+      ]
+    },
+    "claim:exclusion.controls": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": [
+        "c"
+      ]
+    },
+    "col:t.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "at"
+    },
+    "col:t.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "t: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "col:t.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "before"
+    },
+    "col:z1.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z1: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "col:z1.feeds_treatment": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:z1.moves_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.moved_by_change": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.measures_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z2.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "before"
+    },
+    "col:z2.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z2: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "col:z2.feeds_treatment": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:z2.moves_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z2.moved_by_change": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z2.measures_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z2.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "before"
+    },
+    "col:c.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "c: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "col:c.feeds_treatment": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:c.moves_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:c.moved_by_change": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.measures_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:y.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "after"
+    },
+    "col:y.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "y: Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    },
+    "col:y.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    }
+  },
+  "beliefs": {
+    "unobserved": {
+      "kind": "unobserved",
+      "value": true,
+      "what": "u",
+      "why": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "column": null,
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    },
+    "exclusion": {
+      "kind": "exclusion",
+      "value": true,
+      "what": null,
+      "why": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u.",
+      "column": "z1",
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    }
+  },
+  "said": [
+    {
+      "turn": 1,
+      "about": "study protocol",
+      "text": "Independently sampled people receive binary treatment t. Hidden u drives uptake and outcome. Instruments z1 and z2 affect treatment only, with no outcome route except treatment. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. No treatment-effect heterogeneity, spillovers or missingness. z1,z2 and c are measured before treatment. Baseline c causes z1, uptake and outcome, so z1 is exogenous only conditional on c; c is independent of z2 and hidden u."
+    }
+  ],
+  "probes": [],
+  "design": {
+    "kind": "adjustment",
+    "adjustment_candidates": [],
+    "forbidden": [],
+    "instruments": [
+      "z1",
+      "z2"
+    ],
+    "iv_controls": [
+      "c"
+    ],
+    "modifiers": [],
+    "instrument": "z1",
+    "mediator": null,
+    "unobserved_confounding": true,
+    "voluntary_uptake": null,
+    "target_units": "average",
+    "contrast": "switch"
+  },
+  "brief": null
+}

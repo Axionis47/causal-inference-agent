@@ -1,0 +1,1154 @@
+{
+  "family": "adjustment",
+  "specialist": "dowhy",
+  "supported_now": true,
+  "outcome": "y",
+  "treatment": "t",
+  "scope": {
+    "population_filter": null,
+    "window": null,
+    "contrast": "switch",
+    "target": "average",
+    "horizon": null,
+    "cohort": null,
+    "modifiers": []
+  },
+  "pack_name": "protocol_iv_single",
+  "relevant_columns": [
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "t"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "z1"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "c"
+    },
+    {
+      "reason": "known protocol variable",
+      "cites": [
+        "claim:story.text"
+      ],
+      "column": "y"
+    }
+  ],
+  "chosen_assumption": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+  "reasons": [
+    {
+      "reason": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "cites": [
+        "claim:story.text"
+      ]
+    }
+  ],
+  "question": "What is the effect of t on y?",
+  "story": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+  "intent": "effect_of_change",
+  "design_id": 0,
+  "memory_version": 0,
+  "context_id": "45f07644dc79938db6d6588e",
+  "dataset_identity": "cd580cf21748a9f392ff53499f95dc6a8e49774ab68e9be622c9fe0074a4cc78",
+  "admission": {
+    "family": "adjustment",
+    "contract": "b6f1e723569374947b89",
+    "memory_version": 0,
+    "data_version": 0,
+    "endpoints": [
+      {
+        "endpoint_id": "total.unadjusted",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.backdoor",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "total.general_adjustment",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.wald_late",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "iv.linear_single",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:exclusion.homogeneous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.homogeneous"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.linear_multiple",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:exclusion.homogeneous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.homogeneous"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "iv.linear_conditional",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          },
+          {
+            "id": "instrument",
+            "address": "claim:exclusion.column",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.column"
+            ]
+          },
+          {
+            "id": "exclusion",
+            "address": "claim:exclusion.why",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.why"
+            ]
+          },
+          {
+            "id": "exogenous",
+            "address": "claim:exclusion.exogenous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.exogenous"
+            ]
+          },
+          {
+            "id": "target_assumption",
+            "address": "claim:exclusion.homogeneous",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.homogeneous"
+            ]
+          },
+          {
+            "id": "controls",
+            "address": "claim:exclusion.controls",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:exclusion.controls"
+            ]
+          }
+        ],
+        "reason": ""
+      },
+      {
+        "endpoint_id": "frontdoor.linear_total",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "mediation.linear_nie",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "mediation.linear_nde",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "adjustment.linear_conditional",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "does not serve requested target average"
+      },
+      {
+        "endpoint_id": "structural.zero",
+        "status": "excluded",
+        "obligations": [],
+        "reason": "configuration is not activated by supplied context"
+      },
+      {
+        "endpoint_id": "identification.id_expression",
+        "status": "ready",
+        "obligations": [
+          {
+            "id": "grain",
+            "address": "claim:grain.row_is",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:grain.row_is"
+            ]
+          },
+          {
+            "id": "assignment",
+            "address": "claim:assignment.kind",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:assignment.kind"
+            ]
+          },
+          {
+            "id": "sampling",
+            "address": "claim:sampling.how",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:sampling.how"
+            ]
+          },
+          {
+            "id": "hidden",
+            "address": "claim:unobserved.exists",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:unobserved.exists"
+            ]
+          },
+          {
+            "id": "spillover",
+            "address": "claim:spillover.possible",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "claim:spillover.possible"
+            ]
+          },
+          {
+            "id": "timing:col:y.when",
+            "address": "col:y.when",
+            "status": "met",
+            "reason": "confirmed by user:turn:1",
+            "cites": [
+              "col:y.when"
+            ]
+          }
+        ],
+        "reason": ""
+      }
+    ]
+  },
+  "data_version": 0,
+  "why": "",
+  "over": {},
+  "csv": "/Users/sid47/Desktop/Causal Analysis Agent/causal_agent/families/adjustment/evals/data/iv_single.csv",
+  "dataset_facts": {},
+  "grain": {
+    "row_is": "person"
+  },
+  "sampling": {
+    "how": "all"
+  },
+  "missing": {
+    "why": "none"
+  },
+  "treated_level": "1",
+  "control_level": "0",
+  "columns": [
+    {
+      "name": "t",
+      "key": "t",
+      "role": "treatment",
+      "meaning": "t: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "at",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 2,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "z1",
+      "key": "z1",
+      "role": "instrument",
+      "meaning": "z1: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "c",
+      "key": "c",
+      "role": "candidate",
+      "meaning": "c: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "before",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    },
+    {
+      "name": "y",
+      "key": "y",
+      "role": "outcome",
+      "meaning": "y: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "stands_for": null,
+      "proxy": null,
+      "when": "after",
+      "set_by": null,
+      "feeds_treatment": null,
+      "moves_outcome": null,
+      "moved_by_change": null,
+      "measures_outcome": null,
+      "same_as": null,
+      "nested_in": null,
+      "may_modify": false,
+      "source": null,
+      "provenance": {
+        "when": {
+          "status": "confirmed",
+          "source": "user:turn:1",
+          "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+          "reason": null
+        }
+      },
+      "facts": {
+        "kind": "numeric",
+        "nulls": 0,
+        "null_rate": 0.0,
+        "distinct": 1200,
+        "constant": false,
+        "varies_over": "unknown",
+        "numeric": null,
+        "top_values": [],
+        "datetime": null,
+        "switch": null,
+        "sentinels": [],
+        "format_issues": [],
+        "binary_like": false,
+        "bounds": null,
+        "role_hints": []
+      }
+    }
+  ],
+  "change": {},
+  "assignment": {
+    "kind": "own_choice",
+    "depends_on": [
+      "z1"
+    ],
+    "rule": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+  },
+  "facts": {
+    "claim:grain.row_is": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "person"
+    },
+    "claim:assignment.kind": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "own_choice"
+    },
+    "claim:assignment.rule": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "claim:assignment.depends_on": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": [
+        "z1"
+      ]
+    },
+    "claim:sampling.how": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "all"
+    },
+    "claim:missing.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "none"
+    },
+    "claim:unobserved.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:spillover.possible": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "claim:story.text": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "claim:exclusion.exists": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.column": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z1"
+    },
+    "claim:exclusion.why": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "claim:exclusion.exogenous": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.homogeneous": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "claim:exclusion.columns": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": [
+        "z1"
+      ]
+    },
+    "claim:exclusion.controls": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": []
+    },
+    "col:t.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "at"
+    },
+    "col:t.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "t: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "col:t.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "before"
+    },
+    "col:z1.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "z1: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "col:z1.feeds_treatment": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": true
+    },
+    "col:z1.moves_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.moved_by_change": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.measures_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:z1.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "before"
+    },
+    "col:c.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "c: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "col:c.feeds_treatment": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.moves_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.moved_by_change": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.measures_outcome": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:c.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    },
+    "col:y.when": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "after"
+    },
+    "col:y.meaning": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": "y: Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    },
+    "col:y.may_modify": {
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "reason": "explicit supplied simulated-study protocol",
+      "value": false
+    }
+  },
+  "beliefs": {
+    "unobserved": {
+      "kind": "unobserved",
+      "value": true,
+      "what": "u",
+      "why": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "column": null,
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    },
+    "exclusion": {
+      "kind": "exclusion",
+      "value": true,
+      "what": null,
+      "why": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness.",
+      "column": "z1",
+      "status": "confirmed",
+      "source": "user:turn:1",
+      "said": null
+    }
+  },
+  "said": [
+    {
+      "turn": 1,
+      "about": "study protocol",
+      "text": "Independent people receive binary treatment t. Hidden u drives treatment and outcome. Randomized numeric instrument z1 causes treatment only, and has no other route to outcome. z1 is independent of hidden u and all outcome disturbances. c is an unrelated baseline measurement. The outcome follows an additive linear model with an unknown intercept and unknown constant treatment effect. z1 and c precede treatment; outcome is recorded afterwards. No spillovers or missingness."
+    }
+  ],
+  "probes": [],
+  "design": {
+    "kind": "adjustment",
+    "adjustment_candidates": [],
+    "forbidden": [],
+    "instruments": [
+      "z1"
+    ],
+    "iv_controls": [],
+    "modifiers": [],
+    "instrument": "z1",
+    "mediator": null,
+    "unobserved_confounding": true,
+    "voluntary_uptake": null,
+    "target_units": "average",
+    "contrast": "switch"
+  },
+  "brief": null
+}

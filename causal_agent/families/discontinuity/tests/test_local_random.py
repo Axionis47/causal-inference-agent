@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from causal_agent.families.discontinuity.lane import adapter
+from causal_agent.families.discontinuity.lane.engine import fit as adapter
 
 REPS = 200
 
@@ -43,7 +43,7 @@ def test_the_estimate_in_a_window_recovers_the_planted_jump_with_an_inverted_int
     canon = discrete_canon(effect=1.5)
     # scores 6 and 7 only; the difference in means carries the jump plus one step of the slope (0.2), as local randomisation does
     f = adapter.fit_local_random(canon, -1.0, 0.0, reps=REPS, seed=7)
-    assert f.error is None and f.model.endswith("difference in means") and f.vce == "randomisation"
+    assert f.error is None and "difference in means" in f.model and f.vce == "randomisation"
     assert f.value == pytest.approx(1.7, abs=0.3) and f.ci_low < 1.7 < f.ci_high and f.ci_high - f.ci_low < 1.0
     assert f.p < 0.01 and f.n_h_left > 50 and f.n_h_right > 50 and f.h_left == 1.0 and f.h_right == 0.0
     # no effect: the interval covers the slope step and the p is large against zero only when the slope is absent
@@ -56,7 +56,7 @@ def test_the_estimate_in_a_window_recovers_the_planted_jump_with_an_inverted_int
 def test_a_fuzzy_design_uses_the_anderson_rubin_statistic_and_the_wald_ratio():
     canon = discrete_canon(effect=2.0, fuzzy=True)
     f = adapter.fit_local_random(canon, -1.0, 0.0, fuzzy=True, reps=REPS, seed=7)
-    assert f.error is None and f.model.endswith("Anderson-Rubin")
+    assert f.error is None and "Anderson-Rubin" in f.model
     wald = (0.2 + 2.0 * 0.7) / 0.7  # the outcome's jump over take-up's jump, slope step included
     assert f.value == pytest.approx(wald, abs=0.6) and f.ci_low < wald < f.ci_high
 
@@ -75,3 +75,21 @@ def test_a_window_that_holds_no_rows_is_an_error_not_an_exception():
     canon = discrete_canon()
     assert adapter.fit_local_random(canon, 0.2, 0.8, reps=REPS, seed=7).error is not None  # no integer score inside
     assert adapter.fit_local_random(canon, 0.0, 0.0, reps=REPS, seed=7).error is not None  # the library refuses wl == wr
+
+
+def test_numeric_receipt_levels_preserve_missingness_and_exact_noncompliance():
+    from causal_agent.families.discontinuity.lane.engine.shape import receipt_indicator
+
+    values = receipt_indicator(pd.Series([0.0, 1.0, np.nan, 1.0]), "1")
+    assert values.iloc[:2].tolist() == [0.0, 1.0]
+    assert np.isnan(values.iloc[2]) and values.iloc[3] == 1.0
+    assert receipt_indicator(pd.Series(["no", "yes", None]), "yes").iloc[:2].tolist() == [0.0, 1.0]
+
+
+def test_zero_first_stage_retains_unresolved_ar_confidence_set_without_fake_bounds():
+    table = pd.DataFrame({"x": np.repeat([-1.0, 0.0], 100), "y": np.tile(np.linspace(-1.0, 1.0, 100), 2), "t": 0.0})
+    fitted = adapter.fit_local_random(table, -1.0, 0.0, fuzzy=True, reps=50, seed=7)
+    assert fitted.value is None and fitted.ci_low is None and fitted.ci_high is None
+    assert fitted.confidence_set is not None and fitted.confidence_set.status == "unresolved_tail"
+    estimate = adapter.to_estimate(fitted, "eligibility", "local_random_fuzzy", "complier_effect_in_window")
+    assert estimate.confidence_set == fitted.confidence_set

@@ -1,0 +1,12 @@
+name: endpoint_policy_release
+version: 54
+csv: data/raw/endpoint_policy_release/backdoor.csv
+data_version: 0
+facts:
+  rows: 1200
+  columns: 4
+  duplicate_rows: 0
+  grain: []
+  time_coverage: null
+  entity_summary: null
+  format_issues: []

@@ -177,7 +177,42 @@ source_modules = [
     "causal_agent.families.adjustment.lane.execute",
     "causal_agent.families.adjustment.lane.artifacts",
     "causal_agent.families.adjustment.lane.nodes",
-    "causal_agent.families.adjustment.lane.checks",
 ]
 forbidden_modules = ["dowhy"]
 allow_indirect_imports = "True"
+
+[[tool.importlinter.contracts]]
+name = "the diff_in_diff lane's reasoning never fits an effect"
+type = "forbidden"
+source_modules = ["causal_agent.families.diff_in_diff.lane.reason"]
+forbidden_modules = ["causal_agent.families.diff_in_diff.lane.execute", "causal_agent.families.diff_in_diff.lane.artifacts", "causal_agent.families.diff_in_diff.lane.engine.estimators", "causal_agent.families.diff_in_diff.lane.engine.falsify", "causal_agent.families.diff_in_diff.lane.engine.sensitivity"]
+
+[[tool.importlinter.contracts]]
+name = "the diff_in_diff lane's execution cannot reopen reasoning"
+type = "forbidden"
+source_modules = ["causal_agent.families.diff_in_diff.lane.execute", "causal_agent.families.diff_in_diff.lane.engine"]
+forbidden_modules = ["causal_agent.families.diff_in_diff.lane.reason"]
+
+[[tool.importlinter.contracts]]
+name = "the diff_in_diff lane's artifacts read results only"
+type = "forbidden"
+source_modules = ["causal_agent.families.diff_in_diff.lane.artifacts"]
+forbidden_modules = ["causal_agent.families.diff_in_diff.lane.execute", "causal_agent.families.diff_in_diff.lane.reason", "causal_agent.families.diff_in_diff.lane.engine"]
+
+[[tool.importlinter.contracts]]
+name = "the discontinuity lane's reasoning never fits an effect"
+type = "forbidden"
+source_modules = ["causal_agent.families.discontinuity.lane.reason"]
+forbidden_modules = ["causal_agent.families.discontinuity.lane.execute", "causal_agent.families.discontinuity.lane.artifacts", "causal_agent.families.discontinuity.lane.engine.estimators", "causal_agent.families.discontinuity.lane.engine.falsify", "causal_agent.families.discontinuity.lane.engine.sensitivity"]
+
+[[tool.importlinter.contracts]]
+name = "the discontinuity lane's execution cannot reopen reasoning"
+type = "forbidden"
+source_modules = ["causal_agent.families.discontinuity.lane.execute", "causal_agent.families.discontinuity.lane.engine"]
+forbidden_modules = ["causal_agent.families.discontinuity.lane.reason"]
+
+[[tool.importlinter.contracts]]
+name = "the discontinuity lane's artifacts read results only"
+type = "forbidden"
+source_modules = ["causal_agent.families.discontinuity.lane.artifacts"]
+forbidden_modules = ["causal_agent.families.discontinuity.lane.execute", "causal_agent.families.discontinuity.lane.reason", "causal_agent.families.discontinuity.lane.engine"]

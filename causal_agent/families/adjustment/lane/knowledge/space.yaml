@@ -1,52 +1,24 @@
-# The design space this lane runs, declared once. A dimension's name is the key the estimator and refuter
-# entries use in `applies_when`, so those entries are the allowed tuples over this space. `decided_by` names the rung
-# that fixes the dimension; `read_from` the fact it is read from; `unsupported` the values the library does not run,
-# each with the reason a stop carries. A range bound may be a number, inf, or <fact>/<n>.
-#
-# A test proves every cell of the keyed dimensions is served by an estimator and a refuter, or is declared unsupported.
-# `load` projects the file onto this space and stops, typed, before any model call when it reaches no cell. A rung that
-# decides a dimension is offered only the values still runnable given what the rungs below fixed.
-
 dimensions:
   treatment:
-    values: [binary]                     # every contrast compares two levels; a few-level treatment is several contrasts
+    values: [binary_contrast]
     decided_by: pair
-    read_from: probe:data.levels
+    unsupported: {continuous: dose response is outside the declared adjustment endpoints, multiple: multiple simultaneous treatments are not supported}
   outcome:
     values: [continuous, binary]
     decided_by: load
-    read_from: col:<outcome>.profile.kind
-    unsupported:
-      other: the outcome is neither a number nor a yes/no; no estimator fits it
-  estimand:                              # the road
-    values: [backdoor, iv, frontdoor]
-    decided_by: road
-  adjustment_set:
-    values: [empty, nonempty]
-    decided_by: road
-  sensitivity_required:                  # a hidden factor the person declared, left in as a range
-    values: [false, true]
-    decided_by: road
-    read_from: claim:unobserved.exists
-  target:
-    values: [ate, att, atc]
-    decided_by: pair
-    read_from: scope.target
-    soft: true                           # a target no entry on the road serves is a decline at the freeze, not a wall
+    unsupported: {other: outcome must be continuous numeric or explicitly encoded binary}
+  endpoint:
+    values: [total.unadjusted, total.backdoor, total.general_adjustment, iv.wald_late, iv.linear_single, iv.linear_multiple, iv.linear_conditional, frontdoor.linear_total, mediation.linear_nie, mediation.linear_nde, adjustment.linear_conditional, structural.zero]
+    decided_by: rivals
   contrasts:
     range: [1, 11]
     decided_by: pair
-    unsupported:
-      above: more than twelve treatment levels; this lane compares levels, one contrast per level, and a numeric treatment with that many values is a dose that needs a dose-response lane
-  confounders:
-    range: [0, smallest_arm/10]
-    decided_by: road
-    unsupported:
-      above: more adjustment columns than the smaller arm can support, at ten rows each
+    unsupported: {above: more than twelve treatment levels requires a dose or multicategory design outside this lane}
   modifiers:
     range: [0, 3]
-    decided_by: heterogeneity
-
+    decided_by: rivals
 unsupported:
-  - when: {estimand: frontdoor, outcome: binary}
-    reason: the front-door two-stage regression fits a continuous outcome; no entry runs it on a yes/no
+  - {when: {endpoint: frontdoor.linear_total, outcome: binary}, reason: the frontdoor linear adapter requires continuous outcome}
+  - {when: {endpoint: mediation.linear_nie, outcome: binary}, reason: natural indirect effects support additive continuous models only}
+  - {when: {endpoint: mediation.linear_nde, outcome: binary}, reason: natural direct effects support additive continuous models only}
+  - {when: {endpoint: adjustment.linear_conditional, outcome: binary}, reason: conditional effects support continuous linear interaction models only}

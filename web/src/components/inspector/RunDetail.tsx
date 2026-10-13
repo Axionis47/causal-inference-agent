@@ -1,12 +1,12 @@
 import { Fragment } from "react";
 import { ci, count, num } from "../../fmt";
-import { checkRows, decisionOver, decisionWhy, declineRows, estimateRows, primaryEstimate, refutationRows } from "../../inspector/rows";
+import { checkRows, decisionOver, decisionWhy, declineRows, estimateRows, primaryEstimate, falsificationRows } from "../../inspector/rows";
 import type { Selection } from "../../selection";
 import type { FigureSpec } from "../../figure";
 import type { RunView } from "../../types";
 import Figure from "../Figure";
 import Picture from "../Picture";
-import { ChecksTable, DeclinesTable, EstimatesTable, RefutationsTable } from "./RunTables";
+import { ChecksTable, DeclinesTable, EstimatesTable, FalsificationsTable } from "./RunTables";
 
 // The figures the run drew from its own artifacts, in the order the chat shows them.
 export function Figures({ figures }: { figures: FigureSpec[] }) {
@@ -70,7 +70,7 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
         ) : (
           <div className="eff muted">no estimate</div>
         )}
-        {prev && prev.effect !== null && r.effect !== null && (
+        {prev && prev.context_id === r.context_id && prev.effect !== null && r.effect !== null && (
           <div className="eff muted">
             then {num(prev.effect)} · now {num(r.effect)}
           </div>
@@ -82,6 +82,74 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
         )}
       </section>
 
+      <section>
+        <h3>Admitted context and designs</h3>
+        <p className="mono">
+          Context {r.context_id || "unavailable"}. Lead {r.lead_design_id || "none"}.
+        </p>
+        {r.context_deficiency && (
+          <p className="err">
+            {r.context_deficiency.reason}: {r.context_deficiency.addresses.join(", ")}
+          </p>
+        )}
+        <details>
+          <summary>Context requirements and sources</summary>
+          <pre className="mono pre">
+            {JSON.stringify({ dataset_identity: r.dataset_identity, admission: r.context_admission, fields: r.context_facts }, null, 2)}
+          </pre>
+        </details>
+        {Object.entries(r.designs).map(([id, design]) => (
+          <details key={id}>
+            <summary>
+              {id === r.lead_design_id ? "Lead: " : "Rival: "}
+              {String(design.endpoint_id ?? id)}
+            </summary>
+            <pre className="mono pre">{JSON.stringify(design, null, 2)}</pre>
+          </details>
+        ))}
+        <details>
+          <summary>Candidate decisions and reasoning history</summary>
+          <pre className="mono pre">
+            {JSON.stringify(
+              {
+                candidates: r.candidates,
+                lead_selection: r.lead_selection,
+                candidate_history: r.candidate_history,
+                reasoning_history: r.reasoning_history,
+                terminal: r.terminal,
+                ledger: r.ledger,
+                visits: r.episode_visits,
+              },
+              null,
+              2,
+            )}
+          </pre>
+        </details>
+        <details>
+          <summary>Execution attempts</summary>
+          <pre className="mono pre">{JSON.stringify(r.execution_attempts, null, 2)}</pre>
+        </details>
+      </section>
+      {r.comparisons.length > 0 && (
+        <section>
+          <h3>Design comparisons</h3>
+          <pre className="mono pre">{JSON.stringify(r.comparisons, null, 2)}</pre>
+        </section>
+      )}
+      {r.sensitivities.length > 0 && (
+        <section>
+          <h3>Sensitivities</h3>
+          {r.sensitivities.map((s, i) => (
+            <details key={i}>
+              <summary>
+                {s.design_id}: {s.method}
+              </summary>
+              <p>{s.detail || s.error}</p>
+              <pre className="mono pre">{JSON.stringify({ target: s.target, range: [s.range_low, s.range_high], points: s.points }, null, 2)}</pre>
+            </details>
+          ))}
+        </section>
+      )}
       <Figures figures={r.figures ?? []} />
       {r.artifacts.length > 0 && (
         <section>
@@ -96,7 +164,7 @@ export default function RunDetail({ r, prev, onSelect }: { r: RunView; prev: Run
       <ChecksTable rows={checkRows(r.flags)} title="Flags" />
       <DeclinesTable rows={declineRows(r)} />
       <ChecksTable rows={checkRows(r.checks)} title="Checks" />
-      <RefutationsTable rows={refutationRows(r)} />
+      <FalsificationsTable rows={falsificationRows(r)} />
 
       <section>
         <h3>Why this design</h3>

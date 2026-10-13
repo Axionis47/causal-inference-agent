@@ -4,15 +4,17 @@ from __future__ import annotations
 
 
 def summarise(result: dict) -> dict:
-    d = result.get("design") or {}
-    sc = result.get("score") or {}
-    shape = result.get("shape") or {}
+    d = (result.get("designs") or {}).get(result.get("lead_design_id")) or {}
+    sc = d.get("score") or {}
+    shape = d.get("shape") or {}
     checks = result.get("checks") or []
-    est = [e for e in result.get("estimates") or [] if e.get("error") is None and e.get("method") == d.get("estimator")]
+    est = [e for e in result.get("estimates") or [] if e.get("error") is None and e.get("design_id") == result.get("lead_design_id") and not e.get("secondary")]
     f = result.get("feasibility") or {}
-    a = result.get("assessment")
+    a = next((entry.get("record") for entry in reversed(result.get("reasoning_history") or []) if entry.get("node") == "line"), None)
     return {
         "status": result.get("status"),
+        "terminal_kind": (result.get("terminal") or {}).get("kind"),
+        "interpretation_errors": result.get("interpretation_errors") or {},
         "stage": f.get("stage"),
         "score_column": sc.get("column"),
         "cutoff": sc.get("cutoff"),
@@ -27,10 +29,13 @@ def summarise(result: dict) -> dict:
         "checks_ran": sorted({c["name"] for c in checks}),
         "flags": sorted({c["name"] for c in checks if c["level"] != "pass"}),
         "hard_flags": sorted({c["name"] for c in checks if c["level"] == "hard"}),
-        "assess_cites": a.get("cites") if a else None,
-        "assess_action": a.get("action") if a else None,
-        "placebos": sorted({r["refuter"] for r in result.get("refutations") or []}),
-        "placebos_failed": sorted({r["refuter"] for r in result.get("refutations") or [] if r.get("passed") is False}),
-        "secondaries": sorted({e["method"] for e in result.get("estimates") or [] if e.get("secondary") and e.get("error") is None}),
+        "line_cites": [*a.get("cites", []), *[c for risk in a.get("risks", []) for c in risk.get("cites", [])], *[u["about"] for u in a.get("unsure", [])]]
+        if a
+        else None,
+        "line_clean": a.get("clean") if a else None,
+        "falsifications": sorted({r["refuter"] for r in result.get("falsifications") or []}),
+        "falsifications_failed": sorted({r["refuter"] for r in result.get("falsifications") or [] if r.get("passed") is False}),
+        "endpoints": sorted({d["endpoint_id"] for d in (result.get("designs") or {}).values()}),
+        "sensitivities": sorted({s["method"] for s in result.get("sensitivities") or []}),
         "run_dir": result.get("run_dir"),
     }

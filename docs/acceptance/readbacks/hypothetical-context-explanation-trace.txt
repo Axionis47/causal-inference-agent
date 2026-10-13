@@ -1,0 +1,7 @@
+acceptance:hypothetical-context-explanation [chain] 9.0s 73621tok
+  explain:after [chain] 8.9s 73621tok
+    ~ **Explaining Hypothetical Run** I've analyzed the hypothetical run regarding `col:x.feeds_treatment`. It was supposed that `baseline x` *did not* affect treatme…
+    ChatVertexAI [llm] 6.9s 73621tok
+  gate:reply [tool] 0.0s
+  artifact:hypothetical-context-explanation.json [tool] 0.0s
+    1032 bytes

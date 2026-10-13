@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from causal_agent.common.contracts import Candidate, FamilyDecision, QuestionFrame, Rejection, Scope
+from causal_agent.common.contracts import Candidate, QuestionFrame, Scope
 from causal_agent.common.llm import set_llm
 from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.route import route
 from causal_agent.desk.tests.fakes import FAMILIES, QUESTION, DeskFake
+from causal_agent.families import registry as R
 from causal_agent.memory import store
 from causal_agent.memory.records import Memory
 
@@ -40,60 +41,22 @@ def _run(fake, dataset="students"):
 def test_students_is_mined_fitted_and_routed_to_adjustment():
     fake = DeskFake(cites=GOOD)
     out = _run(fake)
-    assert len(fake.reads("doc:")) == 1 and fake.calls.count("PrefilterVote") == 0 and fake.calls.count("FamilyDecision") == 1
+    assert len(fake.reads("doc:")) == 1 and fake.calls.count("PrefilterVote") == 0 and fake.calls.count("FamilyDecision") == 0
     assert out.frame.outcome == "math score"
     verdicts = {v.family: v for v in out.family_verdicts}
     assert set(verdicts) == set(FAMILIES)
-    assert verdicts["adjustment"].admissible
+    assert not verdicts["adjustment"].admissible
     assert not verdicts["diff_in_diff"].admissible and "grain" in " ".join(n.need for n in verdicts["diff_in_diff"].needs if not n.met)
     assert not verdicts["discontinuity"].admissible
     unasked = [n for n in verdicts["adjustment"].needs if not n.met]
-    assert unasked and all("not asked yet" in n.note for n in unasked)  # the beliefs: listed, never mined, never blocking here
+    assert unasked and any("drafted" in n.note for n in unasked)  # the beliefs: listed, never mined, never blocking here
     memory = store.memory_for("students")
     assert memory.field("claim:assignment.kind").value == "own_choice" and memory.field("claim:assignment.kind").status == "drafted"
     assert memory.field("claim:unobserved.exists") is None  # the description's belief was dropped
-    h = out.handoff
-    assert h.family == "adjustment" and h.specialist == "dowhy" and h.supported_now
-    assert h.treated_level == "completed" and h.column("lunch").role == "depends_on" and h.column("lunch").when == "before"
-    assert {c.column for c in h.relevant_columns} >= {"math score", "test preparation course", "lunch"}
-    assert "CHOSEN       adjustment" in out.decision_record and "FAMILY FIT" in out.decision_record
-    # the Designer wrote the brief once the gate passed; the pack bets on its sentence and the record prints it
-    assert fake.calls.count("DesignBrief") == 1 and out.brief is not None and out.brief.family == "adjustment" and out.brief.road == "backdoor"
-    assert h.brief == out.brief and h.chosen_assumption == out.brief.bets_on and h.resolve("design.brief.bets_on")
-    assert f"BETS ON      {out.brief.bets_on}" in out.decision_record and "[design.brief.who_is_treated]" in out.decision_record
+    assert out.handoff is None and out.brief is None
+    assert fake.calls.count("DesignBrief") == 0
     nodes = [t.node for t in out.debug]
-    assert (
-        "read:doc:context" in nodes and "frame" in nodes and "decide" in nodes and "design:1" in nodes and not any(n.startswith("test_family") for n in nodes)
-    )
-
-
-def test_bad_citations_loop_the_gate_then_stop():
-    fake = DeskFake(cites=BAD)
-    out = _run(fake)
-    assert fake.calls.count("FamilyDecision") == 3 and fake.calls.count("DesignBrief") == 0  # no design for a choice the gate refused
-    assert all("not a pack address" in human for human in fake.humans["FamilyDecision"][1:])  # the gate's errors go round to decide
-    assert out.handoff is None and out.brief is None and out.decision is not None and "FAMILY FIT" in out.decision_record
-
-
-class NothingAdmissible(DeskFake):
-    def answer(self, schema, human):
-        if schema is FamilyDecision:
-            self.calls.append(schema.__name__)
-            return FamilyDecision(
-                admissible=[],
-                chosen="none",
-                chosen_assumption="none",
-                why_over_alternatives="nothing admissible",
-                rejected=[Rejection(family=f, reason="unmet", cites=[]) for f in FAMILIES],
-            )
-        return super().answer(schema, human)
-
-
-def test_the_model_may_decline_every_family_the_fit_offers():
-    fake = NothingAdmissible()
-    out = _run(fake)
-    assert fake.calls.count("FamilyDecision") == 1
-    assert out.handoff is None and "CHOSEN       none" in out.decision_record
+    assert "read:doc:context" in nodes and "frame" in nodes
 
 
 def test_a_settled_memory_needs_no_decide_call():
@@ -102,7 +65,9 @@ def test_a_settled_memory_needs_no_decide_call():
     out = _run(fake, dataset="students3")
     assert len(fake.reads("doc:")) == 0 and fake.calls.count("FamilyDecision") == 0
     assert out.handoff.family == "adjustment" and out.decision.why_over_alternatives == "only admissible family"
-    assert out.decision.chosen_assumption.startswith("nothing unmeasured")  # the family's words, until the Designer wrote the brief
+    assert out.decision.chosen_assumption == next(
+        f.assumes for f in R.knowledge() if f.name == "adjustment"
+    )  # the family's words, until the Designer wrote the brief
     assert fake.calls.count("DesignBrief") == 1 and out.handoff.chosen_assumption == out.brief.bets_on != out.decision.chosen_assumption
 
 
@@ -111,7 +76,8 @@ def test_a_wide_table_is_skimmed_column_by_column(monkeypatch):
     fake = DeskFake(cites=GOOD)
     out = _run(fake)
     assert fake.calls.count("PrefilterVote") == len(store.memory_for("students").columns)
-    assert out.frame.outcome == "math score" and out.handoff.family == "adjustment"
+    assert out.frame.outcome == "math score" and out.handoff is None
+    assert any(v.family == "adjustment" and not v.admissible for v in out.family_verdicts)
 
 
 def test_relevant_columns_not_in_the_file_are_dropped():

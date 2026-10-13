@@ -1,117 +1,17 @@
-# families/diff_in_diff: the pyfixest lane
+# Difference-in-differences
 
-Effect of a change that reached some units at a date, compared with units it did not reach, before and after. The desk hands the
-lane a pack; the lane builds a canonical panel, freezes a design, fits it on pyfixest, runs the placebos, and writes a report or an
-honest stop.
+The desk admits a structured context before the lane reasons. The endpoint catalogue is the authority for required context, supported targets and valid trajectories. The lane never asks a person directly or overwrites the handoff. Missing essential context is returned as a typed deficiency. Before readiness, the desk computes never-treated support using only assignment, unit and period metadata. Missing or invalid mappings invalidate that fact. A dataset without never-treated units requires explicit consent to a scope ending before final adoption.
 
-```
-load ─ case ─ groups ─ periods ─ shape_table ─ comparison ─ controls ─ merge_controls ─ verify ─ heterogeneity ─ threats
-     ─ check_design ─(assess, only when flagged)─ pick_estimator ─ freeze_design ─ estimate ─(placebo × K)─ interpret
-     ─ figures ─ assemble
-any typed stop, or a question back to the desk ─────────────────────────────▶ feasibility ─ figures ─ assemble
-```
+Six structural endpoints cover paired before/after measurements, common adoption projection effects, untreated-cell imputation, imputation on an explicitly accepted prefix before final adoption, never-treated cohort comparisons, and clean-control local projections. Pooled, horizon and cohort configurations are declared separately from their estimator and inference implementation.
 
-K is the placebos the catalogue declares. `groups`, `periods`, `shape_table`, `comparison`, `controls`, `heterogeneity` and
-`threats` are the rungs of the ladder (`lane/contracts.py`, `Ladder`), and `freeze_design` adds the clustering rung by code: who
-got the change, the clock, the shape of the panel, whether the comparison group is a fair stand-in and what could break it, the
-candidate controls placed together, where the effect could differ, the risks, where the errors cluster. A rung is code where the
-pack settles it and a bounded episode where it does not, with the data tools and the budgets `knowledge/checks.yaml` declares.
+The desk also admits the requested averaging policy: treated unit-period shares, a pooled treatment projection, horizon projections, or clean adoption comparisons. No lane silently chooses that policy. Lead selection records an effect-blind ranking by the exact requested target and support, averaging policy, sourced assumptions, support flags, catalogue ranks and stable design identity. A projection can be primary when its own averaging policy is requested; different weights or windows remain companions. No matching design leaves the requested target unidentified rather than promoting a different quantity.
 
-## How it sits on pyfixest
+Reasoning builds an append-only assumption ledger. Sources retain their epistemic category: a data association or passing diagnostic cannot certify a causal assertion. Each stage sees its own context view and can cite only those addresses or its episode facts. Gate attempts, working notes, admitted obligations and every candidate revision are retained. A stage without covariates having safe timing and variation after fixed effects settles by code. Consequential control uncertainty generates bounded rival specifications before outcome diagnostics, with every exclusion recorded.
 
-pyfixest has four independent axes and the lane maps one artifact onto each.
+Before freezing, outcomes are accessible only in periods before earliest adoption. Pretrend diagnostics fit only those rows. Failed diagnostics do not launch a controls search and human assertions cannot erase a hard failure. No post-treatment cohort heterogeneity or effect is computed during preparation.
 
-- **The canonical panel.** `lane/shape.py` produces `y, unit, time, time_index, treated, post, treat, rel_time, cohort` from a long
-  table (a time column) or a wide one (a before and an after column, one synthetic unit per row). `cohort` is each unit's first
-  treated period as a 1-based index, 0 for never treated, which is what pyfixest's DID estimators call `gname`; it is read from the
-  pack's adoption column when it names one, else from a treatment indicator that switches on within a unit and stays on, else from
-  the treated label and the one change period. One first period is one-shot adoption; several is staggered, and the shape facts say
-  which units got the change when and whether any unit is never treated. Every helper reads this shape.
-- **Estimators by engine.** `knowledge/estimators.yaml` holds one entry per estimator with the library surface that runs it. On
-  feols, formulas over the canonical names: static `y ~ treat | unit+time`, dynamic `y ~ i(rel_time, treated, ref=-1) | unit+time`,
-  controls filled in by the adapter, the static shape with `csw0()` so the report shows the effect with no controls and with each
-  control added. On did2s, Gardner's two stages, the controls in the first. On lpdid, local projections pooled into the effect on
-  the treated. On the saturated event study, a coefficient per cohort and period, whose pooled effect, each cohort's effect and
-  each period's effect the adapter computes as share-weighted sums with intervals from the fit's covariance, because the library's
-  own aggregates are not implemented in this version. Every entry applies by facts (`cohorts`, `never_treated`, the periods),
-  matched by one rule.
-- **Inference.** `knowledge/inference.yaml` picks the `vcov` and any resampling from facts, matched by one rule: robust errors on
-  wide two-period data; with one to three treated units, randomisation inference on one before and one after value per unit,
-  the treated label reassigned across units; with fewer than a dozen clusters, a wild cluster bootstrap with Webb's six-point
-  weights; with a few dozen, the jackknife cluster variance and a Rademacher bootstrap; else the clustered formula. The level
-  errors cluster at is the pack's when it rides, nests the units and has enough distinct values, else the unit, and a decline
-  records why. The p-value sits on the estimate with its source named, and the interpretation must cite it when it was
-  resampled; a `few_clusters` check flags the count.
-- **Adoption pattern.** `cohorts` is a fact from the panel. With one cohort the two-way fixed effects entries apply; with several
-  they never do, because a unit already treated would serve as a control for one treated later, and the pick sees did2s, lpdid and
-  the saturated event study. The two-stage and the saturated designs need never-treated units in this version of the library;
-  local projections do not, and without them the lane caps the post horizons at those where every cohort but the last still has
-  a unit not yet treated to compare with, and the pre-trends check reads the local-projection leads with a Bonferroni correction
-  instead of the two-stage dynamic fit. The `staggered` check is then informative, not a stop, and a
-  `cohort_heterogeneity` check tests whether the cohorts' pooled effects are equal, a contrast the adapter builds on the saturated
-  fit (the library's own test in this version tests whether the effects are zero at all). Each cohort's effect is reported as the
-  effect within a level of `cohort`.
+Each design freezes its context identity, ledger revision, row IDs, temporal support, estimator formula, inference and exact target weights. Execution reads its frozen panel and design, then writes design-qualified estimates, falsifications and sensitivity ranges. Failed fits cannot shrink the window or change the target. Reported numeric agreement requires matching population, support and weights.
 
-The mechanism rung reads how the treated group came to be chosen: the kind, the level and the drivers from the pack, and, where the
-pack leaves it open, a judgement on whether the group was picked for where its outcome stood or was heading and whether the story
-states a lead. A group chosen for its trend is a threat by code, hard when the paths already diverge; a stated lead is left out of
-the estimate (`Design.excluded_rel_times`) and named as a threat; few treated units are a threat too. The trends rung (`checks.trend_facts`) runs before the comparison is judged: the pre-period paths by group, the drift of the gap,
-the joint Wald test on the lead coefficients of the dynamic fit with each lead, and the composition of the panel over time, each an
-addressed line the comparison rung reads. The pre-trends check reads the rung when the design has no controls and fits again with
-them when it does; the post-period coefficients never reach the ladder.
+The installed pyfixest implementation supports static and dynamic FEOLS, did2s pooled/horizon/cohort specifications, saturated cohort cells and their covariance aggregations, and pooled or dynamic LP-DiD. Saturated covariates are deliberately rejected because the installed API ignores them. LP-DiD requires regular complete period blocks and cannot accept controls. General ATE/ATC, non-absorbing treatment, elapsed-time interpolation and sampling weights remain unsupported. Missing adoption values are not interpreted as never treated.
 
-Falsification runs after the estimate, by code, every entry of `placebos.yaml` whose `applies_when` holds on the frozen design
-(units, treated units, pre periods, cohorts, the engine, whether a column the change could not have moved rides in the panel,
-whether a level above the unit does). Each refits the design as frozen: the same rows, the same controls, the same inference. The
-falsifications carry a verdict under one declared rule (`adapter.passes`): the treated label reassigned across units; a fake change
-in the middle of the pre window; a column fixed before the change as the outcome; each treated unit left out in turn; a fake change
-one period before the real one, past any anticipation window the design left out. The sensitivities report where the estimate lands
-and no verdict: a linear trend per unit; period effects per group above the unit; the two-way fixed effects a staggered design did
-not use, to show the bias it avoided. A failed falsification is an address the interpretation must cite.
-
-The effect within each level of a modifier is one family of hypotheses: the p-value on each level is corrected across the family by
-the Romano-Wolf step-down procedure, resampled by the wild cluster bootstrap and clustered as the design is
-(`checks.yaml multiple_testing`); the source on the estimate says so. A family of one is not corrected, and an estimator on another
-library surface than feols keeps the fit's own p-value.
-
-## The rule every node follows
-
-- **Facts**: `load`, `case`, `shape_table`, `merge_controls`, `verify`, `threats`, `check_design`, `freeze_design`, `estimate`,
-  `placebo`, `figures`, `assemble`. Declared inputs; a failed assumption is a typed stop.
-- **Judgements**, bounded episodes or single calls, cited and gated: `groups`, `periods`, `comparison`, `controls`,
-  `heterogeneity` (episodes, each only for what the pack leaves open), `assess`, `pick_estimator`, `interpret`. A rung never asks
-  the person beyond the first period; what it would not guess is a flag.
-- **The pack is weighed first** by the harness's `case`; the person's beliefs become flags by `knowledge/beliefs.yaml`.
-- **Design freeze** before any estimate; loops only on failure facts.
-- **The model never touches pyfixest.** `lane/adapter.py` is the only file that imports it.
-
-## Files
-
-```
-family.yaml  design.py  handoff.py  probes.py  postviz.py
-lane/        graph.py, nodes.py, prompts.py, contracts.py, state.py, adapter.py, checks.py, shape.py
-lane/knowledge  estimators.yaml, inference.yaml, placebos.yaml, checks.yaml, beliefs.yaml
-evals/  tests/
-```
-
-A run leaves `table.csv`, `panel.csv`, `design.json`, `design.md`, `artifacts.json`, `figures.json` and `report.md` under
-`.artifacts/runs/<dataset>-did-<id>/`.
-
-## Run it
-
-```bash
-uv run python -m causal_agent.evals.lane diff_in_diff card_krueger "Did New Jersey's 1992 minimum wage rise reduce fast food employment?"
-```
-
-```bash
-uv run pytest causal_agent/families/diff_in_diff -q
-```
-
-## Known limits
-
-- Not in pyfixest 0.60, so not here: Callaway and Sant'Anna's estimator, HonestDiD bounds. Count outcomes (`fepois`) and sampling
-  weights need claims the interview does not ask; two-way, Newey-West and Driscoll-Kraay errors need claims about shared or
-  serial shocks.
-- Fixed effects are spelled `unit+time` without spaces on purpose: pyfixest 0.60 splits the string on `+` without stripping.
-- The dynamic model's summary number is the mean of the post-period coefficients; the per-period values are in the report.
-- Rows with a null in any relevant column are dropped at `load`.
+Modules separate `reason/`, `engine/`, `execute.py` and `artifacts.py`; `nodes.py` is only the graph registry. Only diagnostics are available to reasoning. Engine fitting and robustness functions read frozen designs.

@@ -60,6 +60,8 @@ export function statusMatrix(status: StatusView | null, claims: ClaimView[]): Ma
 }
 
 export interface EstimateRow {
+  design: string;
+  endpoint: string;
   contrast: string;
   method: string;
   value: string;
@@ -74,17 +76,21 @@ export interface EstimateRow {
 }
 
 export function primaryEstimate(run: RunView) {
-  return run.estimates.find((e) => !e.secondary && !e.error) ?? null;
+  return run.estimates.find((e) => e.design_id === run.lead_design_id && !e.secondary && !e.modifier) ?? null;
 }
 
 /** The primary estimate first, then the rest in the order the lane wrote them. */
 export function estimateRows(run: RunView): EstimateRow[] {
   const primary = primaryEstimate(run);
   const rows = run.estimates.map((e) => ({
+    design: e.design_id,
+    endpoint: e.endpoint_id,
     contrast: e.contrast ?? "—",
     method: e.method ?? "—",
     value: num(e.value),
-    ci: `[${num(e.ci_low)}, ${num(e.ci_high)}]`,
+    ci: e.confidence_set
+      ? `${e.confidence_set.status}: ${e.confidence_set.regions.map(([lo, hi]) => `[${num(lo)}, ${num(hi)}]`).join(" ∪ ") || e.confidence_set.detail}`
+      : `[${num(e.ci_low)}, ${num(e.ci_high)}]`,
     n: e.n,
     n_treated: e.n_treated,
     n_control: e.n_control,
@@ -116,7 +122,7 @@ export function checkRows(checks: CheckView[]): CheckRow[] {
   }));
 }
 
-export interface RefutationRow {
+export interface FalsificationRow {
   contrast: string;
   refuter: string;
   kind: string;
@@ -126,11 +132,11 @@ export interface RefutationRow {
   detail: string;
 }
 
-export function refutationRows(run: RunView): RefutationRow[] {
-  return run.refutations.map((x) => ({
+export function falsificationRows(run: RunView): FalsificationRow[] {
+  return run.falsifications.map((x) => ({
     contrast: x.contrast ?? "—",
     refuter: x.refuter,
-    kind: x.kind ?? "—",
+    kind: x.design_id,
     passed: x.passed === null ? "n/a" : x.passed ? "passed" : "failed",
     p_value: num(x.p_value),
     new_effect: num(x.new_effect),

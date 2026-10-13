@@ -1,56 +1,217 @@
 # The discontinuity lane's ladder
 
-Written by `make ladder` from `causal_agent/families/discontinuity/lane/knowledge/` (rungs.yaml, space.yaml, checks.yaml, beliefs.yaml
+Written by `make ladder` from `causal_agent/families/discontinuity/lane/knowledge/` (rungs.yaml, space.yaml, checks.yaml, endpoints.yaml
 and the catalogue). Do not edit; change the declarations.
 
-The ladder climbs to `freeze_design`; every rung may go only where this table says, and a stop goes to `feasibility`.
+The ladder climbs to `freeze_designs`; every rung may go only where this table says, and a stop goes to `feasibility`.
 
 Loops still in the graph:
 
-- estimate → pick_estimator, at most 1: a second pick when the estimator failed to fit
+(none)
 
 ## The rungs
 
 | rung | level | decided by | fixes | goes on to | budget | may ask |
 |---|---|---|---|---|---|---|
-| load | the file | code: always |  | case · stop |  |  |
-| case | the pack weighed | code: always |  | score |  |  |
-| score | the score and the line | pack: the score column and the cutoff are confirmed; ask: the pack names the rule and not its column or its cutoff; judgement: otherwise |  | shape_table · stop | 2 | claim:assignment.score_column, claim:assignment.cutoff |
-| shape_table | the table at the line | code: always |  | density · stop |  |  |
-| density | the evidence | code: always |  | line |  |  |
-| line | what the line decides | judgement: always |  | balance · stop | 4 |  |
-| balance | the evidence | code: always |  | covariates |  |  |
-| covariates | what else differs at the line | pack: a column whose claims are confirmed; judgement: every other candidate |  | merge_covariates · stop | 8 |  |
-| merge_covariates | the design | code: a pure function of the rungs below |  | verify |  |  |
-| verify | the design | code: always |  | heterogeneity · stop |  |  |
-| heterogeneity | where the effect differs | code: no candidate; judgement: candidates exist |  | threats · stop | 4 |  |
-| threats | the risks | code: always |  | check_design |  |  |
-| check_design | the checks | code: always |  | assess, pick_estimator |  |  |
-| assess | the assessment | code: beliefs.yaml decides a stop or a question before any judgement; ask: a belief rule asks; judgement: a flag stands |  | pick_estimator · stop | 0 |  |
-| pick_estimator | the pick | judgement: always |  | window · stop | 0 |  |
-| window | the width | code: one selector applies; judgement: several apply |  | freeze_design · stop | 2 |  |
-| freeze_design | the design | code: always |  | estimate |  |  |
-| estimate | the estimate | code: always |  | placebo, interpret, pick_estimator · stop |  |  |
-| placebo (worker) | the estimate | code: always |  | interpret |  |  |
-| interpret | the answer | judgement: always |  | figures | 0 |  |
+| load | load | code: always | dependence | validate_context · stop |  |  |
+| validate_context | validate context | code: always |  | seed · stop |  |  |
+| seed | seed | code: always |  | score |  |  |
+| score | score | code: always |  | shape_table · stop |  |  |
+| shape_table | shape table | code: always | kind, support_regime | covariates · stop |  |  |
+| covariates | covariates | judgement: always |  | density · stop | 4 |  |
+| density | density | code: always |  | balance |  |  |
+| balance | balance | code: always |  | line |  |  |
+| line | line | judgement: always |  | assumptions · stop | 4 |  |
+| assumptions | assumptions | judgement: always | framework | rivals · stop | 0 |  |
+| rivals | rivals | code: always | estimand | check_candidates |  |  |
+| check_candidates | check candidates | code: always |  | freeze_designs |  |  |
+| freeze_designs | freeze designs | code: always |  | execute · stop |  |  |
+| execute (worker) | execute | code: always |  | interpret |  |  |
+| interpret | interpret | judgement: always |  | figures | 0 |  |
+
+## The space
+
+| dimension | values | decided by | read from | not run |
+|---|---|---|---|---|
+| framework | continuity, local_randomisation | assumptions |  |  |
+| kind | sharp, fuzzy | shape_table |  |  |
+| estimand | effect_at_cutoff, complier_effect_at_cutoff, itt_at_cutoff, effect_in_window, complier_effect_in_window, itt_in_window | rivals |  |  |
+| support_regime | dense, coarse | shape_table |  |  |
+| dependence | independent, clustered | load |  |  |
+| framework=local_randomisation+dependence=clustered |  |  |  | the installed randomisation engine does not permute assignment clusters |
+
+## Executable endpoint catalogue
+
+Valid designs are conditional on the stated assumptions. Diagnostics cannot prove those assumptions.
+
+| endpoint | target | configuration | trajectory | estimators / inference | terminal failures |
+|---|---|---|---|---|---|
+| sharp_local_polynomial | effect_at_cutoff | {'framework': 'continuity', 'kind': 'sharp', 'estimand': 'effect_at_cutoff'} | load → validate_context → seed → score → shape_table → covariates → density → balance → line → assumptions → rivals → check_candidates → freeze_designs | local_linear / robust_bc, cluster_entity, cluster_few | context_deficiency, invalid_rule, insufficient_support, assumptions_rejected, engine_failure |
+| fuzzy_local_polynomial | complier_effect_at_cutoff | {'framework': 'continuity', 'kind': 'fuzzy', 'estimand': 'complier_effect_at_cutoff'} | load → validate_context → seed → score → shape_table → covariates → density → balance → line → assumptions → rivals → check_candidates → freeze_designs | local_linear_fuzzy / robust_bc, cluster_entity, cluster_few | context_deficiency, invalid_rule, insufficient_support, assumptions_rejected, engine_failure |
+| eligibility_local_polynomial | itt_at_cutoff | {'framework': 'continuity', 'kind': 'fuzzy', 'estimand': 'itt_at_cutoff'} | load → validate_context → seed → score → shape_table → covariates → density → balance → line → assumptions → rivals → check_candidates → freeze_designs | local_linear_itt / robust_bc, cluster_entity, cluster_few | context_deficiency, invalid_rule, insufficient_support, assumptions_rejected, engine_failure |
+| sharp_local_randomisation | effect_in_window | {'framework': 'local_randomisation', 'kind': 'sharp', 'estimand': 'effect_in_window'} | load → validate_context → seed → score → shape_table → covariates → density → balance → line → assumptions → rivals → check_candidates → freeze_designs | local_randomisation / randomisation | context_deficiency, invalid_rule, insufficient_support, assumptions_rejected, engine_failure, dependent_assignment |
+| fuzzy_local_randomisation | complier_effect_in_window | {'framework': 'local_randomisation', 'kind': 'fuzzy', 'estimand': 'complier_effect_in_window'} | load → validate_context → seed → score → shape_table → covariates → density → balance → line → assumptions → rivals → check_candidates → freeze_designs | local_randomisation_fuzzy / randomisation | context_deficiency, invalid_rule, insufficient_support, assumptions_rejected, engine_failure, dependent_assignment |
+| eligibility_local_randomisation | itt_in_window | {'framework': 'local_randomisation', 'kind': 'fuzzy', 'estimand': 'itt_in_window'} | load → validate_context → seed → score → shape_table → covariates → density → balance → line → assumptions → rivals → check_candidates → freeze_designs | local_randomisation_itt / randomisation | context_deficiency, invalid_rule, insufficient_support, assumptions_rejected, engine_failure, dependent_assignment |
+
+### Context for `sharp_local_polynomial`
+
+| requirement | address | accepted status | acceptable sources | permitted unknown | condition | allowed values |
+|---|---|---|---|---|---|---|
+| target_locality | claim:target.locality | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['cutoff', 'window'] |
+| rule | claim:assignment.kind | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| score | claim:assignment.score_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| cutoff | claim:assignment.cutoff | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| side | claim:assignment.treated_side | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| equality | claim:assignment.cutoff_value_treated | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| timing | col:<score>.when | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| movability | claim:assignment.movable | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| other_changes | claim:cutoff_only.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| unit | claim:grain.row_is | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| sampling | claim:sampling.how | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| compliance | claim:assignment.compliance | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['sharp'] |
+
+Assumptions: no coincident intervention confounds the contrast; no selective score manipulation; potential-outcome regression functions are continuous at the cutoff.
+
+Checks: sides, support, density, covariate_continuity.
+
+### Context for `fuzzy_local_polynomial`
+
+| requirement | address | accepted status | acceptable sources | permitted unknown | condition | allowed values |
+|---|---|---|---|---|---|---|
+| target_locality | claim:target.locality | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['cutoff', 'window'] |
+| target_comparison | claim:target.comparison | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {'claim:assignment.compliance': ['fuzzy']} | ['receipt', 'eligibility'] |
+| rule | claim:assignment.kind | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| score | claim:assignment.score_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| cutoff | claim:assignment.cutoff | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| side | claim:assignment.treated_side | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| equality | claim:assignment.cutoff_value_treated | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| timing | col:<score>.when | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| movability | claim:assignment.movable | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| other_changes | claim:cutoff_only.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| unit | claim:grain.row_is | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| sampling | claim:sampling.how | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| receipt | claim:assignment.treatment_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| receipt_level | claim:assignment.treated_level | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| exclusion | claim:exclusion.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| monotonicity | claim:monotonicity.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| compliance | claim:assignment.compliance | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['fuzzy'] |
+
+Assumptions: no coincident intervention confounds the contrast; no selective score manipulation; potential-outcome regression functions are continuous at the cutoff; eligibility affects outcome only through receipt; eligibility moves receipt in one direction.
+
+Checks: sides, support, density, covariate_continuity, first_stage.
+
+### Context for `eligibility_local_polynomial`
+
+| requirement | address | accepted status | acceptable sources | permitted unknown | condition | allowed values |
+|---|---|---|---|---|---|---|
+| target_locality | claim:target.locality | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['cutoff', 'window'] |
+| target_comparison | claim:target.comparison | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {'claim:assignment.compliance': ['fuzzy']} | ['receipt', 'eligibility'] |
+| rule | claim:assignment.kind | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| score | claim:assignment.score_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| cutoff | claim:assignment.cutoff | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| side | claim:assignment.treated_side | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| equality | claim:assignment.cutoff_value_treated | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| timing | col:<score>.when | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| movability | claim:assignment.movable | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| other_changes | claim:cutoff_only.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| unit | claim:grain.row_is | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| sampling | claim:sampling.how | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| compliance | claim:assignment.compliance | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['fuzzy'] |
+
+Assumptions: no coincident intervention confounds the contrast; no selective score manipulation; potential-outcome regression functions are continuous at the cutoff.
+
+Checks: sides, support, density, covariate_continuity.
+
+### Context for `sharp_local_randomisation`
+
+| requirement | address | accepted status | acceptable sources | permitted unknown | condition | allowed values |
+|---|---|---|---|---|---|---|
+| target_locality | claim:target.locality | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['cutoff', 'window'] |
+| rule | claim:assignment.kind | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| score | claim:assignment.score_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| cutoff | claim:assignment.cutoff | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| side | claim:assignment.treated_side | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| equality | claim:assignment.cutoff_value_treated | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| timing | col:<score>.when | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| movability | claim:assignment.movable | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| other_changes | claim:cutoff_only.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| unit | claim:grain.row_is | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| sampling | claim:sampling.how | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| randomisation_account | claim:local_randomisation.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| compliance | claim:assignment.compliance | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['sharp'] |
+
+Assumptions: no coincident intervention confounds the contrast; no selective score manipulation; assignment inside the frozen window is as-if complete randomisation; the additive-effect null is appropriate for randomisation test inversion.
+
+Checks: sides, support, density, covariate_continuity.
+
+### Context for `fuzzy_local_randomisation`
+
+| requirement | address | accepted status | acceptable sources | permitted unknown | condition | allowed values |
+|---|---|---|---|---|---|---|
+| target_locality | claim:target.locality | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['cutoff', 'window'] |
+| target_comparison | claim:target.comparison | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {'claim:assignment.compliance': ['fuzzy']} | ['receipt', 'eligibility'] |
+| rule | claim:assignment.kind | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| score | claim:assignment.score_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| cutoff | claim:assignment.cutoff | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| side | claim:assignment.treated_side | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| equality | claim:assignment.cutoff_value_treated | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| timing | col:<score>.when | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| movability | claim:assignment.movable | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| other_changes | claim:cutoff_only.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| unit | claim:grain.row_is | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| sampling | claim:sampling.how | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| randomisation_account | claim:local_randomisation.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| receipt | claim:assignment.treatment_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| receipt_level | claim:assignment.treated_level | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| exclusion | claim:exclusion.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| monotonicity | claim:monotonicity.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| compliance | claim:assignment.compliance | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['fuzzy'] |
+
+Assumptions: no coincident intervention confounds the contrast; no selective score manipulation; assignment inside the frozen window is as-if complete randomisation; the additive-effect null is appropriate for randomisation test inversion; eligibility affects outcome only through receipt; eligibility moves receipt in one direction.
+
+Checks: sides, support, density, covariate_continuity, first_stage.
+
+### Context for `eligibility_local_randomisation`
+
+| requirement | address | accepted status | acceptable sources | permitted unknown | condition | allowed values |
+|---|---|---|---|---|---|---|
+| target_locality | claim:target.locality | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['cutoff', 'window'] |
+| target_comparison | claim:target.comparison | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {'claim:assignment.compliance': ['fuzzy']} | ['receipt', 'eligibility'] |
+| rule | claim:assignment.kind | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| score | claim:assignment.score_column | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| cutoff | claim:assignment.cutoff | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| side | claim:assignment.treated_side | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| equality | claim:assignment.cutoff_value_treated | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| timing | col:<score>.when | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| movability | claim:assignment.movable | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| other_changes | claim:cutoff_only.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| unit | claim:grain.row_is | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| sampling | claim:sampling.how | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [] |
+| randomisation_account | claim:local_randomisation.believed | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | [True] |
+| compliance | claim:assignment.compliance | confirmed | user:, doc:, data, code:, fixture:, eval: | False | {} | ['fuzzy'] |
+
+Assumptions: no coincident intervention confounds the contrast; no selective score manipulation; assignment inside the frozen window is as-if complete randomisation; the additive-effect null is appropriate for randomisation test inversion.
+
+Checks: sides, support, density, covariate_continuity.
 
 ## The end states
 
-Derived from the declarations: 0 answers, 5 questions, 20 stops.
+Derived from the declarations: 6 engine configurations, 0 questions, 6 stops.
 
-### Answers
+### Answers: the cells a design can reach
 
-This lane declares no space yet, so its answers are not enumerated.
+| cell | estimators | refuters |
+|---|---|---|
+| endpoint=sharp_local_polynomial, framework=continuity, kind=sharp, estimand=effect_at_cutoff | local_linear |  |
+| endpoint=fuzzy_local_polynomial, framework=continuity, kind=fuzzy, estimand=complier_effect_at_cutoff | local_linear_fuzzy |  |
+| endpoint=eligibility_local_polynomial, framework=continuity, kind=fuzzy, estimand=itt_at_cutoff | local_linear_itt |  |
+| endpoint=sharp_local_randomisation, framework=local_randomisation, kind=sharp, estimand=effect_in_window | local_randomisation |  |
+| endpoint=fuzzy_local_randomisation, framework=local_randomisation, kind=fuzzy, estimand=complier_effect_in_window | local_randomisation_fuzzy |  |
+| endpoint=eligibility_local_randomisation, framework=local_randomisation, kind=fuzzy, estimand=itt_in_window | local_randomisation_itt |  |
 
 ### Questions back
 
-| rung | address | question |
-|---|---|---|
-| score | claim:assignment.score_column |  |
-| score | claim:assignment.cutoff |  |
-| assess | claim:cutoff_only.believed | Does anything else change for a unit at the cutoff besides the change asked about? |
-| assess | claim:cutoff_only.believed | Does anything else change for a unit at the cutoff besides the change asked about? |
-| assess | assignment.movable | The number of units jumps at the cutoff (density test p = {value}). Could a unit have changed its score once it knew the rule? |
+(none)
 
 ### Typed stops
 
@@ -58,21 +219,7 @@ This lane declares no space yet, so its answers are not enumerated.
 |---|---|---|---|
 | load | intake | the hand-off names no file, or a column it names is not in the file | a hand-off whose file and columns exist |
 | load | shape | the table fails a shape rule the lane declares | a table the rule holds on |
-| score | gate | the record was refused on every try | clearer notes on what the rung reads |
-| shape_table | shape | the table fails a shape rule the lane declares | a table the rule holds on |
-| line | gate | the record was refused on every try | clearer notes on what the rung reads |
 | covariates | gate | the record was refused on every try | clearer notes on what the rung reads |
-| verify | graph | what the rungs built fails verification | clearer column notes about what fed the decision |
-| heterogeneity | gate | the record was refused on every try | clearer notes on what the rung reads |
-| assess | check:sides.min_rows | how many rows sit on each side of the cutoff; min rows past 20 | a design that passes the check |
-| assess | check:density.never_hard | whether units bunch up just on one side of the line, as they would if some moved their score; never hard | a design that passes the check |
-| assess | check:first_stage.no_first_stage_is_hard | how much take-up jumps at the cutoff; no first stage is hard | a design that passes the check |
-| assess | belief:cutoff_only.confirmed_false | the person says something else also switches at the cutoff, so a jump there cannot be read as the change's alone | a different answer at [claim:cutoff_only.believed] |
-| assess | belief:score_fixed_before.confirmed_false | the score was set at or after the decision, so the line on it cannot have decided who got the change | a different answer at [design.score_fixed_before] |
-| assess | threat:selection | rows were drawn by how the outcome turned out; a comparison among the selected does not reach the population the question asks about | a file drawn and measured so the threat does not stand |
-| assess | threat:outcome_timing | the outcome was measured before the change; it cannot carry its effect | a file drawn and measured so the threat does not stand |
-| assess | assessment | a hard flag the assessment could not answer | a design that answers it, or the person's word on it |
-| assess | gate | the record was refused on every try | clearer notes on what the rung reads |
-| pick_estimator | gate | the record was refused on every try | clearer notes on what the rung reads |
-| window | gate | the record was refused on every try | clearer notes on what the rung reads |
-| estimate | engine | the estimator failed to fit | a different estimator entry |
+| line | gate | the record was refused on every try | clearer notes on what the rung reads |
+| assumptions | space:framework=local_randomisation+dependence=clustered | the installed randomisation engine does not permute assignment clusters | a design inside the space |
+| assumptions | gate | the record was refused on every try | clearer notes on what the rung reads |

@@ -1,79 +1,18 @@
-# Design checks run after the canonical table exists, before any estimate. Numbers are declarations.
-# hard: the design cannot proceed as it stands.  soft: proceed is allowed, the model must acknowledge it.
-
-units:
-  min_per_group: {hard: 1, soft: 10}      # treated or control units below soft is thin; below hard is no comparison
-
-clusters:
-  few: {soft: 12}          # below this the clustered formula over-rejects and inference.yaml resamples instead; MacKinnon and Webb's rule of thumb
-  min_at_level: 3          # a cluster level the pack names with fewer distinct values than this is declined and the unit clusters; ours
-  few_treated: 3           # this many treated units or fewer is a threat the design carries: the variance rests on that many clusters; the randomisation tier's line
-
-never_treated:
-  soft_when_none: true     # every unit eventually got the change: the comparison is units not yet treated, and the last cohort has none after its own change
-
-composition:
-  entries_or_exits: {soft: 1}   # any unit entering after the first period or leaving before the last is a soft flag; the trends rung shows where
-
-trends:
-  # the trends rung, by code before the comparison is judged: the pre-period paths by group (at most this many periods, the
-  # nearest the change), the drift of the gap, the joint leads test and each lead, the composition over time
-  max_paths_periods: 12
-  max_leads_shown: 8
-
-periods:
-  parallel_untestable_when_pre: 1         # one pre period: the parallel-trends assumption cannot be checked (soft)
-
 pre_trends:
-  # joint test that every pre-period coefficient of the dynamic model is zero; computed when pre >= 2
-  p_value: {soft: 0.10, hard: 0.01}
-
-adoption:
-  # more than one first-treated period is a fact the estimator filter reads: the two-way fixed effects entries apply to one
-  # cohort only, and the staggered-robust entries to several. The check is informative when such an entry applies to the
-  # panel and hard only when none does, which the catalogue makes impossible; the rule is declared all the same.
-  hard_when_no_estimator_applies: true
-
-cohort_heterogeneity:
-  # under staggered adoption with never-treated units, the saturated event study tests whether the cohorts' effects are
-  # equal (Lal 2025, as pyfixest implements it); a difference is a soft flag the assessment answers and the report shows
-  p_value: {soft: 0.05}   # ours
-
-# hand-off scope target -> what diff-in-diff identifies
-target_units:
-  average: att
-  on_treated: att
-
-# interpretation gate: the stated effect must match the estimate within this relative tolerance
-effect_tolerance: 0.01
-
-# What each check asks, in the question's words. The lane puts this before the number on every check line the
-# interpretation and the brief read. No dataset name here.
+  p_value:
+    soft: 0.1
+    hard: 0.01
+  note: globally pre-adoption diagnostic; no passing test certifies parallel trends
+inference:
+  min_clusters: 3
+  few_clusters: 12
+  moderate_clusters: 42
+projection:
+  max_horizon: 8
+rivals:
+  max_control_toggles: 3
+interpretation:
+  relative_effect_tolerance: 0.01
 in_words:
-  units: "how many units got the change and how many are compared against them"
-  single_treated_unit: "whether only one unit got the change, so the usual standard errors mean little"
-  parallel_untestable: "whether there is more than one period before the change to see if the groups moved together"
-  pre_trends: "whether the two groups were already moving apart before the change"
-  staggered: "whether units got the change at different times"
-  few_clusters: "whether there are enough separate groups of units for the usual clustered standard errors to be trusted"
-  never_treated: "whether any unit never got the change, or every unit is compared only with units that had not got it yet"
-  composition: "whether the same units are present before and after the change"
-  cohort_heterogeneity: "whether the units that got the change at different times moved alike after it"
-
-anticipation:
-  window_max: 3            # the mechanism rung may name at most this many periods of anticipation; ours
-
-
-# How many modifiers the heterogeneity rung may name; the effect is estimated within each level of each, a unit trait.
-modifiers:
-  max: 3
-  max_levels: 4
-  min_units_per_group: 2   # a level with fewer treated or control units than this is recorded as too thin, not estimated
-
-# The effect within each level of one modifier is a family of hypotheses; the p-value on each level is corrected across the
-# family by the Romano-Wolf step-down procedure, resampled by the wild cluster bootstrap, clustered as the design is. A family
-# of one is not corrected. The estimators on another library surface than feols keep the fit's own p-value.
-multiple_testing:
-  method: rwolf
-  reps: 199
-  source: Romano and Wolf (2005) for the step-down procedure; Clarke, Romano and Wolf (2020) for the resampled implementation; 199 draws is ours
+  pre_trends: whether the treated and comparison groups were already moving differently
+    before adoption

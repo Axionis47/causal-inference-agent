@@ -9,6 +9,8 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
+from causal_agent.common.contracts.endpoints import EndpointCatalogue
+
 _HERE = Path(__file__).parent
 
 
@@ -77,14 +79,11 @@ class FamilyNeeds(BaseModel):
     name: str
     requires: list[str]
     fits: dict[str, list[Any]] = Field(default_factory=dict)
-    lane_settles: list[str] = Field(
-        default_factory=list,
-        description="the kinds a decision rests on that the lane settles with its own question when its own graph needs them; asked by the interview, never blocking",
-    )
     asks: list[str] = Field(
         default_factory=list,
         description="the field addresses the family's decisions rest on, as patterns; <column> stands for any column in play. The interview asks them because a decision needs them",
     )
+    endpoints: EndpointCatalogue | None = None
 
 
 class Catalogue(BaseModel):

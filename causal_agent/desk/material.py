@@ -3,12 +3,14 @@ the lane state, so it works for any stored run. Address formats match the lanes'
 
 from __future__ import annotations
 
-import re
+import hashlib
+import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from causal_agent.common.addresses import norm_address
-from causal_agent.common.contracts import Decline, DesignBrief, Estimate, Handoff, RunRecord
+from causal_agent.common.contracts import Contrast, Decline, DesignBrief, Estimate, Handoff, RunRecord
 from causal_agent.desk.pull import Item, Shelf, shelf_of
 from causal_agent.memory import artifacts as VA
 from causal_agent.memory.journal import Step
@@ -67,20 +69,6 @@ def _g(v: float | None) -> str:
     return "n/a" if v is None else f"{v:.4g}"
 
 
-def _contrast_key(design: dict) -> str | None:
-    c = design.get("contrast")
-    if isinstance(c, dict):
-        return _slug(c.get("treated")) + "_vs_" + _slug(c.get("control"))
-    cs = design.get("contrasts")
-    if isinstance(cs, list) and cs:
-        return _slug(cs[0].get("treated")) + "_vs_" + _slug(cs[0].get("control"))
-    return None
-
-
-def _slug(s) -> str:
-    return re.sub(r"[^0-9a-zA-Z]+", "_", str(s or "")).strip("_").lower() or "x"
-
-
 def _brief(run: RunRecord) -> DesignBrief | None:
     """The design brief the run carried, or None."""
     raw = (run.decision or {}).get("brief")
@@ -130,153 +118,156 @@ def _scale(run: RunRecord, m: Material) -> None:
                     m.addresses.add(f"{b.address}.profile.numeric.{k}")
 
 
+def _values(m: Material, address: str, value) -> None:
+    """Render structured evidence without dropping nested numbers or provenance."""
+    weight_fields = {"weights", "weight_map", "projection_weights", "cohort_weights"}
+    if address.split(".")[-1] in weight_fields and isinstance(value, (dict, list)) and len(value) > 256:
+        weights = list(value.values()) if isinstance(value, dict) else value
+        if all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in weights):
+            fingerprint = hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            m.add(address, "Full frozen numerical weights are retained in result.json; these summaries describe every weight.")
+            for name, number in {
+                "count": len(weights),
+                "sum": math.fsum(weights),
+                "absolute_sum": math.fsum(abs(v) for v in weights),
+                "negative_count": sum(v < 0 for v in weights),
+                "zero_count": sum(v == 0 for v in weights),
+                "min": min(weights),
+                "max": max(weights),
+            }.items():
+                m.add(f"{address}.{name}", str(number), number)
+            m.add(f"{address}.fingerprint", fingerprint)
+            return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            _values(m, f"{address}.{key}", item)
+    elif isinstance(value, list):
+        path = address.split(".")
+        membership = path[-1] in {"rows", "row_ids", "source_row_ids", "included_units"} or "input_rows" in path
+        if membership and len(value) > 16 and all(isinstance(v, (int, str)) and not isinstance(v, bool) for v in value):
+            fingerprint = hashlib.sha256(json.dumps(value, separators=(",", ":")).encode()).hexdigest()
+            members = "units" if path[-1] == "included_units" else "rows"
+            m.add(address, "Full frozen membership is retained in result.json; see the addressed count and fingerprint.")
+            m.add(f"{address}.count", f"{len(value)} frozen {members}", len(value))
+            m.add(f"{address}.fingerprint", fingerprint)
+            return
+        for index, item in enumerate(value):
+            _values(m, f"{address}.{index}", item)
+    elif value is not None:
+        m.add(address, str(value), value if isinstance(value, (int, float)) and not isinstance(value, bool) else None)
+
+
 def render(
     run: RunRecord, memory: Memory | None = None, previous: RunRecord | None = None, steps: list[Step] | None = None, matrix: Matrix | None = None
 ) -> Material:
     m = Material()
-    for line in matrix.render() if matrix is not None else []:  # the fit as a record: matrix:<family>.<kind>, with what set each cell
+    for line in matrix.render() if matrix is not None else []:
         address, _, text = line[1:].partition("] ")
         m.add(address, text)
-    dec = run.decision or {}
     m.add("run.question", run.question)
-    m.add("decision.family", f"{run.family or 'none'} via {run.specialist or 'none'}; status {run.status}")
-    if dec.get("chosen_assumption"):
-        m.add("decision.assumption", dec["chosen_assumption"])
-        m.add("design.assumption", dec["chosen_assumption"])
-    brief = _brief(run)
-    if brief is not None:  # what the design rested on, each line citable
-        for address, text in brief.lines():
+    m.add("decision.family", run.family or "none")
+    m.add("run.status", run.status)
+    context_policy = (
+        "This analysis uses its frozen admitted context, recorded in context.fields with its context.id. "
+        "Current durable memory, when shown at raw claim: and col: addresses, is the later dataset context and does not replace that frozen analysis source."
+    )
+    if run.what_if:
+        context_policy += " This hypothetical run used an isolated context copy; its recorded run.what_if changes never wrote durable memory."
+        m.add("run.what_if", "Hypothetical changes applied only to this run's isolated context copy.")
+        _values(m, "run.what_if", run.what_if)
+    m.add("run.context_policy", context_policy)
+    for key, value in (run.decision or {}).items():
+        _values(m, f"decision.{key}", value)
+    brief_record = _brief(run)
+    if brief_record:
+        for address, text in brief_record.lines():
             m.add(address, text)
-    if previous is not None:
-        m.add(f"run:{previous.index}.question", previous.question)
-        m.add(f"run:{previous.index}.family", f"{previous.family or 'none'}; status {previous.status}")
-        if previous.effect is not None:
-            m.add(
-                f"run:{previous.index}.effect",
-                f"{_g(previous.effect)}, interval {_g(previous.ci_low)} to {_g(previous.ci_high)} by {previous.estimator}",
-                previous.effect,
-            )
-            m.numbers[f"run:{previous.index}.ci_low"], m.numbers[f"run:{previous.index}.ci_high"] = float(previous.ci_low), float(previous.ci_high)
-            m.addresses.update({f"run:{previous.index}.ci_low", f"run:{previous.index}.ci_high"})
-    if dec.get("why"):
-        m.add("decision.why", dec["why"])
-    for fam, why in (dec.get("over") or {}).items():
-        m.add(f"decision.over:{fam}", why)
-    sr = run.specialist_result or {}
-    design = sr.get("design") or {}
-    if run.estimator:
-        m.add("design.estimator", run.estimator)
-    if design:
-        for k in ("estimand", "formula", "inference", "vce", "cluster", "target_units", "sharp_bandwidth_used"):
-            if design.get(k) is not None:
-                m.add(f"design.{k}", str(design[k]))
-        if isinstance(design.get("estimand"), dict):
-            m.add("design.estimand.adjustment_set", str(design["estimand"].get("adjustment_set")))
-        for k in ("score", "groups", "periods", "bandwidths", "spec", "shape", "controls", "covariates"):
-            if design.get(k) is not None:
-                m.add(f"design.{k}", str(design[k])[:600])
-        bw = design.get("bandwidths") or {}
-        if isinstance(bw, dict) and bw.get("h") is not None:
-            m.add("design.bandwidth", f"h = {bw['h']:.4g}, b = {_g(bw.get('b'))}, effective rows {bw.get('n_h_left')} / {bw.get('n_h_right')}", bw["h"])
-        g = design.get("graph")
-        if isinstance(g, dict):
-            m.add("design.graph", "; ".join(f"{e.get('src')} -> {e.get('dst')}" for e in g.get("edges") or []))
-        for r in (design.get("checks") or {}).get("results") or []:
-            addr = f"check:{r.get('contrast')}.{r.get('name')}"
-            m.add(addr, f"{r.get('level')}: {r.get('detail')} (value {_g(r.get('value'))}, threshold {_g(r.get('threshold'))})", r.get("value"))
-            if r.get("threshold") is not None:
-                m.numbers[addr + ".threshold"] = float(r["threshold"])
-                m.addresses.add(addr + ".threshold")
-    a_est = sr.get("estimates") or run.artifacts.get("estimates") or []
-    for e in a_est:
-        tag = Estimate.model_validate(e).tag
-        if e.get("error"):
-            m.add(f"{tag}.error" if e.get("modifier") else f"estimate:{e['contrast']}.{e['method']}.error", str(e["error"]))
-            continue
-        within = f"within {e['modifier']} = {e['level']}, " if e.get("modifier") else ""
-        m.add(f"{tag}.value", f"{e['method']}: {_g(e.get('value'))} ({within}{e.get('target_units')})", e.get("value"))
-        m.add(f"{tag}.ci", f"interval {_g(e.get('ci_low'))} to {_g(e.get('ci_high'))}", None)
-        if e.get("ci_low") is not None:
-            m.numbers[f"{tag}.ci_low"], m.numbers[f"{tag}.ci_high"] = float(e["ci_low"]), float(e["ci_high"])
-            m.addresses.update({f"{tag}.ci_low", f"{tag}.ci_high"})
-        m.add(f"{tag}.n", f"{e.get('n_treated')} treated-side and {e.get('n_control')} control-side rows", None)
-        m.numbers[f"{tag}.n_treated"], m.numbers[f"{tag}.n_control"] = float(e.get("n_treated") or 0), float(e.get("n_control") or 0)
-        m.addresses.update({f"{tag}.n_treated", f"{tag}.n_control"})
-        if e.get("p_value") is not None:
-            m.add(f"{tag}.p", f"p = {_g(e['p_value'])}" + (f" ({e['p_value_source']})" if e.get("p_value_source") else ""), e["p_value"])
-    prim = run.artifacts.get("primary") or {}
-    for k in ("p", "h", "b", "n_h_left", "n_h_right"):
-        if prim.get(k) is not None:
-            m.add(f"primary.{k}", _g(prim[k]) if isinstance(prim[k], float) else str(prim[k]), float(prim[k]))
-    for r in sr.get("refutations") or run.artifacts.get("refutations") or []:
-        prefix = "refute" if run.specialist == "dowhy" else "placebo"
-        tag = f"{prefix}:{r['contrast']}.{r['refuter']}"
-        verdict = "pass" if r.get("passed") else "FAIL" if r.get("passed") is False else "no verdict"
-        m.add(f"{tag}.passed", f"{verdict}: {r.get('detail')}", None)
-        m.add(f"{tag}.detail", str(r.get("detail")), None)
-        if r.get("p_value") is not None:
-            m.add(f"{tag}.p_value", _g(r["p_value"]), r["p_value"])
-        if r.get("new_effect") is not None:
-            m.add(f"{tag}.new_effect", _g(r["new_effect"]), r["new_effect"])
-    for address, text in sr.get("ladder") or []:  # the rungs the lane climbed, each line citable
-        m.add(str(address), str(text))
-    for f in sr.get("facts") or []:  # what the lane's episodes asked the data, with the numbers
-        m.add(str(f.get("address")), str(f.get("text")), f.get("value"))
-    for i in sr.get("interpretations") or []:
-        m.add(f"interpretation:{i.get('contrast')}.answer", str(i.get("answer")))
-        for j, cv in enumerate(i.get("caveats") or [], start=1):
-            m.add(f"interpretation:{i.get('contrast')}.caveat:{j}", str(cv))
-    for d in _declines(run):
-        m.add(
-            d.address,
-            f"{d.kind}: {d.about}"
-            + (f" · pack said {d.pack_value!r}" if d.pack_value is not None else "")
-            + (f" · lane took {d.took!r}" if d.took is not None else "")
-            + f" · {d.reason} ({d.check})",
-        )
-    a = sr.get("ask")
-    if a and a.get("address"):
-        m.add("ask.address", str(a["address"]))
-        m.add("ask.question", str(a.get("question") or ""))
-    f = sr.get("feasibility")
-    if f:
-        m.add("feasibility.stage", str(f.get("stage")))
-        m.add("feasibility.reason", str(f.get("reason")))
-        for j, fact in enumerate(f.get("facts") or [], start=1):
-            m.add(f"feasibility.fact:{j}", str(fact))
-        if f.get("what_would_fix"):
-            m.add("feasibility.what_would_fix", str(f["what_would_fix"]))
-    for raw in run.figures or []:
-        try:
-            from causal_agent.viz.spec import FigureSpec
+    sr = run.specialist_result
+    m.add("context.id", str(sr.get("context_id") or ""))
+    m.add("run.lead_design_id", str(sr.get("lead_design_id") or "none"))
+    _values(m, "lead.selection", sr.get("lead_selection"))
+    for design_id, design in (sr.get("designs") or {}).items():
+        _values(m, f"design:{design_id}", design)
+    _values(m, "context.admission", sr.get("context_admission"))
+    _values(m, "context.fields", sr.get("context_facts"))
+    _values(m, "ledger", sr.get("ledger"))
+    for ident, entry in (sr.get("ledger") or {}).get("entries", {}).items():
+        _values(m, ident, entry)
+        m.add(ident, f"{entry.get('kind')}: {entry.get('value')}; {entry.get('status')}; {entry.get('reason')}")
+    for change in (sr.get("ledger") or {}).get("history", []):
+        _values(m, f"ledger:revision.{change['revision']}", change)
+    for episode in (sr.get("episodes") or {}).values():
+        for fact in episode.get("facts") or []:
+            address = f"probe:{fact['node']}.{fact['visit']}.{fact['n']}"
+            m.add(address, fact["text"], fact.get("value"))
+    _values(m, "candidates", sr.get("candidates"))
+    _values(m, "comparisons", sr.get("comparisons"))
+    _values(m, "execution", sr.get("execution_attempts"))
+    for raw in sr.get("estimates") or []:
+        estimate = Estimate.model_validate(raw)
+        tag = estimate.tag
+        _values(m, tag, raw)
+        m.add(f"{tag}.ci", f"interval {_g(estimate.ci_low)} to {_g(estimate.ci_high)}")
+        m.add(f"{tag}.n", f"{estimate.n_treated} treated and {estimate.n_control} control rows")
+    for raw in sr.get("falsifications") or []:
+        from causal_agent.common.contracts import Falsification
 
-            spec = FigureSpec.model_validate(raw)
-        except Exception:
-            continue
-        m.add(spec.address, f"{spec.kind}: {spec.title}. {spec.note}")
-        for i, n in enumerate(spec.nodes):
-            m.add(f"{spec.address}.node.{i}", f"{n.label or n.id} ({n.role})")
-        for i, e in enumerate(spec.edges):
-            m.add(f"{spec.address}.edge.{i}", f"{e.src} -> {e.dst}" + (f" [{', '.join(e.cites)}]" if e.cites else ""))
-        for s_ in spec.series:
-            for i, (x, y) in enumerate(zip(s_.x, s_.y)):
-                if y is not None:
-                    m.add(f"{spec.address}.{s_.key}.{i}", f"{s_.name} · {x}: {y:.4g}", float(y))
-    add_artifacts(m, run.dataset, run.index)
-    for s in steps or []:  # how the conversation got here, each step citable by its address
-        m.add(s.address, s.line())
-    if memory is not None:  # every field the memory holds, so the chat can cite what the design rested on
-        for said in memory.said:  # the person's own words, by turn, so "on whose word" has an address
-            m.add(f"user:turn:{said.turn}", f'"{said.text}"' + (f" (about {said.about})" if said.about else ""))
-        for address, f in memory.fields.items():
-            if f.value is None and f.status == "empty":
-                continue
-            m.add(
-                address,
-                f"{f.value} ({f.status}, {f.source})" + (f' said "{f.said}"' if f.said else ""),
-                float(f.value) if isinstance(f.value, (int, float)) and not isinstance(f.value, bool) else None,
-            )
-        _scale(run, m)
+        record = Falsification.model_validate(raw)
+        _values(m, record.address, raw)
+    for raw in sr.get("sensitivities") or []:
+        from causal_agent.common.contracts import Sensitivity
+
+        record = Sensitivity.model_validate(raw)
+        _values(m, record.address, raw)
+    for raw in sr.get("checks") or []:
+        from causal_agent.common.contracts import CheckResult
+
+        record = CheckResult.model_validate(raw)
+        _values(m, record.address, raw)
+        m.add(record.address, f"{record.level}: {record.detail}", record.value)
+    for address, text in sr.get("ladder") or []:
+        m.add(str(address), str(text))
+    for fact in sr.get("facts") or []:
+        m.add(str(fact["address"]), str(fact["text"]), fact.get("value"))
+    for record in sr.get("interpretations") or []:
+        tag = f"interpretation:{record.get('design_id') or 'across'}.{record.get('contrast') or 'all'}"
+        m.add(f"{tag}.answer", str(record.get("answer") or ""))
+        for index, caveat in enumerate(record.get("caveats") or [], 1):
+            m.add(f"{tag}.caveat:{index}", str(caveat))
+    for decline in _declines(run):
+        m.add(decline.address, decline.render())
+    _values(m, "feasibility", sr.get("feasibility"))
+    _values(m, "context.deficiency", sr.get("context_deficiency"))
+    for raw in run.figures:
+        from causal_agent.viz.spec import FigureSpec
+
+        figure = FigureSpec.model_validate(raw)
+        for line in figure.render().splitlines():
+            trimmed = line.strip()
+            if trimmed.startswith("["):
+                address, _, text = trimmed[1:].partition("] ")
+                m.add(address, text)
+        for series in figure.series:
+            for index, value in enumerate(series.y):
+                address = f"{figure.address}.{series.key}.{index}"
+                if value is not None:
+                    m.numbers[address] = value
+                for suffix, values in (("lo", series.lo), ("hi", series.hi), ("n", series.n)):
+                    if values is not None and values[index] is not None:
+                        m.add(f"{address}.{suffix}", str(values[index]), values[index])
+    if memory:
+        for address, record in memory.fields.items():
+            m.add(address, record.render(address), record.value if isinstance(record.value, (int, float)) and not isinstance(record.value, bool) else None)
+        for said in memory.said:
+            m.add(f"user:turn:{said.turn}", said.text)
+        add_artifacts(m, memory.name, run.index)
+    for step in steps or []:
+        m.add(step.address, step.line())
+    if previous:
+        m.add(f"run:{previous.index}.question", previous.question)
+        m.add(f"run:{previous.index}.effect", _g(previous.effect), previous.effect)
+        m.add(f"run:{previous.index}.status", previous.status)
+    _scale(run, m)
     m.close()
     return m
 
@@ -296,72 +287,76 @@ def add_artifacts(m: Material, dataset: str, design: int | None = None) -> None:
 
 
 def brief(run: RunRecord, previous: RunRecord | None, material: Material) -> str:
-    """The opening message after a run: the reading first, then the record, every line with its address, no model."""
-    sr = run.specialist_result or {}
+    """The opening is a projection of the new result, never a positional choice of an estimate."""
+    sr = run.specialist_result
     lines = [f"Run {run.index}: {run.question}"]
-    if run.status == "pipeline_error":
-        lines.append("The analysis process failed before producing a record. [decision.family]")
-        lines.append(run.decision_record[-1500:])
-        lines.append("Ask again, or change something about the data; the pack was written.")
-        return "\n".join(lines)
-    for i in sr.get("interpretations") or []:
-        lines.append(f"{i.get('answer')} [interpretation:{i.get('contrast')}.answer]")
-        for j, cv in enumerate(i.get("caveats") or [], start=1):
-            lines.append(f"  Keep in mind: {cv} [interpretation:{i.get('contrast')}.caveat:{j}]")
-    if run.status == "done" and run.effect is not None:
-        lines.append(
-            f"The number: {_g(run.effect)}, interval {_g(run.ci_low)} to {_g(run.ci_high)}, by {run.estimator}. [estimate:{_contrast_key(sr.get('design') or {}) or 'all'}.value]"
-        )
-    if run.family:
-        brief_ = _brief(run)
-        road = f" By the {brief_.road} road." if brief_ is not None and brief_.road else ""
-        lines.append(
-            f"Design: {run.family} via {run.specialist}.{road}"
-            + (f" Why: {run.decision.get('why')}" if run.decision.get("why") else "")
-            + " [decision.family]"
-            + (" [design.brief.road]" if road else "")
-        )
-        if brief_ is not None:
-            lines.append(f"It bets on: {brief_.bets_on} [design.brief.bets_on]")
+    for interpretation in sr.get("interpretations") or []:
+        tag = f"interpretation:{interpretation.get('design_id') or 'across'}.{interpretation.get('contrast') or 'all'}"
+        lines.append(f"{interpretation.get('answer')} [{tag}.answer]")
+        lines.extend(f"Keep in mind: {text} [{tag}.caveat:{index}]" for index, text in enumerate(interpretation.get("caveats") or [], 1))
+    lead = sr.get("lead_design_id")
+    design = (sr.get("designs") or {}).get(lead) or {}
+    if lead:
+        lines.append(f"Lead design: {design.get('endpoint_id', lead)} [design:{lead}.endpoint_id]")
+    estimates = [Estimate.model_validate(e) for e in sr.get("estimates") or []]
+    primary = [e for e in estimates if e.design_id == lead and not e.secondary]
+    expected: list[tuple[tuple[str, str | None, str | None], str]] = []
+    summaries = (design.get("target") or {}).get("primary_summaries") or []
+    if summaries:
+        expected = [
+            ((summary["contrast"], summary.get("modifier"), summary.get("level")), f"design:{lead}.target.primary_summaries.{index}")
+            for index, summary in enumerate(summaries)
+        ]
     else:
-        lines.append("No design fit what is known and the data. [decision.family]")
-    if run.status == "no_handoff" or not run.family:
-        lines.append("No family was admissible for this question on what is known. Each was rejected for a reason:")
-        for fam, why in (run.decision.get("over") or {}).items():
-            lines.append(f"  {fam}: {why} [decision.over:{fam}]")
-        lines.append("Tell me if one of those reasons rests on something about the data that is wrong.")
-    elif run.status == "ask" and (sr.get("ask") or {}).get("address"):
-        a = sr["ask"]
-        lines.append(f"The analysis still asks one thing it asked before, at [{a['address']}]: {a.get('question')} [ask.question]")
-        lines.append("Answer it in your own words when you can, or ask something else; the design stands as it is until then.")
-    elif run.status != "done":
-        f = sr.get("feasibility") or {}
-        lines.append(f"Stopped at {f.get('stage')}: {f.get('reason')} [feasibility.reason]")
-        for j, fact in enumerate(f.get("facts") or [], start=1):
-            lines.append(f"  fact: {fact} [feasibility.fact:{j}]")
-    flags = [r for r in ((sr.get("design") or {}).get("checks") or {}).get("results") or [] if r.get("level") != "pass"]
-    if flags:
-        lines.append("Checks that did not pass clean:")
-        for r in flags:
-            lines.append(f"  {r.get('detail') or r['name']} ({r['level']}; {r['name']}) [check:{r['contrast']}.{r['name']}]")
-    failed = [r for r in sr.get("refutations") or [] if r.get("passed") is False]
-    if failed:
-        prefix = "refute" if run.specialist == "dowhy" else "placebo"
-        lines.append(
-            "Tried to break it, and these did: "
-            + "; ".join(f"{r.get('detail') or r['refuter']} ({r['refuter']}) [{prefix}:{r['contrast']}.{r['refuter']}.passed]" for r in failed)
-        )
-    elif sr.get("refutations"):
-        lines.append(f"Tried to break it {len(sr['refutations'])} ways; the estimate held every time.")
-    declines = _declines(run)
-    if declines:
-        lines.append("Where the analysis disagreed with what was settled: " + "; ".join(f"{d.about} ({d.kind}: {d.reason}) [{d.address}]" for d in declines))
-    made = [f.get("id") for f in run.figures or [] if isinstance(f, dict) and f.get("id")]
-    if made:
-        lines.append(f"The run left {len(made)} figure{'s' if len(made) != 1 else ''}: " + ", ".join(f"[figure:{i}]" for i in made))
-    if previous is not None:
-        lines.append(
-            f"Then and now: run {previous.index} gave {_g(previous.effect)} ({previous.family or 'no design'}); run {run.index} gives {_g(run.effect)} ({run.family or 'no design'})."
-        )
-    lines.append("Ask anything about it, tell me something to change, ask a new question of the same data, or say done.")
+        expected = [
+            ((Contrast.model_validate(raw).key, None, None), f"design:{lead}.contrasts.{index}") for index, raw in enumerate(design.get("contrasts") or [])
+        ]
+    multiple = len(expected) > 1 or len(primary) > 1
+    projected = []
+    for summary, address in expected:
+        contrast, modifier, level = summary
+        records = [e for e in primary if (e.contrast, e.modifier, e.level) == summary]
+        if not records:
+            group = f", {modifier}={level}" if modifier else ""
+            lines.append(f"Lead contrast {contrast}{group}: no primary estimate record was produced. [{address}]")
+        projected.extend(records)
+    projected.extend(e for e in primary if (e.contrast, e.modifier, e.level) not in {key for key, _ in expected})
+    for estimate in projected:
+        group = f", {estimate.modifier}={estimate.level}" if estimate.modifier else ""
+        label = f"Lead contrast {estimate.contrast}{group}: " if multiple or group else ""
+        if estimate.error:
+            failure = f"{label}failed: " if multiple else "The lead design failed: "
+            lines.append(f"{failure}{estimate.error} [{estimate.tag}.error]")
+        elif estimate.value is not None:
+            lines.append(
+                f"{label}Effect {_g(estimate.value)}, interval {_g(estimate.ci_low)} to {_g(estimate.ci_high)} [{estimate.tag}.value] [{estimate.tag}.ci]"
+            )
+        else:
+            lines.append(f"{label or 'The lead design: '}no point estimate was recorded. [{estimate.tag}]")
+    deficiency = sr.get("context_deficiency")
+    if deficiency:
+        lines.append(f"The context needs clarification: {deficiency['reason']} [context.deficiency.reason]")
+    if sr.get("feasibility"):
+        lines.append(f"Analysis limitation: {sr['feasibility']['reason']} [feasibility.reason]")
+    failed = [x for x in sr.get("falsifications") or [] if x.get("passed") is False]
+    for item in failed:
+        from causal_agent.common.contracts import Falsification
+
+        record = Falsification.model_validate(item)
+        lines.append(f"Falsification failed: {record.detail} [{record.address}.detail]")
+    for comparison in sr.get("comparisons") or []:
+        if comparison.get("summary"):
+            lines.append(str(comparison["summary"]))
+    for decline in _declines(run):
+        lines.append(f"The lane disagreed with what was settled: {decline.reason} [{decline.address}]")
+    for check in sr.get("checks") or []:
+        if check.get("level") != "pass":
+            from causal_agent.common.contracts import CheckResult
+
+            record = CheckResult.model_validate(check)
+            lines.append(f"Design flag: {record.detail} [{record.address}]")
+    if run.status == "pipeline_error":
+        lines.append("The analysis process failed before producing a record. [run.status]")
+        lines.append(run.decision_record[-1500:])
+    lines.append("Ask about the evidence, correct the context, explore further, ask a new question, or say done.")
     return "\n".join(lines)

@@ -36,6 +36,37 @@ export default function StatusMatrix({ status, claims }: { status: StatusView | 
           </tbody>
         </table>
       </div>
+      {Object.entries(status.endpoint_admissions).map(([family, admission]) => (
+        <div key={family}>
+          <h3>{family}: endpoint readiness</h3>
+          <div className="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>endpoint</th>
+                  <th>status</th>
+                  <th>requirements</th>
+                </tr>
+              </thead>
+              <tbody>
+                {admission.endpoints.map((e) => (
+                  <tr key={e.endpoint_id}>
+                    <td className="mono">{e.endpoint_id}</td>
+                    <td>{e.status}</td>
+                    <td className="wrap">
+                      {e.reason ||
+                        e.obligations
+                          .filter((o) => o.status === "missing" || o.status === "failed")
+                          .map((o) => `${o.address}: ${o.reason}`)
+                          .join("; ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
       {status.contradictions.length > 0 && <p className="err">Contradictions: {status.contradictions.join("; ")}</p>}
     </section>
   );

@@ -7,6 +7,7 @@ address within one percent, and before the run only an answer or a drawing reque
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from causal_agent.common import trace
@@ -86,6 +87,17 @@ def answer_from(
 # ------------------------------------------------------------------ the gate
 
 
+def _inline_cites(text: str) -> list[str]:
+    """Bracketed namespace addresses, including comma-separated references; numeric intervals are prose."""
+    addresses = []
+    for bracket in re.findall(r"\[([^\[\]\n]+)\]", text):
+        for part in bracket.split(","):
+            candidate = part.strip().strip("`").strip()
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*(?::|\.)", candidate):
+                addresses.append(candidate)
+    return addresses
+
+
 def gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[str]:
     """Why the reply is refused, or nothing; the verdict is a span."""
     return trace.gate(_gate(reply, mat, phase), name="gate:reply", kind=reply.kind)
@@ -103,7 +115,7 @@ def _gate(reply: AfterReply, mat: M.Material, phase: Phase = "after") -> list[st
             reply.cites = [reply.figure]
         if not reply.cites and reply.numbers:
             reply.cites = list(dict.fromkeys(n.address for n in reply.numbers))
-        reply.cites = [norm_address(c) for c in reply.cites]  # a cite in another case or spelling still resolves, and is kept as resolved
+        reply.cites = list(dict.fromkeys(norm_address(c) for c in [*reply.cites, *_inline_cites(reply.text)]))
         bad = [c for c in reply.cites if not mat.has(c)]
         if bad:
             errors.append(f"cites not in the material: {bad}")

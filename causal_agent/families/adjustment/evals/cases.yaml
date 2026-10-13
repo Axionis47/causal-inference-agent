@@ -1,35 +1,208 @@
-# Adjustment-lane evals. Two positive cases run end to end through the router; the negative case
-# runs the specialist alone from a stored hand-off (handoffs/) so a routing change cannot mask it.
-# Expected values grade the design and the stop, not the exact effect size.
-
 - id: students_prep_course
   dataset: students
   question: Did completing the prep course raise math scores?
   expected:
     status: done
-    adjustment_set_contains: [lunch, parental_level_of_education]
-    not_in_graph: [reading_score, writing_score]   # other outcome measures: excluded by the specialist, or never handed over by the router
-    estimator_in: [propensity_score_stratification, propensity_score_weighting, propensity_score_matching, linear_regression]
-    effect_sign: {completed_vs_none: positive}
+    adjustment_set_contains:
+    - lunch
+    - parental_level_of_education
+    not_in_graph:
+    - reading_score
+    - writing_score
+    estimator_in:
+    - propensity_score_stratification
+    - propensity_score_weighting
+    - propensity_score_matching
+    - linear_regression
+    effect_sign:
+      completed_vs_none: positive
     placebo_passes: true
-
 - id: marketing_three_promotions
   dataset: marketing
   question: Which of the three promotions produced the highest weekly sales?
   expected:
     status: done
     contrasts: 3
-    adjustment_set_subset_of: [marketsize, ageofstore, marketid, week]
-    estimator_in: [linear_regression, propensity_score_stratification, propensity_score_weighting, propensity_score_matching]
-    # promotion 2 sells less than 1 and 3 in this file
-    effect_sign: {"2_vs_1": negative, "3_vs_2": positive}
+    adjustment_set_subset_of:
+    - marketsize
+    - ageofstore
+    - marketid
+    - week
+    estimator_in:
+    - linear_regression
+    - propensity_score_stratification
+    - propensity_score_weighting
+    - propensity_score_matching
+    effect_sign:
+      2_vs_1: negative
+      3_vs_2: positive
     placebo_passes: true
-
 - id: gov_transfers_forced_adjustment
   dataset: gov_transfers
   handoff: handoffs/gov_transfers_forced.json
   question: Did receiving the transfer raise support for the government?
   expected:
+    status: context_deficient
+    stopped_at: load
+- id: protocol_backdoor
+  dataset: protocol_backdoor
+  handoff: handoffs/backdoor_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - total.backdoor
+    - total.general_adjustment
+    endpoint_truth:
+      total.backdoor: 5
+      total.general_adjustment: 5
+    effect_tolerance: 0.6
+- id: protocol_randomized
+  dataset: protocol_randomized
+  handoff: handoffs/randomized_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - total.unadjusted
+    endpoint_truth:
+      total.unadjusted: 5
+    effect_tolerance: 0.6
+- id: protocol_wald
+  dataset: protocol_wald
+  handoff: handoffs/wald_protocol.json
+  question: What is the effect of t on y for people whose uptake changes with the
+    offer?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - iv.wald_late
+    endpoint_truth:
+      iv.wald_late: 4
+    effect_tolerance: 0.6
+- id: protocol_iv
+  dataset: protocol_iv
+  handoff: handoffs/iv_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - iv.linear_multiple
+    endpoint_truth:
+      iv.linear_multiple: 4
+    effect_tolerance: 0.6
+- id: protocol_iv_single
+  dataset: protocol_iv_single
+  handoff: handoffs/iv_single_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - iv.linear_single
+    endpoint_truth:
+      iv.linear_single: 4
+    effect_tolerance: 0.6
+- id: protocol_iv_conditional
+  dataset: protocol_iv_conditional
+  handoff: handoffs/iv_conditional_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - iv.linear_conditional
+    endpoint_truth:
+      iv.linear_conditional: 4
+    effect_tolerance: 0.6
+- id: protocol_nie
+  dataset: protocol_nie
+  handoff: handoffs/nie_protocol.json
+  question: What is the natural indirect effect of t through m on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - mediation.linear_nie
+    endpoint_truth:
+      mediation.linear_nie: 3
+    effect_tolerance: 0.6
+- id: protocol_nde
+  dataset: protocol_nde
+  handoff: handoffs/nde_protocol.json
+  question: What is the natural direct effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - mediation.linear_nde
+    endpoint_truth:
+      mediation.linear_nde: 2
+    effect_tolerance: 0.6
+- id: protocol_frontdoor
+  dataset: protocol_frontdoor
+  handoff: handoffs/frontdoor_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - frontdoor.linear_total
+    endpoint_truth:
+      frontdoor.linear_total: 3
+    effect_tolerance: 0.6
+- id: protocol_conditional
+  dataset: protocol_conditional
+  handoff: handoffs/conditional_protocol.json
+  question: How does the treatment effect on y differ by x?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - adjustment.linear_conditional
+    endpoint_truth:
+      adjustment.linear_conditional: 2
+    effect_tolerance: 0.6
+- id: protocol_zero
+  dataset: protocol_zero
+  handoff: handoffs/zero_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - structural.zero
+    endpoint_truth:
+      structural.zero: 0
+    effect_tolerance: 0.6
+- id: protocol_att
+  dataset: protocol_att
+  handoff: handoffs/att_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - total.backdoor
+    endpoint_truth:
+      total.backdoor: 5
+    effect_tolerance: 0.6
+- id: protocol_atc
+  dataset: protocol_atc
+  handoff: handoffs/atc_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: done
+    endpoint_ids_contains:
+    - total.backdoor
+    endpoint_truth:
+      total.backdoor: 5
+    effect_tolerance: 0.6
+- id: protocol_unidentified
+  dataset: protocol_unidentified
+  handoff: handoffs/unidentified_protocol.json
+  question: What is the effect of t on y?
+  expected:
     status: infeasible
-    stopped_at: assess
-    hard_flags_contain: [overlap, separation]
+    stopped_at: rivals
+    terminal_kind: unidentified_effect
+- id: protocol_weak_iv
+  dataset: protocol_weak_iv
+  handoff: handoffs/weak_iv_protocol.json
+  question: What is the effect of t on y?
+  expected:
+    status: infeasible
+    stopped_at: check_design
+    terminal_kind: inadequate_support

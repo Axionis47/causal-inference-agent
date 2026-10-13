@@ -1,0 +1,7 @@
+max_unsettled: 4
+max_graphs: 16
+max_designs: 8
+backdoor_methods: [default, minimal-adjustment, maximal-adjustment, efficient-adjustment, efficient-minimal-adjustment, efficient-mincost-adjustment]
+minimum_costs: unit
+outcome_graph_tests: after_freeze_annotations_only
+unsupported: [continuous_treatment, multiple_treatments, multi_mediator, interaction_mediation, conditional_late, controlled_direct_effect, gcm, arbitrary_id_expression_estimation]

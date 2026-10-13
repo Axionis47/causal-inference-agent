@@ -18,12 +18,12 @@ def _lane():
 
 SPEC = EvalSpec(
     family="adjustment",
-    dataset="causal-dowhy-v0",
-    description="Adjustment lane on DoWhy: two positive cases through the router, one forced negative",
+    dataset="causal-adjustment-endpoints",
+    description="Adjustment endpoint trajectories: real Gemini judgements over known study protocols, plus routed fixtures and explicit deficiency",
     prefix="dowhy",
     cases_dir=Path(__file__).parent,
     lane_graph=_lane,
     summarise=summarise,
     evaluators=ALL,
-    skip_keys=("report", "design", "graph"),
+    skip_keys=("report", "designs", "graph"),
 )

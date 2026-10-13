@@ -117,6 +117,9 @@ def focused_needs(state) -> dict:
     """The families' needs the interview and the fit read: every family's, or only those of the families the person named."""
     needs = R.needs()
     focus = [f for f in (state.get("focus") or []) if f in needs]
+    selected = state.get("context_family")
+    if selected in needs and (not focus or selected in focus):
+        return {selected: needs[selected]}
     return {k: v for k, v in needs.items() if k in focus} if focus else needs
 
 

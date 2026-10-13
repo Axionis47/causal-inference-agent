@@ -20,7 +20,7 @@ const WORDS: Record<string, string> = {
   judge: "reading the context once more",
   handoff: "writing the hand-off",
   run: "running the analysis; this takes a few minutes",
-  ask_back: "bringing back what the analysis asked",
+  context_deficiency: "returning missing context to the desk",
   brief: "writing the brief",
   talk: "waiting",
   turn: "thinking about your message",

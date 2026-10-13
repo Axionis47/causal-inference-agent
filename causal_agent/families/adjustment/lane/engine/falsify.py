@@ -8,27 +8,27 @@ from typing import Any
 
 import numpy as np
 
-from causal_agent.common.contracts import Estimate, Refutation
+from causal_agent.common.contracts import Estimate, Falsification
 from causal_agent.families.adjustment.lane.engine.model import SEED
-from causal_agent.families.adjustment.lane.knowledge import RefuterEntry
+from causal_agent.families.adjustment.lane.knowledge import FalsificationEntry
 
 
-def run(model, bundle, est: Estimate, entry: RefuterEntry, contrast_key: str) -> Refutation:
-    ide, est_obj = bundle
+def run(model, bundle, est: Estimate, entry: FalsificationEntry, contrast_key: str) -> Falsification:
+    model, ide, est_obj = bundle
     np.random.seed(SEED)  # reproducible draws without DoWhy's per-simulation reseed (see the catalogue)
     try:
         r = model.refute_estimate(ide, est_obj, method_name=entry.name, show_progress_bar=False, **entry.params)
     except Exception as ex:
-        return Refutation(contrast=contrast_key, refuter=entry.name, kind="falsification", detail=f"{type(ex).__name__}: {str(ex)[:300]}")
+        return Falsification(design_id=est.design_id, contrast=contrast_key, refuter=entry.name, detail=f"{type(ex).__name__}: {str(ex)[:300]}")
     new = float(r.new_effect)
     res = r.refutation_result or {}
     p = res.get("p_value")
     p = None if p is None or (isinstance(p, float) and math.isnan(float(p))) else float(p)
     passed = _passes(entry.pass_when, est.value, new, p)
-    return Refutation(
+    return Falsification(
+        design_id=est.design_id,
         contrast=contrast_key,
         refuter=entry.name,
-        kind="falsification",
         new_effect=new,
         p_value=p,
         passed=passed,

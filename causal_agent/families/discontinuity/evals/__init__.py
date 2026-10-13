@@ -25,5 +25,5 @@ SPEC = EvalSpec(
     lane_graph=_lane,
     summarise=summarise,
     evaluators=ALL,
-    skip_keys=("report", "design", "covariates"),
+    skip_keys=("report", "designs", "covariates"),
 )

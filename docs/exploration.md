@@ -3,7 +3,7 @@
 A look at the data on request, from any turn of the conversation, before or after the run. The model that reads each message
 decides that the person asked to look at something; a separate agent, in its own process, writes scripts, runs them in a
 sandbox one step at a time, and answers one record; code gates the record; what it made lands on the artifacts shelf with an
-address the chat can cite. It describes the data. It never estimates the effect.
+address the chat can cite. Before freeze it describes permitted non-outcome data. After a matching frozen design, it can discuss and visualize the run and its data.
 
 ## 1. How a request is detected
 
@@ -24,14 +24,12 @@ raise it before the run, since `answer` and `explore` are the only two kinds leg
 
 `explore_context` ([desk/nodes/interview.py](../causal_agent/desk/nodes/interview.py)) builds the context from the memory's text
 view: the dataset, the change and the assignment, the beliefs, then one line per non-constant column. After a run, `explore_after`
-swaps the dataset part for the pack's own rendering and appends the run's material lines that start with `design.`, `estimate:`,
-`check:`, `refute:` or `placebo:`, so a number the agent quotes about the run is one the run holds.
+swaps the dataset part for the pack's own rendering and appends the run's material lines that start with `design:`, `estimate:`,
+`check:`, `falsification:` or `sensitivity:`, so a number the agent quotes about the run is one the run holds.
 
-**The no-join rule for free-form code.** The lane's tools refuse a join of the outcome with the treatment; a script may do
-anything with the table it reads. So before a design has run, the table sent to the agent has one of the pair taken out, by code
-([explore/project.py](../causal_agent/explore/project.py)): the outcome, unless the ask names the outcome and not the treatment,
-then the treatment. An ask naming both is declined before any model call. The column held back is removed from the columns the
-agent is told of, the prompt says it is held back, and a script that names it is refused. After a run nothing is held back.
+**The pre-freeze outcome fence.** Unrestricted scripts could reconstruct treatment from a score, instrument, group or adoption date. Before a matching design freezes, the table sent to the agent always has the outcome removed by code ([explore/project.py](../causal_agent/explore/project.py)). Outcome-only requests cannot bypass this fence. Requests explicitly joining treatment and outcome are refused before a model call. Deterministic outcome summaries remain available from the profile.
+
+The withheld outcome is removed from the column inventory and rejoined by row identity after an allowed table transformation. A failed run without frozen designs does not lift the fence. After freeze, the desk verifies that the design belongs to the current dataset bytes and version before exposing the full table.
 
 ## 3. The loop
 

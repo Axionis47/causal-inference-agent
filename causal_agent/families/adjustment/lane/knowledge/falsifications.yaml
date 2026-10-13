@@ -1,0 +1,33 @@
+placebo_treatment_refuter:
+  endpoints:
+  - total.unadjusted
+  - total.backdoor
+  - total.general_adjustment
+  - iv.wald_late
+  - iv.linear_single
+  - frontdoor.linear_total
+  in_words: shuffle the treatment; the estimated effect should be near zero
+  params:
+    placebo_type: permute
+    num_simulations: 100
+  pass_when:
+    p_value_gt: 0.05
+    new_effect_near_zero: true
+data_subset_refuter:
+  endpoints:
+  - total.unadjusted
+  - total.backdoor
+  - total.general_adjustment
+  - iv.wald_late
+  - iv.linear_single
+  - frontdoor.linear_total
+  - mediation.linear_nie
+  - mediation.linear_nde
+  - adjustment.linear_conditional
+  in_words: repeat on random subsets
+  params:
+    subset_fraction: 0.8
+    num_simulations: 100
+  pass_when:
+    p_value_gt: 0.05
+    or_relative_change_lt: 0.1

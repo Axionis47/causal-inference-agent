@@ -1,5 +1,4 @@
-"""The hand-off and the run: gate the decision, project the pack, run the lane in its own process, and let the lane ask
-back once."""
+"""The hand-off and the run: gate the decision, project the pack, run the lane in its own process, and return unexpected context deficiencies to the desk."""
 
 from __future__ import annotations
 
@@ -18,7 +17,6 @@ from causal_agent.desk.nodes import frame as F
 from causal_agent.desk.nodes.shared import CAT, journal_of, record, thread_id
 from causal_agent.desk.relations import absorb_relations
 from causal_agent.desk.state import Context, DeskState
-from causal_agent.families import registry as R
 from causal_agent.memory import store
 from causal_agent.memory.matrix import Matrix
 from causal_agent.memory.records import COLUMN_KIND, Memory
@@ -37,9 +35,14 @@ def gate(state: DeskState, runtime: Runtime[Context]) -> Command[Literal["decide
 
 def handoff(state: DeskState, runtime: Runtime[Context]) -> dict:
     """The pack from the memory, as design n: the memory snapshot and the pack written under designs/<n>/."""
-    out = D.handoff(state, runtime)
-    h = out.get("handoff")
     memory = F.memory_of(state)
+    preview = state.get("preview")
+    if preview is not None and state.get("convinced_version") == memory.version:
+        h = preview.model_copy(deep=True)
+        out = {"handoff": h, "decision_record": D.decision_record(state, h)}
+    else:
+        out = D.handoff(state, runtime)
+        h = out.get("handoff")
     n = store.next_design_id(state["dataset"])
     d = store.snapshot(memory, n)
     if h is not None:
@@ -117,8 +120,8 @@ def run(state: DeskState) -> dict:
     if h is not None and rec.specialist_result:  # the lane's relations come back as drafts, for the person to confirm or correct
         written = absorb_relations(memory, rec.specialist_result, h, CAT)
         if written:
-            mirror = F.saved(memory)
-            record(state, "claim", by="model", memory=memory, design=n, read=written, note="drafted from the run's graph: " + ", ".join(written))
+            mirror = F.saved(memory, state)
+            record(state, "claim", by="model", memory=memory, design=n, read=written, note="drafted from source-backed lane assertions: " + ", ".join(written))
     return {"runs": runs + [rec], "phase": "after", **mirror}
 
 
@@ -140,60 +143,57 @@ def _figures(state: DeskState, rec: RunRecord) -> list[dict]:
         except Exception:
             lane = []
     if not lane:
-        prefix = R.REGISTRY[rec.family].refutation_prefix if rec.family in R.REGISTRY else "placebo"
-        lane = [f.model_dump() for f in postviz.figures(rec, prefix)]
+        lane = [f.model_dump() for f in postviz.figures(rec)]
     return lane
 
 
-# ------------------------------------------------------------------ the lane asks back
+# ------------------------------------------------------------------ unexpected context deficiencies
 
 
-def _asked(rec: RunRecord | None) -> str | None:
-    """The address a run asked back about, if it did."""
-    if rec is None or rec.status != "ask":
-        return None
-    return ((rec.specialist_result or {}).get("ask") or {}).get("address") or None
-
-
-def after_run(state: DeskState) -> Literal["ask_back", "brief"]:
-    """A lane that asks back is asked once per address: the same question from the run before goes to the brief, which
-    says the lane still asks it."""
+def after_run(state: DeskState) -> Literal["context_deficiency", "brief"]:
     runs = state.get("runs") or []
-    address = _asked(runs[-1]) if runs else None
-    if not address:
-        return "brief"
-    if len(runs) > 1 and _asked(runs[-2]) == address:
-        return "brief"
-    return "ask_back"
+    if runs and any(a.startswith(("claim:", "col:")) for a in (runs[-1].specialist_result.get("context_deficiency") or {}).get("addresses", [])):
+        return "context_deficiency"
+    return "brief"
 
 
-def ask_back(state: DeskState) -> dict:
-    """The lane could not go on without one more thing from the person: ask it, as the desk asks everything else, and once
-    answered the journey runs again on the memory as it then stands. The lane's own options and evidence are used when it
-    gives them; otherwise the catalogue's field type says what the legal answers are."""
+def context_deficiency(state: DeskState) -> dict:
+    """An essential omission returns to context preparation. A fresh snapshot needs a new run authorization."""
     rec = (state.get("runs") or [])[-1]
-    q = rec.specialist_result.get("ask") or {}
-    address = q.get("address") or ""
+    deficiency = rec.specialist_result["context_deficiency"]
+    addresses = [a for a in deficiency["addresses"] if a.startswith(("claim:", "col:"))]
+    address = addresses[0]
     kind_name = Memory.parse(address)[1] if address.startswith("claim:") else COLUMN_KIND
     field = Memory.parse(address)[2] or ""
     kind = CAT.kinds.get(kind_name)
-    options = [str(o) for o in q.get("options") or []]
-    if not options:
-        options = (
-            [str(o) for o in kind.fields[field].options]
-            if kind and field in kind.fields and kind.fields[field].type == "choice"
-            else (["yes", "no"] if kind and field in kind.fields and kind.fields[field].type == "bool" else [])
-        )
+    options = (
+        [str(o) for o in kind.fields[field].options]
+        if kind and field in kind.fields and kind.fields[field].type == "choice"
+        else ["yes", "no"]
+        if kind and field in kind.fields and kind.fields[field].type == "bool"
+        else []
+    )
     a = Ask(
         addresses=[address],
         kind="choose" if options else "open",
-        text=q.get("question") or "",
+        text=f"Please clarify {address}: {deficiency['reason']}",
         options=options,
         because=[rec.family] if rec.family else [],
-        evidence=[str(e) for e in q.get("evidence") or []],
-        from_lane=True,
     )
-    reason = (rec.specialist_result.get("feasibility") or {}).get("reason") or "it needs one more thing"
-    because = f"{q['because']}\n" if q.get("because") else ""
-    text = f"The analysis stopped before estimating: {reason}.\n\n{because}{a.text}"
-    return {"ask": a, "reply": text, "phase": "before", "fork": None, "what_if": {}, "handoff": None, "brief": None}
+    return {
+        "ask": a,
+        "reply": f"The analysis stopped for missing context. {a.text}",
+        "phase": "before",
+        "fork": None,
+        "what_if": {},
+        "handoff": None,
+        "preview": None,
+        "brief": None,
+        "readiness": None,
+        "ready": False,
+        "run_intent": False,
+        "convinced_version": -1,
+        "convincing": False,
+        "deficiency_addresses": addresses,
+        "context_family": rec.family,
+    }
