@@ -73,11 +73,13 @@ def test_the_declaration_names_what_the_code_has(family):
     space = getattr(knowledge, "SPACE", None)
     if space is not None:
         assert {d.decided_by for d in space.dimensions.values()} <= set(spec.names)
-    # the budgets the episodes read are the declared ones, and every rung with tools reads its budget
-    source = inspect.getsource(nodes)
+    # the budgets the episodes read are the declared ones, and every rung with tools reads its budget: read in the modules the
+    # rung functions live in, which for a lane split into parts are not the nodes module itself
+    homes = {inspect.getmodule(fn) for r in spec.rungs if inspect.isfunction(fn := getattr(nodes, r.name, None))}
     read = {
         str(n.args[0].value)
-        for n in ast.walk(ast.parse(source))
+        for home in homes
+        for n in ast.walk(ast.parse(inspect.getsource(home)))
         if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_budget" and n.args and isinstance(n.args[0], ast.Constant)
     }
     assert read <= {r.name for r in spec.judgements()}, f"{family}: a budget is read for {read - {r.name for r in spec.judgements()}}, which are not judgements"

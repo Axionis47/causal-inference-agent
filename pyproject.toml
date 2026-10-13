@@ -106,6 +106,7 @@ ignore_errors = true
 
 [tool.importlinter]
 root_package = "causal_agent"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "layers"
@@ -134,3 +135,49 @@ source_modules = ["causal_agent.common", "causal_agent.profile", "causal_agent.m
 forbidden_modules = ["causal_agent.families"]
 allow_indirect_imports = "True"
 ignore_imports = ["causal_agent.**.tests.** -> causal_agent.families.**"]
+
+# ------------------------------------------------------------------ the adjustment lane's three parts
+#
+# The reasoning ends in a frozen design and never runs an estimate; the execution reads only the frozen design; the artifacts
+# read only the results. DoWhy is imported by the engine alone.
+
+[[tool.importlinter.contracts]]
+name = "the adjustment lane's reasoning never runs an estimate"
+type = "forbidden"
+source_modules = ["causal_agent.families.adjustment.lane.reason"]
+forbidden_modules = [
+    "causal_agent.families.adjustment.lane.execute",
+    "causal_agent.families.adjustment.lane.artifacts",
+    "causal_agent.families.adjustment.lane.engine.estimators",
+    "causal_agent.families.adjustment.lane.engine.falsify",
+    "causal_agent.families.adjustment.lane.engine.sensitivity",
+]
+
+[[tool.importlinter.contracts]]
+name = "the adjustment lane's execution reads only the frozen design"
+type = "forbidden"
+source_modules = ["causal_agent.families.adjustment.lane.execute", "causal_agent.families.adjustment.lane.engine"]
+forbidden_modules = ["causal_agent.families.adjustment.lane.reason"]
+
+[[tool.importlinter.contracts]]
+name = "the adjustment lane's artifacts read only the results"
+type = "forbidden"
+source_modules = ["causal_agent.families.adjustment.lane.artifacts"]
+forbidden_modules = [
+    "causal_agent.families.adjustment.lane.reason",
+    "causal_agent.families.adjustment.lane.execute",
+    "causal_agent.families.adjustment.lane.engine",
+]
+
+[[tool.importlinter.contracts]]
+name = "only the adjustment lane's engine imports DoWhy"
+type = "forbidden"
+source_modules = [
+    "causal_agent.families.adjustment.lane.reason",
+    "causal_agent.families.adjustment.lane.execute",
+    "causal_agent.families.adjustment.lane.artifacts",
+    "causal_agent.families.adjustment.lane.nodes",
+    "causal_agent.families.adjustment.lane.checks",
+]
+forbidden_modules = ["dowhy"]
+allow_indirect_imports = "True"

@@ -413,7 +413,7 @@ def test_pack_treated_level_settles_the_contrast_without_a_model_call():
     c = out["contrasts"][0]
     assert c.treated == "completed" and c.control == "none" and "claim:assignment.treated_level" in c.cites
     assert out["specialist_result"]["status"] == "done", out["specialist_result"].get("feasibility")
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import artifacts as N
 
     material = N._material(out, c.key)  # the beliefs are in what the interpretation reads, with addresses it may cite
     assert "[claim:unobserved] nothing outside the file" in material and "claim:unobserved" in N._addresses(out, c.key)
@@ -626,7 +626,7 @@ def test_a_column_the_pack_settles_is_never_placed_by_a_judgement():
     out = _run(fake, h)
     asked = set(fake.asked("Roles"))
     assert "parental_level_of_education" not in asked and "gender" in asked
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import reason as N
 
     claims, cites = N.settled_claims(h, "gender", out["case"])
     assert claims == {"affected_by_treatment": False} and cites == {"affected_by_treatment": "col:gender.when"}
@@ -637,7 +637,7 @@ def test_a_column_the_pack_settles_is_never_placed_by_a_judgement():
 def test_a_confirmed_relation_settles_the_claim_without_a_model_call_and_a_drafted_one_is_the_last_reading():
     """The relationships are memory claims: gender's four, confirmed by the person, make its relation a fact the lane takes with no
     judgement; race's `feeds_treatment`, drafted by an earlier run, is shown to the model as the last reading."""
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import reason as N
 
     m = _memory("students3")
     for field, value in (("feeds_treatment", False), ("moves_outcome", True), ("measures_outcome", False)):
@@ -828,7 +828,7 @@ def test_a_brief_naming_the_back_door_keeps_it_and_the_pick_sees_it():
     d = out["design"]
     assert d.estimand.kind == "backdoor" and set(d.estimand.adjustment_set) == {"lunch", "parental_level_of_education"}
     assert '"road_from_brief": "backdoor"' in fake.humans_of("EstimatorPick")[0]
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import artifacts as N
 
     c = out["contrasts"][0]
     assert "[design.brief.bets_on] the brief's own sentence" in N._material(out, c.key) and "design.brief.bets_on" in N._addresses(out, c.key)
@@ -879,7 +879,7 @@ def test_a_rung_may_look_at_the_data_and_no_look_joins_the_outcome_with_the_trea
     assert gender.cites == ["probe:roles.1"]
     assert "WHAT THE EPISODES LOOKED AT" in r["report"] and "refused by_arm(column='math_score')" in r["report"] and "[probe:roles.1]" in r["report"]
     assert r["facts"][0]["address"] == "probe:roles.1" and r["facts"][0]["value"] is not None
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import artifacts as N
 
     c = out["contrasts"][0]
     assert "[probe:roles.1] by_arm(column='gender')" in N._material(out, c.key) and "probe:roles.1" in N._addresses(out, c.key)
@@ -947,7 +947,7 @@ def test_a_modifier_candidate_leads_to_the_effect_within_its_levels():
     within = [e for e in out["estimates"] if e.modifier == "gender"]
     assert sorted(e.level for e in within) == ["female", "male"] and all(e.error is None and e.value is not None for e in within)
     assert {e.tag for e in within} == {"estimate:completed_vs_none.by.gender.female", "estimate:completed_vs_none.by.gender.male"}
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import artifacts as N
 
     c = out["contrasts"][0]
     assert "estimate:completed_vs_none.by.gender.female.value" in N._required(
@@ -1074,7 +1074,7 @@ def test_after_the_freeze_the_run_reads_the_design_and_never_the_catalogue(monke
     within-level runs follow. Every catalogue loader raises after the freeze and the run still completes."""
     from langgraph.checkpoint.memory import InMemorySaver
 
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import reason as N
     from causal_agent.families.adjustment.lane.graph import build
 
     set_llm(FakeLLM(overrides={"gender": dict(affects_outcome=True, modifier_candidate=True)}))
@@ -1129,8 +1129,11 @@ def test_no_yaml_key_is_dead_and_every_applies_when_key_is_a_fact():
     from causal_agent.lane.knowledge import fact_names
 
     here = Path(__file__).resolve().parents[1] / "lane"
-    nodes = (here / "nodes.py").read_text()
-    code = nodes + "".join((here / f).read_text() for f in ("adapter.py", "contracts.py", "knowledge/__init__.py"))
+    nodes = (here / "reason.py").read_text()
+    code = nodes + "".join(
+        (here / f).read_text()
+        for f in ("engine/model.py", "engine/estimators.py", "engine/falsify.py", "engine/sensitivity.py", "execute.py", "artifacts.py", "contracts.py", "knowledge/__init__.py")
+    )
     code += (Path(__file__).resolve().parents[3] / "lane" / "knowledge.py").read_text()
     for file, model in (("estimators", EstimatorEntry), ("refuters", RefuterEntry)):
         raw = yaml.safe_load((here / "knowledge" / f"{file}.yaml").read_text())

@@ -538,7 +538,7 @@ def _abridge(prompt: str) -> list[tuple[str, str]]:
 def opened_judgement(run_dir: Path, column: str, th: dict[str, str]) -> str:
     import causal_agent.families.registry  # noqa: F401  (registers every family's block before a pack is read)
     from causal_agent.common.contracts import Cited, Handoff
-    from causal_agent.families.adjustment.lane import nodes as N
+    from causal_agent.families.adjustment.lane import reason as N
     from causal_agent.families.adjustment.lane import prompts as P
     from causal_agent.families.adjustment.lane.contracts import Relation
     from causal_agent.lane import case as C

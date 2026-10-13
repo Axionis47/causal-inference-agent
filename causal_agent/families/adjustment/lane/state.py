@@ -13,6 +13,7 @@ from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import Contrast, Estimate, Interpretation, Refutation
 from causal_agent.families.adjustment.lane.contracts import Design, DesignAssessment, Estimand, EstimatorPick, Graph, Ladder, Revision
+from causal_agent.lane.episode import EpisodeLog
 from causal_agent.lane.state import InterpretTask as InterpretTask
 from causal_agent.lane.state import LaneState, by_key, merge_dicts
 
@@ -48,3 +49,30 @@ class ContrastTask(TypedDict):
     contrast: str  # contrast key
     design: dict
     table_path: str
+
+
+# ------------------------------------------------------------------ reading the state: the reasoning, the execution and the artifacts share these
+
+
+def ladder_of(state: SpecialistState) -> Ladder:
+    lad = state.get("ladder")
+    return lad if isinstance(lad, Ladder) else Ladder()
+
+
+def episodes_of(state: SpecialistState) -> dict[str, EpisodeLog]:
+    return {k: v for k, v in (state.get("episodes") or {}).items() if isinstance(v, EpisodeLog)}
+
+
+def made_here(state: SpecialistState):
+    """What this run itself made and a judgement may cite: the ladder's lines and the facts the episodes asked for."""
+    lad, logs = ladder_of(state), list(episodes_of(state).values())
+    return lambda a: lad.resolve(a) or any(log.resolve(a) for log in logs)
+
+
+def latest_primary(state: SpecialistState) -> dict[str, Estimate]:
+    """Per contrast, the primary estimate of the estimator picked last."""
+    out: dict[str, Estimate] = {}
+    for e in state.get("estimates") or []:
+        if not e.secondary and e.modifier is None and e.method == state["estimator"]:
+            out[e.contrast] = e
+    return out
