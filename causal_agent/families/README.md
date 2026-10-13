@@ -14,4 +14,4 @@ families as an argument or reach them through `registry.REGISTRY`.
 - `tests/`: `test_core_names_no_family.py` greps the core for any family or engine name.
 
 Adding a family is one package (`family.yaml`, `design.py`, `handoff.py`, `probes.py`, `postviz.py`, `lane/`, `evals/`, `tests/`) and
-one line in the registry. See [docs/architecture.md](../../docs/architecture.md) and [ADR 0005](../../docs/adr/0005-one-folder-per-family.md).
+one line in the registry. See [docs/architecture.md](../../docs/architecture.md).

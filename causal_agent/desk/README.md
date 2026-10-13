@@ -9,7 +9,7 @@ The one conversation from a CSV to a routed context pack, and back after the run
   with which test it failed. Then `check` (the data checks and the consistency rules), `probe_fit` (the families over the memory,
   counting only the columns in play), and `ask`, which composes the next thing by code: the map first, once per question (which
   families the file could answer it with, what each still needs, which are struck and why, and that the person may narrow the
-  interview to the ones they care about); then the interview of ADR 0006, a story, a readback, and gaps asked by decision.
+  interview to the ones they care about); then the interview, a story, a readback, and gaps asked by decision.
   The story turn (`Ask(kind="story")`, once per question, before any field question) asks what the change was, who could get it
   and how that was decided, what each column records and when it was set, and what one row is; the Reader drafts every claim it
   can from the answer. When a note was mined the story is skipped and the readback comes first. The readback (`readback.py`,

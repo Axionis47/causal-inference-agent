@@ -6,8 +6,7 @@ registry. `import-linter` holds the layers and the rule that the core names no f
 
 ## Components and what each owns
 
-One responsibility per component, one contract in and one out, its own tests. [adr/0006](adr/0006-the-desk-operates-tools-reason-the-memory-escalates.md)
-names the layers this table serves.
+One responsibility per component, one contract in and one out, its own tests.
 
 | component | owns | in | out |
 |---|---|---|---|
@@ -47,7 +46,7 @@ greps the five core packages for any family or engine name.
 ## The trace
 
 The LangSmith trace is the graph as it ran, and it stays that way when the graph changes because the tracing lives in the
-chokepoints a new piece passes through anyway ([adr/0012](adr/0012-the-trace-mirrors-the-graph.md)):
+chokepoints a new piece passes through anyway:
 
 | anything new that | goes through | and shows as |
 |---|---|---|
@@ -89,8 +88,7 @@ plumbing (`nodes`), the bounded episode a judgement may run as (`episode`) and t
 (`tools`), the shape every lane's ladder shares and the threats and flags every design carries (`ladder`), how a graph is
 compiled (`graph`), the state keys and task types (`state`), the pick and interpret prompts and the plain-words rule
 (`prompts`), and the knowledge loader (`knowledge`). See
-[lanes.md](lanes.md) for the harness in use and [adr/0001-lanes-stay-distinct.md](adr/0001-lanes-stay-distinct.md)
-for why a lane keeps its own engine.
+[lanes.md](lanes.md) for the harness in use.
 
 ## The six stores at run time
 
@@ -123,10 +121,6 @@ breaks the build, not the page.
 vitest, the web build, and the schema freshness. mypy is `check_untyped_defs` on `common`, `lane`, `explore`, `viz`, `memory`,
 `profile`, `server` and the family packages outside their lanes; the desk and the lanes are still `ignore_errors`, the
 one typing gap left.
-
-## Decisions
-
-The records under [adr/](adr/) hold the decisions the layout rests on. Add one when a decision of that weight is made.
 
 ## The mechanisms, one page each
 

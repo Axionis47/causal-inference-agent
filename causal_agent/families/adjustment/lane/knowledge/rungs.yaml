@@ -1,4 +1,4 @@
-# The adjustment lane's ladder, declared once (ADR 0011). Every node of the graph in the order it runs: what decides it
+# The adjustment lane's ladder, declared once. Every node of the graph in the order it runs: what decides it
 # (`decider`: code, pack, judgement or ask, each with when), where it goes on (`exits`; the next rung when not said), whether
 # it may stop (`stop`; yes when not said), the function in nodes.py that picks among several exits or fans out to a worker
 # (`route`), whether it is a worker reached by Send (`worker`), a judgement's tool budget, the addresses it may ask back
@@ -8,7 +8,7 @@
 
 goal: freeze_design
 
-loops:  # the cycles the graph still has; ADR 0011 rule 6 takes them out, one step each
+loops:  # the cycles the graph still has
   - {from: assess, to: merge_graph, max: 3, why: a revision delta on a flagged check}
   - {from: after_analyse, to: pick_estimator, max: 1, why: a second pick when the estimator failed to fit}
 

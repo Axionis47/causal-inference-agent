@@ -54,7 +54,7 @@ def build(
 ) -> Handoff:
     """The one hand-off, projected from the memory. The memory is not changed. The brief, when there is one, is what the design
     bets on; without one the decision's assumption stands. Every column of the file but ids and constants is carried, with every
-    word about it and its status (ADR 0011); the data facts are computed for all of them here, in one pass over the file."""
+    word about it and its status; the data facts are computed for all of them here, in one pass over the file."""
     m = memory
     entry = DS.dataset_entries().get(m.name) or {}
     a, ch, g, samp, miss = (fields_of(m, k) for k in ("assignment", "change", "grain", "sampling", "missing"))
@@ -67,7 +67,7 @@ def build(
         if n and m.column(n) is not None:
             role.setdefault(m.column(n).key, "unit")
 
-    # every column is carried (ADR 0011): the pair first, then the columns the question or the rule named, then the rest of the
+    # every column is carried: the pair first, then the columns the question or the rule named, then the rest of the
     # file but ids and constants, in the file's order
     pair = [m.column(n).name for n in (outcome, treatment) if n and m.column(n) is not None]
     named = [n for n in in_play(m, frame, entry) if n not in pair]

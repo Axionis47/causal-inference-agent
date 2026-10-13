@@ -11,7 +11,7 @@ from causal_agent.lane.knowledge import Knowledge, matches
 from causal_agent.lane.rungs import load_spec
 
 _HERE = Path(__file__).parent
-SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once (ADR 0011): the graph is built from it and held to it
+SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once: the graph is built from it and held to it
 
 
 class EstimatorEntry(BaseModel):

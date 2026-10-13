@@ -12,8 +12,8 @@ from causal_agent.lane.rungs import load_spec
 from causal_agent.lane.space import load_space
 
 _HERE = Path(__file__).parent
-SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once (ADR 0011): the graph is built from it and held to it
-SPACE = load_space(_HERE / "space.yaml")  # the shapes this lane runs (ADR 0011); read at load, at the deciding rungs, at the freeze
+SPEC = load_spec(_HERE / "rungs.yaml")  # the ladder, declared once: the graph is built from it and held to it
+SPACE = load_space(_HERE / "space.yaml")  # the shapes this lane runs; read at load, at the deciding rungs, at the freeze
 
 
 class EstimatorEntry(BaseModel):

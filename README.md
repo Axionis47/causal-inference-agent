@@ -119,5 +119,4 @@ Everything CI runs: lint, types, tests, the web, the schema. `make` alone lists 
 - [docs/README.md](docs/README.md): one page per mechanism: the desk, the memory and the matrix, the gates, the pack and the
   addresses, the lanes, the drawing tool, testing, the page.
 - [docs/architecture.md](docs/architecture.md): the layers, a family package, the stores, the wire, the checks.
-- [docs/adr/](docs/adr/): the decisions the layout rests on.
 - [causal_agent/README.md](causal_agent/README.md): the packages; each has its own README.

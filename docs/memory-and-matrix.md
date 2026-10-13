@@ -56,8 +56,7 @@ returns the reason for every one it refused. The rules:
 7. A verbatim kind is written only by the desk, and only with the words themselves.
 
 Escalation runs one way, said, drafted, confirmed, fact, and only the person or the data escalates. A contradiction is
-remembered as one and never overwritten. That is [ADR 0003](adr/0003-a-persons-word-is-evidence.md) and the middle of
-[ADR 0006](adr/0006-the-desk-operates-tools-reason-the-memory-escalates.md).
+remembered as one and never overwritten.
 
 `ops.check` ([memory/ops.py:365](../causal_agent/memory/ops.py)) runs each kind's data check on drafted and confirmed claims. A
 failure marks the field refuted and never touches its value. Then the consistency rules run: a column the offer looked at is set

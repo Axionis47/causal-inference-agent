@@ -106,5 +106,4 @@ person), the memory version at that moment, what it read, what it left. A step's
 dict: load, mine, prefilter, frame, fit, decide and gate up to three times, design, handoff. The evals and the command line use it.
 There is no second graph and no second implementation of the routing.
 
-Decided in [ADR 0006](adr/0006-the-desk-operates-tools-reason-the-memory-escalates.md). The judgements and their gates are
-tabulated in [gates.md](gates.md).
+The judgements and their gates are tabulated in [gates.md](gates.md).

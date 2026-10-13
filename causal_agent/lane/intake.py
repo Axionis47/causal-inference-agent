@@ -50,7 +50,7 @@ def design_columns(h: Handoff) -> list[str]:
 
 
 def wanted_columns(h: Handoff, extra: list[str] | None = None) -> list[str]:
-    """Every column the pack carries (ADR 0011: every column is carried), the family block's, and the caller's; the treatment and
+    """Every column the pack carries, the family block's, and the caller's; the treatment and
     the outcome first."""
     t, y = (_key(h.treatment) if h.treatment else None), _key(h.outcome)
     carried = [b.key for b in h.columns]

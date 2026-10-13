@@ -1,14 +1,14 @@
-# The discontinuity lane's ladder, declared once (ADR 0011). Every node of the graph in the order it runs: what decides it
+# The discontinuity lane's ladder, declared once. Every node of the graph in the order it runs: what decides it
 # (`decider`: code, pack, judgement or ask, each with when), where it goes on (`exits`; the next rung when not said), whether
 # it may stop (`stop`; yes when not said), the function in nodes.py that picks among several exits (`route`), whether it is
 # a worker reached by Send (`worker`), a judgement's tool budget, the addresses it may ask back (`asks`) and the declared
 # causes it stops on (`stops_on`). feasibility, figures and assemble are the builder's nodes. The graph is held to this
 # file by a test; `make ladder` writes docs/ladders/discontinuity.md from it, the checks and the beliefs. This lane declares
-# its space in its own step of ADR 0011; until then its answers are not enumerated.
+# its space in a later step; until then its answers are not enumerated.
 
 goal: freeze_design
 
-loops:  # the cycle the graph still has; ADR 0011 rule 6 takes it out
+loops:  # the cycle the graph still has
   - {from: estimate, to: pick_estimator, max: 1, why: a second pick when the estimator failed to fit}
 
 rungs:

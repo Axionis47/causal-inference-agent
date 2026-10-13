@@ -89,8 +89,8 @@ class Provenance(BaseModel):
 
 
 class Fact(Provenance):
-    """One field of the memory as the pack carries it: the value beside how it was settled. The one place a word lives
-    (ADR 0011); a rung reads the word with its status and cites the address."""
+    """One field of the memory as the pack carries it: the value beside how it was settled. The one place a word lives;
+    a rung reads the word with its status and cites the address."""
 
     value: Any = None
 
@@ -237,7 +237,7 @@ class Belief(BaseModel):
         return f"claim:{self.kind}"
 
     def known(self) -> bool:
-        """Settled on the person's word. A draft is the last reading, shown as such and never acted on by code (ADR 0011)."""
+        """Settled on the person's word. A draft is the last reading, shown as such and never acted on by code."""
         return self.status == "confirmed" and self.value is not None
 
     def render(self) -> str:
@@ -383,7 +383,7 @@ class Handoff(BaseModel):
         default_factory=dict,
         description="kind, rule, depends_on, treatment_column, treated_level, score_column, cutoff, treated_side, cutoff_value_treated, level_column, movable",
     )
-    # every word, with its status: the one map a rung reads a claim from (ADR 0011)
+    # every word, with its status: the one map a rung reads a claim from
     facts: dict[str, Fact] = Field(
         default_factory=dict, description="address -> the value and how it was settled, for every claim field and every carried column's fields"
     )

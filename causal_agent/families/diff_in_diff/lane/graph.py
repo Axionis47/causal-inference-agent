@@ -1,4 +1,4 @@
-"""The diff_in_diff subgraph on pyfixest, built from knowledge/rungs.yaml (ADR 0011): the declaration is the graph. Nodes are constant;
+"""The diff_in_diff subgraph on pyfixest, built from knowledge/rungs.yaml: the declaration is the graph. Nodes are constant;
 workers scale with the tasks a fan-out sends. docs/ladders/diff_in_diff.md is the ladder as declared, written by `make ladder`."""
 
 from __future__ import annotations

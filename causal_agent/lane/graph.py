@@ -1,4 +1,4 @@
-"""How a lane's graph is built and compiled. Built from the lane's declaration (`rungs.yaml`, ADR 0011): one node per rung,
+"""How a lane's graph is built and compiled. Built from the lane's declaration (`rungs.yaml`): one node per rung,
 its destinations the rung's exits and the stop, a conditional edge where a route picks or fans out to a worker, a plain edge
 where one exit follows, then the builder's tail (feasibility, figures, assemble). Compiled as a node inside the desk's graphs,
 or standalone for tests and the command line. The retry policy every judgement node shares lives here too."""

@@ -1,4 +1,4 @@
-"""A lane's design space, declared once (ADR 0011): the characteristics of a design with the values the library runs, which
+"""A lane's design space, declared once: the characteristics of a design with the values the library runs, which
 rung decides each, the fact it is read from, and the shapes the library does not run with the reason a stop carries. The
 dimension names are the catalogue's own `applies_when` keys, so the estimator and refuter entries are the allowed tuples.
 

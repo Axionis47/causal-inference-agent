@@ -1,4 +1,4 @@
-"""The discontinuity subgraph on rdrobust and rddensity, built from knowledge/rungs.yaml (ADR 0011): the declaration is the graph. Nodes are constant;
+"""The discontinuity subgraph on rdrobust and rddensity, built from knowledge/rungs.yaml: the declaration is the graph. Nodes are constant;
 workers scale with the tasks a fan-out sends. docs/ladders/discontinuity.md is the ladder as declared, written by `make ladder`."""
 
 from __future__ import annotations

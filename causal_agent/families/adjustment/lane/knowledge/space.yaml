@@ -1,4 +1,4 @@
-# The design space this lane runs (ADR 0011), declared once. A dimension's name is the key the estimator and refuter
+# The design space this lane runs, declared once. A dimension's name is the key the estimator and refuter
 # entries use in `applies_when`, so those entries are the allowed tuples over this space. `decided_by` names the rung
 # that fixes the dimension; `read_from` the fact it is read from; `unsupported` the values the library does not run,
 # each with the reason a stop carries. A range bound may be a number, inf, or <fact>/<n>.

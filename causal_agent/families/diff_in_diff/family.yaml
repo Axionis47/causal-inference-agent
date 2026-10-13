@@ -17,7 +17,7 @@ convince: the two groups moved together before the change, so their paths can be
 specialist: pyfixest
 status: built
 
-# The decisions the Designer fills for this family, each with the addresses it should rest on. From ADR 0006.
+# The decisions the Designer fills for this family, each with the addresses it should rest on.
 decisions:
   - name: groups
     asks: the treated group and the comparison group

@@ -1,6 +1,6 @@
 """The trace mirrors the graph: tracing lives in chokepoints, and nothing goes round them. A new model call, graph, process
 boundary, artifact writer or gate either passes through the chokepoint, and is traced for free, or is listed here with the
-reason it may not. See docs/adr/0012-the-trace-mirrors-the-graph.md."""
+reason it may not."""
 
 from __future__ import annotations
 

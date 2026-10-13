@@ -94,5 +94,3 @@ uv run python -m causal_agent.desk.handoff students --family adjustment --outcom
 ```
 
 The stored packs under `families/<name>/evals/handoffs/` freeze this contract for the evals.
-
-Decided in [ADR 0004](adr/0004-the-pack-is-the-only-input-a-lane-sees.md).

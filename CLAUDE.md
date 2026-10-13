@@ -45,7 +45,7 @@ passes through anyway, and `causal_agent/common/tests/test_trace_policy.py` fail
 - A refusal that re-prompts the model goes through `trace.gate`; a retry has a visible reason.
 - A new writer or caller that may not use the chokepoint is added to the test's allowlist with the reason beside it.
 - A span is opened around a call, never set as a config on a runnable: the test fakes have a bare `invoke` and no
-  `with_config`. ADR 0012 has the rest.
+  `with_config`.
 
 The global writing and commit rules apply.
 
@@ -92,9 +92,8 @@ seams a test points at a temporary directory. Tests that stand in for `desk.pipe
 
 One CSV and one causal question in; one run of one analysis family out, with a conversation before and after. Read
 `docs/architecture.md` (the components table and the layers), `docs/gates.md` (every model call, what it is given, what
-code checks) and `docs/adr/` before changing structure. `docs/README.md` indexes the rest. ADR 0006 is the current shape:
-the desk operates, tools reason, the memory escalates. ADR 0008 makes a judgement a bounded episode over a ladder, 0009 and
-0011 declare a lane's design space, 0012 is the trace. ADR 0010 (a sealed rung is replayed, not rerun) is proposed, not built.
+code checks) before changing structure. `docs/README.md` indexes the rest. The past decision records sit under
+`docs/archive/adr/`; they describe earlier shapes and do not bind a change.
 
 **Layers, bottom to top**, each importing only what is below, held by `import-linter` in `pyproject.toml`: `common`
 (contracts, addresses, the model wrapper, the trace helpers, the config) → `profile` → `memory` → `viz` → `lane` (the

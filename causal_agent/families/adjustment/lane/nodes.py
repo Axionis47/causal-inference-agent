@@ -139,7 +139,7 @@ def load(state: SpecialistState) -> Command[Literal["case", "feasibility"]]:
     target = load_checks()["target_units"].get(h.scope.target, h.scope.target)
     tcol = table[t]
     distinct = int(tcol.nunique())
-    # the file projected onto the lane's space (ADR 0011): a shape the lane cannot reach stops here, before any model call
+    # the file projected onto the lane's space: a shape the lane cannot reach stops here, before any model call
     observed = {"treatment": "binary", "outcome": ok, "target": target, "contrasts": max(distinct - 1, 1)}
     out = SP.bounds(SPACE, observed)
     if out is not None:
@@ -872,7 +872,7 @@ def road(state: SpecialistState) -> Command[Literal["heterogeneity", "feasibilit
         est.sensitivity_required = True  # a revise loop re-identifies without the hidden node; the range and the caveat stay
     extra: dict[str, Any] = {}
     brief_road = h.brief.road if h.brief is not None else None
-    # the roads the graph opens that the library also runs on this shape (ADR 0011): the judgement is offered these and no other
+    # the roads the graph opens that the library also runs on this shape: the judgement is offered these and no other
     fixed = {"treatment": state["treatment_kind"], "outcome": state["outcome_kind"], "sensitivity_required": est.sensitivity_required}
     runnable = [r for r in est.roads if r in SP.offer(SPACE, load_estimators(), fixed)["estimand"]]
     if est.kind == "none":  # nothing identifies and no hidden factor is declared: check_design's hard identification flag says so

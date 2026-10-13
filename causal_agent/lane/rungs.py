@@ -1,4 +1,4 @@
-"""A lane's ladder, declared once (ADR 0011, rule 5): every node of the lane's graph in the order it runs, what decides it,
+"""A lane's ladder, declared once: every node of the lane's graph in the order it runs, what decides it,
 where it may go, whether it may stop, the budget a judgement has, what it may ask back and what it stops on. The graph is
 built from this file and a test holds the two equal, so a node cannot go where the declaration does not say.
 

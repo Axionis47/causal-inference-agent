@@ -206,7 +206,7 @@ def test_students_reaches_ready_in_the_frame_plus_a_few_questions_then_runs():
         "HIDDEN FACTORS"
     ) < text.index("Design: adjustment")
     assert "[pair.outcome] the outcome is 'math score' [col:math_score]" in text and "[pair.levels] treated = 'completed', control = 'none'" in text
-    # every column is carried (ADR 0011): the ones the frame never named stand in the time lines beside the ones it did
+    # every column is carried: the ones the frame never named stand in the time lines beside the ones it did
     assert "[time.before] fixed before the change: lunch, parental level of education, gender, race/ethnicity" in text
     assert "[time.after] measured after the change: math score, reading score, writing score" in text
     assert "Set aside: " in text and "diff_in_diff" in text and "discontinuity" in text

@@ -107,6 +107,6 @@ episode's calls, facts and refusals.
 
 ## Why this shape
 
-[ADR 0002](adr/0002-code-computes-facts-the-model-judges-the-harness-gates.md): code computes every fact, the model judges, the
+Code computes every fact, the model judges, the
 harness gates. The cost is that no single call holds the whole story; each is asked a bounded question and checked hard. The
 gain is that every answer can be refused, re-asked, and cited, and that a test can script every one of them.

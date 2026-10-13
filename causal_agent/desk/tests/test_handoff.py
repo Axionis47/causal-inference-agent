@@ -24,7 +24,7 @@ def test_brief_renders_every_field_with_status_source_and_said():
     assert "[col:gender.stands_for] sex as recorded · drafted · model:infer" in h.column("gender").render()
     assert h.memory_version == m.version and h.design_id == 0
     assert h.resolve("col:lunch.set_by") and h.resolve("col:gender.stands_for")
-    # every column of the file but ids and constants is carried, whatever the frame named (ADR 0011), each word with its status
+    # every column of the file but ids and constants is carried, whatever the frame named, each word with its status
     assert [b.key for b in h.columns][:2] == ["math_score", "test_preparation_course"] and len(h.columns) == 8
     assert {b.key for b in h.columns} >= {"reading_score", "writing_score", "race_ethnicity"}
     assert h.facts["col:lunch.set_by"].status == "confirmed" and h.facts["col:lunch.set_by"].value == "the district"

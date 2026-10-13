@@ -17,4 +17,4 @@ One page per mechanism. Each opens with a picture, walks one real example, and l
 | [design.md](design.md) | what a turn, an artifact, a cited address, a question and the handoff look like on the page, and what the page never does |
 | [demo.md](demo.md) | one real run walked, and the records it left under `demo/` |
 | [diagrams/](diagrams/README.md) | the pictures and the visual language they share |
-| [adr/](adr/) | the decisions the layout rests on |
+| [archive/adr/](archive/adr/) | past decision records; they describe earlier shapes and do not bind a change |

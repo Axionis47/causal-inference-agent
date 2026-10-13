@@ -1,4 +1,4 @@
-"""The adjustment lane's design space (ADR 0011): the catalogue keys on its dimensions and serves every cell, the lane's own
+"""The adjustment lane's design space: the catalogue keys on its dimensions and serves every cell, the lane's own
 graph decides each dimension, and a file that reaches no cell stops at load with the declared reason and no model call."""
 
 from __future__ import annotations

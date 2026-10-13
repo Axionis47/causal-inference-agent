@@ -50,7 +50,7 @@ from that file (`lane/graph.py::build`) and `families/tests/test_ladders.py` hol
 declaration does not say. `make ladder` writes one table per lane under [ladders/](ladders/) from the declaration, the space, the
 checks and the beliefs: the rungs, the space, and the end states a lane can reach, derived, never listed: the cells a design can
 reach, the questions a rung can send back, and the typed stops each rung can raise with the reason and the fix. CI fails when a
-table is stale. [adr/0011](adr/0011-the-design-space-is-declared-and-the-reasoning-stays-inside-it.md)
+table is stale.
 
 ## The adjustment lane, stage by stage
 
@@ -237,7 +237,7 @@ an analyst reads a cutoff design.
 A design is a point in the space its library spans, not a named recipe. Each dimension is decided by one of three things: a fact
 code computes, a judgement the model makes in a bounded episode, or a declaration in the lane's catalogue. Widening the space is a
 new option at an existing level, never a new rung. A test per lane asserts that every `applies_when` key in a catalogue is a fact
-the lane computes and every yaml key is a field of its entry model. [adr/0009](adr/0009-a-lane-reasons-over-its-librarys-whole-design-space.md)
+the lane computes and every yaml key is a field of its entry model.
 
 ### Diff-in-diff on pyfixest 0.60
 
@@ -291,6 +291,3 @@ uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/famil
 
 The first routes the question through the desk's nodes without the interview, then runs the lane; the second runs the lane alone on
 a stored pack. Both print the report and say where the run folder is.
-
-Decided in [ADR 0001](adr/0001-lanes-stay-distinct.md), [ADR 0004](adr/0004-the-pack-is-the-only-input-a-lane-sees.md) and
-[ADR 0005](adr/0005-one-folder-per-family.md).

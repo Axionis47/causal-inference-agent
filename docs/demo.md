@@ -64,7 +64,6 @@ The pictures on the pages are regenerated from these folders by `make docfigs`; 
 
 ## Re-recording
 
-The screenshots above date from 2026-09-25. Since then the pre-run figures were replaced by pictures made on request
-([ADR 0007](adr/0007-a-picture-is-drawn-on-request.md)), so step 3 and step 5 still show an overlap figure the desk no longer draws
+The screenshots above date from 2026-09-25. Since then the pre-run figures were replaced by pictures made on request, so step 3 and step 5 still show an overlap figure the desk no longer draws
 at the ready moment. To re-record: `make dev-api` and `make dev-web`, upload the file, answer as above, and replace the six
 images. Then copy the new `designs/<n>/` and its run folder into `demo/run/` and `demo/interview/` and run `make docfigs`.

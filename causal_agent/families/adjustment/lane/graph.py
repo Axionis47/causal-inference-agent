@@ -1,4 +1,4 @@
-"""The adjustment subgraph on DoWhy, built from knowledge/rungs.yaml (ADR 0011): the declaration is the graph. Nodes are constant;
+"""The adjustment subgraph on DoWhy, built from knowledge/rungs.yaml: the declaration is the graph. Nodes are constant;
 workers scale with the tasks a fan-out sends. docs/ladders/adjustment.md is the ladder as declared, written by `make ladder`."""
 
 from __future__ import annotations

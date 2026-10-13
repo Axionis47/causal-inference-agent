@@ -126,6 +126,3 @@ uv run python -m causal_agent.evals.explore students "add a column that is 1 whe
 | checked by | `check_spec`: every `draws_on` address resolves in the run | the gates above |
 | lives | `<run_dir>/figures.json`, copied to the design folder | `data/memory/<name>/artifacts/<id>/` |
 | address | `figure:<id>`, `figure:<id>.<series>.<i>` | `artifact:<id>`, `artifact:<id>.<fact>`, `.table`, `.figure` |
-
-Decided in [ADR 0013](adr/0013-the-chat-is-the-thing-and-the-memory-has-four-shelves.md); the rule that no figure is drawn
-unasked is [ADR 0007](adr/0007-a-picture-is-drawn-on-request.md).
