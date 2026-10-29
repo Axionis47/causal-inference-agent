@@ -14,7 +14,7 @@ from causal_agent.common.contracts import PrefilterVote, QuestionFrame, render_c
 from causal_agent.common.llm import structured
 from causal_agent.desk.prompts import routing as P
 from causal_agent.desk.state import PrefilterTask, RouteState
-from causal_agent.memory import ops, store
+from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.records import Memory
 from causal_agent.memory.views import context_text, index_records
@@ -32,18 +32,12 @@ def _writer():
 
 def memory_of(state: RouteState) -> Memory:
     """The memory on disk, or the what-if fork while one is being routed and run."""
-    fork = state.get("fork")
-    if fork is not None:
-        return fork
-    return store.memory_for(state["dataset"])
+    return state["fork"]
 
 
 def saved(memory: Memory, state: RouteState) -> dict:
-    """Save the memory and mirror it into the state, so a watcher sees it as it stands after this node. No node reads the mirror."""
-    if state.get("fork") is not None:
-        return {"memory": memory, "fork": memory}
-    store.save(memory)
-    return {"memory": memory}
+    """Return an ephemeral projection; PostgreSQL remains the context authority."""
+    return {"memory": memory, "fork": memory}
 
 
 # ------------------------------------------------------------------ load and mine
@@ -61,6 +55,11 @@ def _bare(memory: Memory) -> bool:
 
 def _doc(memory: Memory) -> tuple[str, str] | None:
     """The attached document, when the dataset has one: today the note file in the index entry."""
+    from causal_agent.memory.artifacts import supplied_context
+
+    context = supplied_context(memory.name)
+    if context is not None:
+        return ("context", context) if context.strip() else None
     e = DS.dataset_entries().get(memory.name) or {}
     if e.get("note") and (Path(DS.ROOT) / e["note"]).exists():
         return "context", (Path(DS.ROOT) / e["note"]).read_text()

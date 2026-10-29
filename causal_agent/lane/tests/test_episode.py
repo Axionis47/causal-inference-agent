@@ -138,6 +138,7 @@ def test_a_refused_answer_goes_back_with_the_log_kept_and_the_model_may_look_aga
     assert "PREVIOUS ANSWER WAS REJECTED" in fake.humans[1] and "'probe:roles.123456781234.9' does not resolve" in fake.humans[1]
     assert "[probe:roles.123456781234.1]" in fake.humans[1] and "[probe:roles.123456781234.2]" in fake.humans[1]
     assert "PREVIOUS ANSWER WAS REJECTED" in fake.rounds[2][1].content  # the second look saw the errors too
+    assert 'REJECTED RECORD (a proposal, not evidence)\n{"answer":{"ok":true,"cites":["probe:roles.123456781234.9"]}}' in fake.humans[1]
     # every try is kept: what was shown, what was answered, what the gate said
     assert log.system == "SYSTEM" and [t.n for t in log.tries] == [1, 2]
     assert log.tries[0].errors == ["citation 'probe:roles.123456781234.9' does not resolve"] and log.tries[1].errors == []
@@ -158,6 +159,18 @@ def test_no_tools_means_one_structured_call_and_no_binding():
     finally:
         set_llm(None)
     assert rec is not None and fake.bound == [] and fake.rounds == [] and fake.humans == ["U"] and [t.node for t in thoughts] == ["road"]
+
+
+def test_exhausted_missing_evidence_stops_before_any_final_model_call(monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("a final answer cannot manufacture missing tool evidence")
+
+    monkeypatch.setattr(E.LLM, "structured", forbidden)
+    rec, log, thoughts, errors = E.run_episode(
+        Record, "S", "U", tools=None, budget=0, gate=gate_cites, node="bounded", before_commit=lambda log: ["missing diagnostic"]
+    )
+    assert rec is None and not thoughts and errors == ["missing diagnostic"]
+    assert len(log.tries) == 1 and log.tries[0].answer == {"missing_evidence": True}
 
 
 def test_a_wrong_tool_name_or_arguments_is_a_refusal_not_a_crash():

@@ -4,6 +4,385 @@
  */
 
 export interface paths {
+    "/api/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Datasets */
+        get: operations["list_datasets_api_datasets_get"];
+        put?: never;
+        /** Ingest Dataset */
+        post: operations["ingest_dataset_api_datasets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dataset */
+        get: operations["get_dataset_api_datasets__dataset_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download */
+        get: operations["download_api_datasets__dataset_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Profile */
+        get: operations["get_profile_api_datasets__dataset_id__profile_get"];
+        put?: never;
+        /** Generate Profile */
+        post: operations["generate_profile_api_datasets__dataset_id__profile_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/profiles/{profile_id}/columns/{column_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Column */
+        get: operations["get_column_api_datasets__dataset_id__profiles__profile_id__columns__column_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Context */
+        get: operations["get_context_api_datasets__dataset_id__context_get"];
+        put?: never;
+        /** Prepare Context */
+        post: operations["prepare_context_api_datasets__dataset_id__context_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/contexts/{revision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dataset Context */
+        get: operations["get_dataset_context_api_datasets__dataset_id__contexts__revision_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/contexts/{revision_id}/columns/{column_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Column Context */
+        get: operations["get_column_context_api_datasets__dataset_id__contexts__revision_id__columns__column_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start */
+        post: operations["start_api_datasets__dataset_id__reviews_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/reviews/{review_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read */
+        get: operations["read_api_datasets__dataset_id__reviews__review_id__get"];
+        /** Save */
+        put: operations["save_api_datasets__dataset_id__reviews__review_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/reviews/{review_id}/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statements */
+        get: operations["statements_api_datasets__dataset_id__reviews__review_id__statements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Messages */
+        get: operations["messages_api_conversations__name__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Context Summary */
+        get: operations["context_summary_api_conversations__name__context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/context/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Context Changes */
+        get: operations["context_changes_api_conversations__name__context_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/context/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Context Statements */
+        get: operations["context_statements_api_conversations__name__context_statements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analyses */
+        get: operations["analyses_api_conversations__name__analyses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/analyses/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analysis */
+        get: operations["analysis_api_conversations__name__analyses__analysis_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datasets/{dataset_id}/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listing */
+        get: operations["listing_api_datasets__dataset_id__conversations_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_api_datasets__dataset_id__conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifacts */
+        get: operations["artifacts_api_conversations__name__artifacts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact */
+        get: operations["artifact_api_conversations__name__artifacts__artifact_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/artifacts/{artifact_id}/files/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact File */
+        get: operations["artifact_file_api_conversations__name__artifacts__artifact_id__files__file__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{name}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Evidence */
+        get: operations["evidence_api_conversations__name__evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -21,59 +400,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datasets": {
+    "/api/ready": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Datasets */
-        get: operations["list_datasets_api_datasets_get"];
-        put?: never;
-        /** Create Dataset */
-        post: operations["create_dataset_api_datasets_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Profile Upload */
-        post: operations["profile_upload_api_profile_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/datasets/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        /** Ready */
+        get: operations["ready_api_ready_get"];
         put?: never;
         post?: never;
-        /** Delete Dataset */
-        delete: operations["delete_dataset_api_datasets__name__delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/sessions/{name}": {
+    "/api/conversations/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -81,7 +425,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Session */
-        get: operations["get_session_api_sessions__name__get"];
+        get: operations["get_session_api_conversations__name__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -90,7 +434,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/sessions/{name}/messages": {
+    "/api/conversations/{name}/commands": {
         parameters: {
             query?: never;
             header?: never;
@@ -99,15 +443,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Post Message */
-        post: operations["post_message_api_sessions__name__messages_post"];
+        /** Post Command */
+        post: operations["post_command_api_conversations__name__commands_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/sessions/{name}/resume": {
+    "/api/conversations/{name}/resume": {
         parameters: {
             query?: never;
             header?: never;
@@ -117,27 +461,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Resume Session */
-        post: operations["resume_session_api_sessions__name__resume_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sessions/{name}/analyses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * New Analysis
-         * @description A new question on the same file: a new thread over the memory as it stands; every run so far stays listed.
-         */
-        post: operations["new_analysis_api_sessions__name__analyses_post"];
+        post: operations["resume_session_api_conversations__name__resume_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -178,57 +502,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/{name}/{artifact_id}/{file}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Artifact File */
-        get: operations["artifact_file_api_artifacts__name___artifact_id___file__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Activity */
-        Activity: {
-            /** Node */
-            node: string;
-            /** Since */
-            since: string;
-        };
-        /**
-         * ArtifactView
-         * @description An artifact a tool made from the file on request: what it is, what it shows, the numbers it holds, and where its files
-         *     are served from.
-         */
-        ArtifactView: {
+        /** AnalysisReview */
+        AnalysisReview: {
             /** Id */
             id: string;
+            /** Revision Id */
+            revision_id: string;
+            /** Question */
+            question: string;
+            /** Family */
+            family: string;
+            /** Assumptions */
+            assumptions: string;
+        };
+        /** AnalysisSummary */
+        AnalysisSummary: {
+            /** Id */
+            id: string;
+            /** Index */
+            index: number;
+            /** Question */
+            question: string;
+            /** Family */
+            family: string | null;
+            /** Status */
+            status: string;
+            /** Lead Design Id */
+            lead_design_id: string | null;
+        };
+        /** Artifact */
+        Artifact: {
             /**
-             * Address
-             * @description artifact:<id>, as the chat cites it
+             * Id
+             * @description URL-safe UUID, stored as 32 hexadecimal characters
              */
-            address: string;
+            id: string;
+            /** Dataset */
+            dataset: string;
+            /** Owner Id */
+            owner_id: string;
+            /** Dataset Version Id */
+            dataset_version_id: string;
             /**
-             * Kind
+             * Origin
              * @enum {string}
              */
-            kind: "exploration" | "picture";
+            origin: "exploration" | "analysis";
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "figure" | "table" | "report" | "result";
             /**
              * Design
-             * @description the design run it is about; null before any run
+             * @description the design run the artifact is about; null when it is about the data before any run
              */
-            design?: number | null;
+            design: number | null;
+            /** Memory Version */
+            memory_version: number;
+            /**
+             * Data Version
+             * @description the version of the table it was made from; 0 is the uploaded file
+             */
+            data_version: number;
             /**
              * Ask
              * @description what was asked for, in the person's words
@@ -239,56 +579,232 @@ export interface components {
              * @description what it shows, in words; a picture's caption
              */
             summary: string;
+            /** Method */
+            method: string;
+            /** Findings */
+            findings: string[];
+            /** Limitations */
+            limitations: string[];
+            /** Tags */
+            tags: string[];
+            /** Source Sha256 */
+            source_sha256: string;
+            /** Parent Refs */
+            parent_refs: string[];
+            /** Conversation Id */
+            conversation_id: string;
+            /** Request Id */
+            request_id: string;
+            /** Attempt Id */
+            attempt_id: string;
             /**
              * Facts
-             * @description every number it holds, by name; each is citable as artifact:<id>.<name>
+             * @description every number it stands behind, by name
              */
-            facts?: {
+            facts: {
                 [key: string]: number;
             };
             /**
+             * Files
+             * @description the file names in its folder
+             */
+            files: string[];
+            /**
+             * Table
+             * @description the table file's name in the folder, when it wrote one
+             */
+            table?: string | null;
+            /**
              * Figure
+             * @description figure.png is in the folder
              * @default false
              */
             figure: boolean;
+            /** Sandbox */
+            sandbox?: "docker" | null;
             /**
-             * Table
-             * @description the table file's name, when it wrote one
+             * Made At
+             * @description ISO time
              */
-            table?: string | null;
-            /** Made At */
             made_at: string;
-            /**
-             * Url
-             * @description where the page fetches figure.png, when there is one
-             */
-            url?: string | null;
-            /**
-             * Table Url
-             * @description where the page fetches the table, when there is one
-             */
-            table_url?: string | null;
+            /** Elements */
+            elements?: components["schemas"]["ArtifactElement"][];
+            /** Comparison Basis */
+            comparison_basis?: {
+                [key: string]: unknown;
+            } | null;
         };
-        /**
-         * AskItemView
-         * @description One line of a readback the page can answer on its own: picking another option or typing a value sends `address = value`.
-         */
-        AskItemView: {
-            /** Address */
-            address: string;
+        /** ArtifactElement */
+        ArtifactElement: {
+            /** Id */
+            id: string;
             /** Label */
             label: string;
-            /** Value */
-            value: string;
-            /** Options */
-            options?: string[];
-            /** Recommended */
-            recommended?: string | null;
-        };
-        /** Body_profile_upload_api_profile_post */
-        Body_profile_upload_api_profile_post: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "fact" | "table_column" | "chart_series";
             /** File */
             file: string;
+            /** Selector */
+            selector: string;
+        };
+        /** ArtifactSummary */
+        ArtifactSummary: {
+            /** Id */
+            id: string;
+            /** Ask */
+            ask: string;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "exploration" | "analysis";
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "figure" | "table" | "report" | "result";
+            /** Summary */
+            summary: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /** Dataset Version Id */
+            dataset_version_id: string;
+            /** Design */
+            design: number | null;
+            /** Made At */
+            made_at: string;
+            /** Url */
+            url: string | null;
+        };
+        /** Body_ingest_dataset_api_datasets_post */
+        Body_ingest_dataset_api_datasets_post: {
+            /** Title */
+            title: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** File */
+            file: string;
+            /**
+             * Context
+             * @description JSON-encoded original text, preserving line endings through browser multipart serialization
+             * @default ""
+             */
+            context: string;
+        };
+        /** ChatCommand */
+        ChatCommand: {
+            /** Submission Id */
+            submission_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "message" | "correct" | "answer" | "fast_track" | "pause" | "focus" | "reuse" | "refresh" | "authorize";
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Revision Id */
+            revision_id: string;
+            /** References */
+            references?: components["schemas"]["Reference"][];
+            /** Edits */
+            edits?: components["schemas"]["ContextEdit"][];
+            /** Question Id */
+            question_id?: string | null;
+            /** Option Id */
+            option_id?: string | null;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+        };
+        /** ChatContextSummary */
+        ChatContextSummary: {
+            /** Revision Id */
+            revision_id: string;
+            /** Revision */
+            revision: number;
+            /** Columns */
+            columns: components["schemas"]["ColumnIdentity"][];
+            /** Dispositions */
+            dispositions: components["schemas"]["ColumnDisposition"][];
+            /** Latest Revision Id */
+            latest_revision_id: string;
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /** Id */
+            id: string;
+            /** Role */
+            role: string;
+            /** Text */
+            text: string;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ChatOverview */
+        ChatOverview: {
+            /** Name */
+            name: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Title */
+            title: string;
+            /** Question */
+            question: string;
+            /** Version Id */
+            version_id: string;
+            /** Revision Id */
+            revision_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "idle" | "running" | "interrupted";
+            /** Prompt */
+            prompt: string;
+            focus: components["schemas"]["Reference"] | null;
+            /** Focus Label */
+            focus_label?: string | null;
+            /** Fast Track */
+            fast_track: boolean;
+            /** Questions */
+            questions: components["schemas"]["GapQuestion"][];
+            analysis_review: components["schemas"]["AnalysisReview"] | null;
+            /** Message Count */
+            message_count: number;
+            /** Error */
+            error: string | null;
+            readiness: components["schemas"]["ReadinessSummary"];
+        };
+        /** ChatStatements */
+        ChatStatements: {
+            /** Revision Id */
+            revision_id: string;
+            /** Statements */
+            statements: components["schemas"]["KnowledgeStatement"][];
+            /** Next Offset */
+            next_offset: number | null;
+        };
+        /** Check */
+        Check: {
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "computed" | "unavailable" | "failed";
+            /** Reason */
+            reason?: string | null;
         };
         /** CheckView */
         CheckView: {
@@ -310,70 +826,115 @@ export interface components {
             /** Detail */
             detail?: string | null;
         };
-        /** ClaimView */
-        ClaimView: {
-            /** Key */
-            key: string;
-            /** Kind */
-            kind: string;
-            /** Status */
-            status: string;
-            /** Fields */
-            fields?: {
-                [key: string]: unknown;
-            };
-            /** Source */
-            source?: string | null;
-            /** Evidence */
-            evidence?: string[];
-            /** Check Detail */
-            check_detail?: string | null;
+        /** Citation */
+        Citation: {
+            /** Source Line */
+            source_line: number;
             /**
-             * Asked
+             * Start
              * @default 0
              */
-            asked: number;
+            start: number;
             /**
-             * Refutations
-             * @default 0
+             * End
+             * @default 1
              */
-            refutations: number;
+            end: number;
+            /** Quote */
+            quote: string;
         };
-        /**
-         * ColumnSummary
-         * @description One column as the profiler read it. Facts only: shape, missingness, and anything odd.
-         */
-        ColumnSummary: {
+        /** ColumnDisposition */
+        ColumnDisposition: {
+            /** Column Id */
+            column_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reviewed" | "unresolved";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** ColumnIdentity */
+        ColumnIdentity: {
+            /** Column Id */
+            column_id: string;
+            /** Position */
+            position: number;
             /** Name */
             name: string;
             /** Key */
             key: string;
-            /** Kind */
-            kind: string;
-            /** Nulls */
-            nulls: number;
+        };
+        /** ColumnResult */
+        ColumnResult: {
+            /** Position */
+            position: number;
+            /** Name */
+            name: string;
+            /** Key */
+            key: string;
             /**
-             * Null Rate
-             * @default 0
+             * Status
+             * @enum {string}
              */
-            null_rate: number;
-            /** Distinct */
-            distinct: number;
+            status: "complete" | "partial" | "failed";
+            /** Empty Count */
+            empty_count?: number | null;
+            /** Whitespace Only Count */
+            whitespace_only_count?: number | null;
+            /** Distinct Count */
+            distinct_count?: number | null;
+            /** Top Values */
+            top_values?: components["schemas"]["Frequency"][];
+            /** Suspected Sentinels */
+            suspected_sentinels?: components["schemas"]["Frequency"][];
             /**
-             * Constant
+             * Sentinel Values Truncated
              * @default false
              */
-            constant: boolean;
-            /** Examples */
-            examples: string[];
-            numeric?: components["schemas"]["NumericShape"] | null;
-            /** Top Values */
-            top_values?: components["schemas"]["TopValue"][];
-            datetime?: components["schemas"]["DatetimeShape"] | null;
-            /** Sentinels */
-            sentinels?: components["schemas"]["Sentinel"][];
+            sentinel_values_truncated: boolean;
+            /**
+             * Suggested Dtype
+             * @default unknown
+             * @enum {string}
+             */
+            suggested_dtype: "integer" | "decimal" | "boolean" | "date" | "datetime" | "text" | "mixed" | "unknown";
+            /** Numeric Parse Count */
+            numeric_parse_count?: number | null;
+            /** Numeric Exception Count */
+            numeric_exception_count?: number | null;
+            numeric?: components["schemas"]["NumericSummary"] | null;
+            /** Checks */
+            checks?: components["schemas"]["Check"][];
             /** Issues */
-            issues?: string[];
+            issues?: components["schemas"]["Issue"][];
+        };
+        /** ColumnSummary */
+        ColumnSummary: {
+            /** Column Id */
+            column_id: string;
+            /** Position */
+            position: number;
+            /** Name */
+            name: string;
+            /** Key */
+            key: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "partial" | "failed";
+            /**
+             * Suggested Dtype
+             * @enum {string}
+             */
+            suggested_dtype: "integer" | "decimal" | "boolean" | "date" | "datetime" | "text" | "mixed" | "unknown";
+            /** Issue Count */
+            issue_count: number;
         };
         /** ConfidenceSet */
         ConfidenceSet: {
@@ -407,6 +968,65 @@ export interface components {
             /** Endpoints */
             endpoints: components["schemas"]["EndpointAdmission"][];
         };
+        /** ContextChange */
+        ContextChange: {
+            before: components["schemas"]["KnowledgeStatement"] | null;
+            after: components["schemas"]["KnowledgeStatement"] | null;
+        };
+        /** ContextChanges */
+        ContextChanges: {
+            /** From Revision Id */
+            from_revision_id: string;
+            /** To Revision Id */
+            to_revision_id: string;
+            /** Items */
+            items: components["schemas"]["ContextChange"][];
+            /** Next Offset */
+            next_offset: number | null;
+        };
+        /** ContextColumnSummary */
+        ContextColumnSummary: {
+            /** Column Id */
+            column_id: string;
+            /** Position */
+            position: number;
+            /** Name */
+            name: string;
+            /** Key */
+            key: string;
+            /** Statement Count */
+            statement_count: number;
+            /** Relationship Count */
+            relationship_count: number;
+        };
+        /** ContextColumnView */
+        ContextColumnView: {
+            /** Revision Id */
+            revision_id: string;
+            /** Version Id */
+            version_id: string;
+            column: components["schemas"]["ColumnIdentity"];
+            /** Statements */
+            statements: components["schemas"]["KnowledgeStatement"][];
+            /** Dataset */
+            dataset: components["schemas"]["KnowledgeStatement"][];
+            /** Relationships */
+            relationships: components["schemas"]["KnowledgeStatement"][];
+            /** Concepts */
+            concepts: components["schemas"]["KnowledgeStatement"][];
+        };
+        /** ContextDatasetView */
+        ContextDatasetView: {
+            pack: components["schemas"]["ContextSummary"];
+            /** Source Text */
+            source_text: string;
+            /** Dataset */
+            dataset: components["schemas"]["KnowledgeStatement"][];
+            /** Concepts */
+            concepts: components["schemas"]["KnowledgeStatement"][];
+            /** Relationships */
+            relationships: components["schemas"]["KnowledgeStatement"][];
+        };
         /** ContextDeficiency */
         ContextDeficiency: {
             /** Stage */
@@ -420,53 +1040,140 @@ export interface components {
             /** Reason */
             reason: string;
         };
-        /**
-         * DatasetCreate
-         * @description CSV only. The conversation starts with the causal question; nothing about the data is typed into a form.
-         */
-        DatasetCreate: {
-            /** Name */
-            name: string;
+        /** ContextEdit */
+        ContextEdit: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "add" | "replace" | "retire" | "review" | "unresolved";
+            /** Target Id */
+            target_id?: string | null;
+            statement?: components["schemas"]["KnowledgeStatement"] | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** ContextSummary */
+        ContextSummary: {
+            /** Revision Id */
+            revision_id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Source Checksum */
+            source_checksum: string;
+            /** Csv Checksum */
+            csv_checksum: string;
+            /** Column Index Fingerprint */
+            column_index_fingerprint: string;
+            /** Schema Version */
+            schema_version: string;
+            /** Extractor Version */
+            extractor_version: string;
+            /** Model */
+            model: string;
+            /** Source Present */
+            source_present: boolean;
+            /** Columns */
+            columns: components["schemas"]["ContextColumnSummary"][];
+        };
+        /** ContextView */
+        ContextView: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_prepared" | "prepared";
+            pack?: components["schemas"]["ContextSummary"] | null;
+        };
+        /** ConversationStart */
+        ConversationStart: {
+            /** Review Id */
+            review_id: string;
+            /** Generation */
+            generation: number;
+        };
+        /** ConversationView */
+        ConversationView: {
+            /** Id */
+            id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
             /** Title */
             title: string;
-            /** Upload Id */
-            upload_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** DatasetList */
         DatasetList: {
-            /** Datasets */
-            datasets: components["schemas"]["DatasetSummary"][];
+            /** Items */
+            items: components["schemas"]["DatasetListItem"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
-        /** DatasetSummary */
-        DatasetSummary: {
-            /** Name */
-            name: string;
+        /** DatasetListItem */
+        DatasetListItem: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
             /** Title */
             title: string;
-            /** Csv */
-            csv: string;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Status
+             * @default saved
+             * @constant
+             */
+            status: "saved";
+            /** Has Initial Context */
+            has_initial_context: boolean;
+        };
+        /** DatasetResult */
+        DatasetResult: {
             /** Rows */
             rows?: number | null;
             /** Columns */
             columns?: number | null;
-            /** Created At */
-            created_at?: string | null;
-            /** Shipped */
-            shipped: boolean;
-            /** Has Claims */
-            has_claims: boolean;
-            /** Question */
-            question?: string | null;
-            session?: components["schemas"]["SessionBrief"] | null;
-        };
-        /** DatetimeShape */
-        DatetimeShape: {
-            /** First */
-            first: string;
-            /** Last */
-            last: string;
-            /** Frequency */
-            frequency?: string | null;
+            /** Duplicate Rows */
+            duplicate_rows?: number | null;
+            /** Candidate Keys */
+            candidate_keys?: number[][];
+            /**
+             * Key Search Limit
+             * @default All single columns; pairs among at most 12 non-single keys by descending cardinality, then source position. No larger combinations.
+             */
+            key_search_limit: string;
+            /** Checks */
+            checks?: components["schemas"]["Check"][];
+            /** Issues */
+            issues?: components["schemas"]["Issue"][];
         };
         /**
          * DecisionView
@@ -592,6 +1299,15 @@ export interface components {
             /** P Value Source */
             p_value_source?: string | null;
         };
+        /** EvidenceView */
+        EvidenceView: {
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** Quotes */
+            quotes?: string[];
+        };
         /** Falsification */
         Falsification: {
             /**
@@ -691,81 +1407,63 @@ export interface components {
             /** Size */
             size: number;
         };
-        /** GapView */
-        GapView: {
-            /** Address */
-            address: string;
-            /** Reason */
-            reason: string;
-            /** Cites */
-            cites?: string[];
+        /** Frequency */
+        Frequency: {
+            /** Value */
+            value: string;
+            /** Count */
+            count: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+        };
+        /** GapQuestion */
+        GapQuestion: {
+            /** Id */
+            id: string;
+            /** Revision Id */
+            revision_id: string;
+            /** Target */
+            target: string;
+            /** Text */
+            text: string;
+            /** Options */
+            options?: components["schemas"]["Option"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /**
-         * HandoffField
-         * @description One field the design rests on, as the memory holds it: the value beside how it was settled.
-         */
-        HandoffField: {
-            /** Address */
-            address: string;
-            /** Value */
-            value?: unknown;
-            /** Status */
-            status: string;
-            /** Source */
-            source?: string | null;
-            /** Said */
-            said?: string | null;
-            /** Reason */
-            reason?: string | null;
-        };
-        /** HandoffView */
-        HandoffView: {
+        /** IngestedDataset */
+        IngestedDataset: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Sha256 */
+            sha256: string;
+            /** Initial Context */
+            initial_context: string | null;
             /**
-             * Context Id
-             * @default
+             * Created At
+             * Format: date-time
              */
-            context_id: string;
+            created_at: string;
             /**
-             * Dataset Identity
-             * @default
+             * Status
+             * @default saved
+             * @constant
              */
-            dataset_identity: string;
-            /**
-             * Data Version
-             * @default 0
-             */
-            data_version: number;
-            admission?: components["schemas"]["ContextAdmission"] | null;
-            /** Family */
-            family: string;
-            /** Specialist */
-            specialist: string;
-            /** Outcome */
-            outcome: string;
-            /** Treatment */
-            treatment?: string | null;
-            /**
-             * Bets On
-             * @default
-             */
-            bets_on: string;
-            /**
-             * Memory Version
-             * @default 0
-             */
-            memory_version: number;
-            /**
-             * Fields
-             * @description the claim fields first, then every carried column's fields
-             */
-            fields?: components["schemas"]["HandoffField"][];
-            /** @description the judge's reading of these fields, when it gave one */
-            judge?: components["schemas"]["JudgeView"] | null;
+            status: "saved";
         };
         /** InterpretationView */
         InterpretationView: {
@@ -783,20 +1481,96 @@ export interface components {
             /** Cites */
             cites?: string[];
         };
-        /**
-         * JudgeView
-         * @description A second reading of the context before the run: advice beside the fields, never a block.
-         */
-        JudgeView: {
+        /** Issue */
+        Issue: {
+            /** Id */
+            id: string;
+            /** Check */
+            check: string;
+            /** Code */
+            code: string;
+            /** Reason */
+            reason: string;
+            /** Column Positions */
+            column_positions?: number[];
+            /** Affected Count */
+            affected_count?: number | null;
+            /** Examples */
+            examples?: string[];
             /**
-             * Verdict
+             * Examples Truncated
+             * @default false
+             */
+            examples_truncated: boolean;
+        };
+        /** KnowledgeStatement */
+        KnowledgeStatement: {
+            /** Id */
+            id: string;
+            /**
+             * Scope
              * @enum {string}
              */
-            verdict: "ready" | "risky" | "not_ready";
-            /** Summary */
-            summary: string;
-            /** Gaps */
-            gaps?: components["schemas"]["GapView"][];
+            scope: "dataset" | "column" | "concept" | "relationship" | "requirement";
+            /** Field */
+            field: string;
+            /** Column Ids */
+            column_ids?: string[];
+            /** Value */
+            value: string;
+            /**
+             * Basis
+             * @default source_statement
+             * @enum {string}
+             */
+            basis: "source_statement" | "interpretation";
+            /**
+             * Qualifications
+             * @default
+             */
+            qualifications: string;
+            /** Citations */
+            citations?: components["schemas"]["Citation"][];
+            /** Participants */
+            participants?: components["schemas"]["Participant"][];
+            /**
+             * Timing
+             * @default
+             */
+            timing: string;
+            /**
+             * Conditions
+             * @default
+             */
+            conditions: string;
+            /**
+             * Directness
+             * @default unspecified
+             * @enum {string}
+             */
+            directness: "direct" | "indirect" | "unspecified";
+            /**
+             * Absence Scope
+             * @default unspecified
+             * @enum {string}
+             */
+            absence_scope: "direct_effect" | "any_pathway" | "unspecified";
+            /**
+             * Status
+             * @default proposed
+             * @enum {string}
+             */
+            status: "proposed" | "reviewed" | "unresolved" | "withdrawn";
+            source: components["schemas"]["SourceReference"];
+            review_source?: components["schemas"]["SourceReference"] | null;
+            /** Replaces */
+            replaces?: string | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            binding?: components["schemas"]["RequirementBinding"] | null;
         };
         /**
          * Mark
@@ -817,10 +1591,12 @@ export interface components {
              */
             label: string;
         };
-        /** MessageIn */
-        MessageIn: {
-            /** Text */
-            text: string;
+        /** MessagePage */
+        MessagePage: {
+            /** Items */
+            items: components["schemas"]["ChatMessage"][];
+            /** Before */
+            before: string | null;
         };
         /**
          * Node
@@ -841,20 +1617,24 @@ export interface components {
              */
             role: "treatment" | "outcome" | "confounder" | "driver" | "mediator" | "instrument" | "hidden" | "excluded" | "other";
         };
-        /** NumericShape */
-        NumericShape: {
+        /** NumericSummary */
+        NumericSummary: {
             /** Min */
             min: number;
+            /** Max */
+            max: number;
+            /** Mean */
+            mean: number;
+            /** P01 */
+            p01: number;
             /** P25 */
             p25: number;
             /** P50 */
             p50: number;
             /** P75 */
             p75: number;
-            /** Max */
-            max: number;
-            /** Mean */
-            mean: number;
+            /** P99 */
+            p99: number;
         };
         /** Obligation */
         Obligation: {
@@ -872,92 +1652,120 @@ export interface components {
             /** Cites */
             cites?: string[];
         };
-        /** ProfileOut */
-        ProfileOut: {
-            /** Upload Id */
-            upload_id: string;
-            /** Filename */
-            filename: string;
-            /** Rows */
-            rows: number;
-            /** Columns */
-            columns: components["schemas"]["ColumnSummary"][];
-            /** Head */
-            head?: string[][];
+        /** Option */
+        Option: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value?: unknown;
             /**
-             * Duplicate Rows
-             * @default 0
-             */
-            duplicate_rows: number;
-            /** Candidate Keys */
-            candidate_keys?: string[][];
-            /** Grain */
-            grain?: string[] | null;
-            /** Co Missing */
-            co_missing?: string[][];
-            /** Issues */
-            issues?: string[];
-        };
-        /** Prompt */
-        Prompt: {
-            /**
-             * Text
-             * @default
-             */
-            text: string;
-            /**
-             * Status
-             * @default
-             */
-            status: string;
-            /**
-             * Ready
+             * Unknown
              * @default false
              */
-            ready: boolean;
-            /** Open */
-            open?: string[];
-            /**
-             * Runs
-             * @default 0
-             */
-            runs: number;
-            /**
-             * Phase
-             * @default before
-             */
-            phase: string;
+            unknown: boolean;
+        };
+        /** Participant */
+        Participant: {
             /**
              * Kind
-             * @description question: the causal question is being asked; chat: a turn with nothing asked; ask: a question rides with the reply; ready: the design the desk would run, waiting for the word; after: the chat after a run
+             * @enum {string}
              */
-            kind?: string | null;
+            kind: "column" | "concept" | "event";
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @default participant
+             * @enum {string}
+             */
+            role: "participant" | "from" | "to" | "intermediate" | "condition";
+        };
+        /** ProfileView */
+        ProfileView: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_profiled" | "complete" | "partial" | "failed";
+            profile?: components["schemas"]["SavedProfile"] | null;
+        };
+        /** ReadinessSummary */
+        ReadinessSummary: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unprepared" | "needs_context" | "ready" | "blocked";
+            /** Missing */
+            missing: number;
+        };
+        /** Reference */
+        Reference: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "column" | "artifact";
+            /** Id */
+            id: string;
+            /** Element */
+            element?: string | null;
         };
         /**
-         * QuestionView
-         * @description The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips, the
-         *     option the desk recommends first, and for a readback each draft as an item.
+         * RequirementBinding
+         * @description A catalogue field bound to this statement, never a separately writable claim.
          */
-        QuestionView: {
-            /** Keys */
-            keys: string[];
-            /** Kind */
-            kind: string;
-            /** Text */
-            text: string;
-            /** Options */
-            options?: string[];
-            /** Recommended */
-            recommended?: string | null;
-            /** Items */
-            items?: components["schemas"]["AskItemView"][];
-            /** Evidence Cites */
-            evidence_cites?: string[];
-            /**
-             * Because
-             * @description the families that need these fields
-             */
-            because?: string[];
+        RequirementBinding: {
+            /** Address */
+            address: string;
+            /** Value */
+            value?: unknown;
+        };
+        /** ReviewSave */
+        ReviewSave: {
+            /** Generation */
+            generation: number;
+            /** Edits */
+            edits?: components["schemas"]["ContextEdit"][];
+            /** Dispositions */
+            dispositions?: components["schemas"]["ColumnDisposition"][];
+        };
+        /** ReviewStart */
+        ReviewStart: {
+            /** Question */
+            question: string;
+        };
+        /** ReviewStatements */
+        ReviewStatements: {
+            /** Statements */
+            statements: components["schemas"]["KnowledgeStatement"][];
+            /** Next Offset */
+            next_offset: number | null;
+        };
+        /** ReviewView */
+        ReviewView: {
+            /** Id */
+            id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
+            /** Question */
+            question: string;
+            /** Starting Revision Id */
+            starting_revision_id: string;
+            /** Completed Revision Id */
+            completed_revision_id: string | null;
+            /** Generation */
+            generation: number;
+            /** Columns */
+            columns: components["schemas"]["ColumnIdentity"][];
+            /** Edits */
+            edits: components["schemas"]["ContextEdit"][];
+            /** Dispositions */
+            dispositions: components["schemas"]["ColumnDisposition"][];
         };
         /** RunFiles */
         RunFiles: {
@@ -1080,13 +1888,53 @@ export interface components {
              * @description what the run left, in the order the chat shows them
              */
             figures?: components["schemas"]["FigureSpec"][];
-            /**
-             * Artifacts
-             * @description the artifacts about this run, oldest first
-             */
-            artifacts?: components["schemas"]["ArtifactView"][];
             /** Declines */
             declines?: components["schemas"]["DeclineView"][];
+        };
+        /** SavedColumn */
+        SavedColumn: {
+            /** Profile Id */
+            profile_id: string;
+            /** Version Id */
+            version_id: string;
+            /** Column Id */
+            column_id: string;
+            /** Source Checksum */
+            source_checksum: string;
+            result: components["schemas"]["ColumnResult"];
+        };
+        /** SavedProfile */
+        SavedProfile: {
+            /** Profile Id */
+            profile_id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
+            /** Source Checksum */
+            source_checksum: string;
+            /** Profiler Version */
+            profiler_version: string;
+            /** Settings Fingerprint */
+            settings_fingerprint: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "partial" | "failed";
+            dataset: components["schemas"]["DatasetResult"];
+            /** Columns */
+            columns: components["schemas"]["ColumnSummary"][];
         };
         /** Sensitivity */
         Sensitivity: {
@@ -1119,15 +1967,6 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** Sentinel */
-        Sentinel: {
-            /** Value */
-            value: string;
-            /** Count */
-            count: number;
-            /** Reason */
-            reason: string;
-        };
         /**
          * Series
          * @description One drawn set of values. `x` is a level, a period, or a bin; `y` the number; `lo`/`hi` an interval; `n` the rows behind each point.
@@ -1151,189 +1990,20 @@ export interface components {
              */
             readonly key: string;
         };
-        /** SessionBrief */
-        SessionBrief: {
-            /** Stage */
-            stage: string;
-            /** Phase */
-            phase: string;
-            /** Runs */
-            runs: number;
-        };
-        /** SessionView */
-        SessionView: {
-            /** Name */
-            name: string;
-            /** Title */
-            title: string;
-            /** Question */
-            question?: string | null;
+        /** SourceReference */
+        SourceReference: {
             /**
-             * Stage
+             * Kind
              * @enum {string}
              */
-            stage: "busy" | "waiting" | "ended" | "stale" | "error" | "new";
+            kind: "extraction" | "review" | "message";
+            /** Id */
+            id: string;
             /**
-             * Phase
-             * @default before
-             */
-            phase: string;
-            activity?: components["schemas"]["Activity"] | null;
-            /**
-             * Ready
-             * @default false
-             */
-            ready: boolean;
-            prompt?: components["schemas"]["Prompt"] | null;
-            /** Questions */
-            questions?: components["schemas"]["QuestionView"][];
-            /** Claims */
-            claims?: components["schemas"]["ClaimView"][];
-            status?: components["schemas"]["StatusView"] | null;
-            /** Runs */
-            runs?: components["schemas"]["RunView"][];
-            /**
-             * Brief
+             * Text
              * @default
              */
-            brief: string;
-            /** Transcript */
-            transcript?: components["schemas"]["Turn"][];
-            /** Error */
-            error?: string | null;
-            /**
-             * Analysis
-             * @description a<k>: this conversation's journal
-             */
-            analysis?: string | null;
-            /**
-             * Journal
-             * @description the conversation's steps, in order
-             */
-            journal?: components["schemas"]["StepView"][];
-            /**
-             * Artifacts
-             * @description the artifacts about the data before any run, oldest first
-             */
-            artifacts?: components["schemas"]["ArtifactView"][];
-            /** @description at the ready moment: the context the run would rest on, field by field */
-            handoff?: components["schemas"]["HandoffView"] | null;
-            /**
-             * Data Version
-             * @description the table version in play; 0 is the uploaded file
-             * @default 0
-             */
-            data_version: number;
-            /**
-             * Versions
-             * @description every table version the data agent wrote, oldest first
-             */
-            versions?: components["schemas"]["VersionView"][];
-        };
-        /** StatusView */
-        StatusView: {
-            /** Endpoint Admissions */
-            endpoint_admissions?: {
-                [key: string]: components["schemas"]["ContextAdmission"];
-            };
-            /** Selected Family */
-            selected_family?: string | null;
-            /** Table */
-            table: {
-                [key: string]: {
-                    [key: string]: string;
-                };
-            };
-            /** Surviving */
-            surviving: string[];
-            /** Struck */
-            struck: {
-                [key: string]: string;
-            };
-            /** Required */
-            required: string[];
-            /** Settled */
-            settled: string[];
-            /** Open */
-            open: string[];
-            /** Ready */
-            ready: boolean;
-            /** Contradictions */
-            contradictions: string[];
-        };
-        /**
-         * StepView
-         * @description One step of the conversation's journal, with the run it names resolved for the page.
-         */
-        StepView: {
-            /** N */
-            n: number;
-            /** Address */
-            address: string;
-            /** Kind */
-            kind: string;
-            /** By */
-            by: string;
-            /** At */
-            at: string;
-            /** Memory Version */
-            memory_version: number;
-            /**
-             * Design
-             * @description the design run the step belongs to; null for the steps leading to the first design
-             */
-            design?: number | null;
-            /** Read */
-            read?: string[];
-            /** Left */
-            left?: string[];
-            /**
-             * Note
-             * @default
-             */
-            note: string;
-            /**
-             * Run
-             * @description the design index a left entry names, when one does
-             */
-            run?: number | null;
-            /**
-             * Run Id
-             * @description the lane run dir's name, when a left entry is one
-             */
-            run_id?: string | null;
-        };
-        /** TopValue */
-        TopValue: {
-            /** Value */
-            value: string;
-            /** Count */
-            count: number;
-            /** Share */
-            share: number;
-        };
-        /** Turn */
-        Turn: {
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "user" | "assistant" | "system";
-            /** Text */
             text: string;
-            /**
-             * Phase
-             * @default before
-             */
-            phase: string;
-            /** At */
-            at: string;
-            /** Kind */
-            kind?: string | null;
-            /** @description shown under the text */
-            figure?: components["schemas"]["FigureSpec"] | null;
-            /** @description a picture drawn on request, shown under the text */
-            artifact?: components["schemas"]["ArtifactView"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1348,30 +2018,6 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
-        /**
-         * VersionView
-         * @description One table version the data agent wrote: what was asked, what changed, and where it came from.
-         */
-        VersionView: {
-            /** V */
-            v: number;
-            /** Parent */
-            parent: number;
-            /** Address */
-            address: string;
-            /** Ask */
-            ask: string;
-            /** Summary */
-            summary: string;
-            /** Rows */
-            rows: number;
-            /** Added */
-            added?: string[];
-            /** Dropped */
-            dropped?: string[];
-            /** Made At */
-            made_at: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -1381,6 +2027,895 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_datasets_api_datasets_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingest_dataset_api_datasets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_ingest_dataset_api_datasets_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestedDataset"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dataset_api_datasets__dataset_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestedDataset"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_api_datasets__dataset_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile_api_datasets__dataset_id__profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_profile_api_datasets__dataset_id__profile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_column_api_datasets__dataset_id__profiles__profile_id__columns__column_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                profile_id: string;
+                column_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedColumn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_context_api_datasets__dataset_id__context_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prepare_context_api_datasets__dataset_id__context_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dataset_context_api_datasets__dataset_id__contexts__revision_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextDatasetView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_column_context_api_datasets__dataset_id__contexts__revision_id__columns__column_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                revision_id: string;
+                column_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextColumnView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_api_datasets__dataset_id__reviews_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_api_datasets__dataset_id__reviews__review_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_datasets__dataset_id__reviews__review_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    statements_api_datasets__dataset_id__reviews__review_id__statements_get: {
+        parameters: {
+            query?: {
+                column_id?: string | null;
+                section?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_id: string;
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewStatements"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    messages_api_conversations__name__messages_get: {
+        parameters: {
+            query?: {
+                before?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    context_summary_api_conversations__name__context_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatContextSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    context_changes_api_conversations__name__context_changes_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextChanges"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    context_statements_api_conversations__name__context_statements_get: {
+        parameters: {
+            query?: {
+                column_id?: string | null;
+                section?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatStatements"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyses_api_conversations__name__analyses_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analysis_api_conversations__name__analyses__analysis_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listing_api_datasets__dataset_id__conversations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_datasets__dataset_id__conversations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifacts_api_conversations__name__artifacts_get: {
+        parameters: {
+            query?: {
+                earlier?: boolean;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_api_conversations__name__artifacts__artifact_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Artifact"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_file_api_conversations__name__artifacts__artifact_id__files__file__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                artifact_id: string;
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evidence_api_conversations__name__evidence_get: {
+        parameters: {
+            query: {
+                address: string;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_health_get: {
         parameters: {
             query?: never;
@@ -1403,7 +2938,7 @@ export interface operations {
             };
         };
     };
-    list_datasets_api_datasets_get: {
+    ready_api_ready_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1418,107 +2953,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatasetList"];
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
     };
-    create_dataset_api_datasets_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DatasetCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DatasetSummary"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    profile_upload_api_profile_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_profile_upload_api_profile_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_dataset_api_datasets__name__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_session_api_sessions__name__get: {
+    get_session_api_conversations__name__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1535,7 +2977,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"];
+                    "application/json": components["schemas"]["ChatOverview"];
                 };
             };
             /** @description Validation Error */
@@ -1549,7 +2991,7 @@ export interface operations {
             };
         };
     };
-    post_message_api_sessions__name__messages_post: {
+    post_command_api_conversations__name__commands_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1560,7 +3002,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MessageIn"];
+                "application/json": components["schemas"]["ChatCommand"];
             };
         };
         responses: {
@@ -1570,7 +3012,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"];
+                    "application/json": components["schemas"]["ChatOverview"];
                 };
             };
             /** @description Validation Error */
@@ -1584,7 +3026,7 @@ export interface operations {
             };
         };
     };
-    resume_session_api_sessions__name__resume_post: {
+    resume_session_api_conversations__name__resume_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1601,38 +3043,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionView"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    new_analysis_api_sessions__name__analyses_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionView"];
+                    "application/json": components["schemas"]["ChatOverview"];
                 };
             };
             /** @description Validation Error */
@@ -1686,39 +3097,6 @@ export interface operations {
             path: {
                 run_id: string;
                 filename: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    artifact_file_api_artifacts__name___artifact_id___file__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-                artifact_id: string;
-                file: string;
             };
             cookie?: never;
         };

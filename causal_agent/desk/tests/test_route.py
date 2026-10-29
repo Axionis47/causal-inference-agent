@@ -51,7 +51,7 @@ def test_students_is_mined_fitted_and_routed_to_adjustment():
     unasked = [n for n in verdicts["adjustment"].needs if not n.met]
     assert unasked and any("drafted" in n.note for n in unasked)  # the beliefs: listed, never mined, never blocking here
     memory = store.memory_for("students")
-    assert memory.field("claim:assignment.kind").value == "own_choice" and memory.field("claim:assignment.kind").status == "drafted"
+    assert memory.field("claim:assignment.kind") is None  # Routing never writes durable context.
     assert memory.field("claim:unobserved.exists") is None  # the description's belief was dropped
     assert out.handoff is None and out.brief is None
     assert fake.calls.count("DesignBrief") == 0

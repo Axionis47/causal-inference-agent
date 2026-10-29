@@ -1,19 +1,17 @@
 # explore
 
-The exploration agent: a read-only look at the data on request, from any turn of the conversation.
+The chatbot supplies a question, the entire selected CSV version, context and optional published artifact references. The trusted client resolves these inputs and launches the A2A agent. The agent cannot select another dataset or search unrelated storage.
 
-- `contracts.py` — `ExploreRequest` (the table, what is known, the columns, the pair it must not join), `Exploration` (the
-  record: the step whose files are the answer, the facts, the picture, the table), `Step`, `Trail`.
-- `tools.py` — the one tool, `run_code`: a script runs in the sandbox (`explore/sandbox.py`) in its own `step_<n>/` folder; what it
-  printed, the files it wrote and its `facts.json` come back as the tool's text, addressed `probe:explore.<n>` by the episode.
-- `gates.py` — what code checks: the script parses and does not name the held-back column; the record names a step that ran,
-  facts that are in its `facts.json`, a picture that exists, a table that parses, at least one product, nothing that relates the
-  outcome to the treatment before the freeze, and no number the facts or the context do not hold.
-- `project.py` — the no-join rule for free-form code: before the freeze the table sent has the outcome or the treatment taken
-  out, by code; an ask naming both is refused before any model call.
-- `agent.py` — one exploration in this process: `explore(req) -> Trail`, over `lane/episode.py::run_episode` with the budget,
-  the tries and the timeout `checks.yaml` declares.
-- `prompts.py` — the one judgement's text. Method-free and column-free.
+- `contracts.py`: whole-data `ExploreRequest`, separate `TransformRequest`, typed `Exploration` and complete execution `Trail`.
+- `inputs.py`: exact-byte checksum validation, task-local copies and the supplied-resource manifest.
+- `inspection.py`: bounded input/output inspection, image pixels for the model, and generated Python execution.
+- `sandbox.py`: Docker-only generated-code execution. Read-only inputs/root, no network, non-root user, bounded resources, cancellation and output validation. No host Python fallback.
+- `agent.py`, `prompts.py`, `checks.yaml`: shared episode, eight scripts, sixteen inspections, three final-record attempts, sixty seconds per script.
+- `gates.py`: successful-step evidence, numerical grounding, parsed products and inspected plots. Missing data returns explicit needs to the chatbot.
+- `client.py`, `server.py`: A2A transport, lifecycle and the owned publication adapter.
+- `project.py`: row identities and withheld outcomes for the separate transformation workflow. User-facing exploration does not use it.
+- `diagnostics.py`: shared diagnostic execution; each family retains responsibility for restricting its supplied data and its three-call budget.
 
-The desk reaches it through its client (`client.py`), which allocates the artifact's folder, projects the table, sends the
-request to the agent's process over A2A, and writes what came back to the artifacts shelf (`memory/artifacts.py`).
+Build once with `make explore-image`. Docker Desktop (Linux containers) or Docker Engine must be running. `EXPLORE_IMAGE` selects the installed image. The image pins Python and numerical libraries and installs pandas, NumPy, SciPy, statsmodels, matplotlib, scikit-learn and Pillow. Windows users can use the equivalent `docker build -t causal-desk-explore -f docker/explore.Dockerfile .` command without Make.
+
+The integration service publishes explanations and registered files under their owning conversation in PostgreSQL and private S3. The artifact interface has no filesystem catalogue fallback. Compose keeps the A2A agent and restricted Docker worker available at runtime. See [exploration](../../docs/exploration.md) and [container deployment](../../docs/production/containerization.md).

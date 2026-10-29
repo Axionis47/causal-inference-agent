@@ -13,6 +13,7 @@ from langgraph.types import Command, Send
 from causal_agent.common import trace
 from causal_agent.common.addresses import key, norm_address
 from causal_agent.common.contracts import CheckResult, Checks, Cited, ContextDeficiency, Contrast, Feasibility
+from causal_agent.explore.diagnostics import DiagnosticTools
 from causal_agent.families.discontinuity.design import RdDesign
 from causal_agent.families.discontinuity.lane.contracts import (
     AssumptionDecisions,
@@ -39,6 +40,7 @@ from causal_agent.families.discontinuity.lane.knowledge import (
     pick_inference,
 )
 from causal_agent.families.discontinuity.lane.reason import prompts as P
+from causal_agent.families.discontinuity.lane.reason.diagnostics import diagnostic_tools, validate_sources
 from causal_agent.families.discontinuity.lane.reason.provenance import continuity_entry
 from causal_agent.families.discontinuity.lane.reason.selection import select_lead
 from causal_agent.families.discontinuity.lane.reason.views import build
@@ -80,7 +82,7 @@ def _canon(state):
     return pd.read_csv(state["canon_path"])
 
 
-def _episode(state, name, schema, system, view, gate):
+def _episode(state, name, schema, system, view, gate, *, tools=None):
     def checked(rec, log):
         def canonical(address):
             normal = norm_address(address)
@@ -105,16 +107,30 @@ def _episode(state, name, schema, system, view, gate):
             for reason in getattr(item, "reasons", []):
                 cites += reason.cites
         errors += [f"{a}: not in this decision's view" for a in cites if not (view.resolve(a) or log.resolve(a))]
+        if isinstance(tools, DiagnosticTools):
+            cites += [a for risk in getattr(rec, "risks", []) for a in risk.cites]
+            errors += tools.evidence_errors(cites, log)
         return errors
 
-    table = _canon(state)
-    selected = [k for k in state["column_candidates"] if f"col:{k}" in view.addresses and S.covcol(k) in table]
-    aliases = {key(state["handoff"].outcome): "y", state["score"].column: "x", **{k: S.covcol(k) for k in selected}}
-    if state["score"].takeup_column:
-        aliases[state["score"].takeup_column] = "t"
-    columns = [c for c in ("x", "t", *[S.covcol(k) for k in selected]) if c in table]
-    tools = L.data_tools(state, table["x"] >= 0, table_=table[columns], aliases=aliases) if SPEC.budget(name) else None
-    record, log, thoughts, errors = run_episode(schema, system, view.text, tools=tools, budget=SPEC.budget(name), gate=checked, node=name, notes=True)
+    if tools is None and SPEC.budget(name):
+        table = _canon(state)
+        selected = [k for k in state["column_candidates"] if f"col:{k}" in view.addresses and S.covcol(k) in table]
+        aliases = {key(state["handoff"].outcome): "y", state["score"].column: "x", **{k: S.covcol(k) for k in selected}}
+        if state["score"].takeup_column:
+            aliases[state["score"].takeup_column] = "t"
+        columns = [c for c in ("x", "t", *[S.covcol(k) for k in selected]) if c in table]
+        tools = L.data_tools(state, table["x"] >= 0, table_=table[columns], aliases=aliases)
+    record, log, thoughts, errors = run_episode(
+        schema,
+        system,
+        view.text,
+        tools=tools,
+        budget=SPEC.budget(name),
+        gate=checked,
+        node=name,
+        notes=True,
+        before_commit=tools.completion_errors if isinstance(tools, DiagnosticTools) else None,
+    )
     return (
         record,
         {
@@ -200,6 +216,11 @@ def score(state):
         cites=["claim:assignment.score_column", "claim:assignment.cutoff", "claim:assignment.treated_side"],
         by="pack",
     )
+    try:
+        validate_sources(state["handoff"], rec, state.get("cluster_column"))
+    except ValueError as exc:
+        deficiency = ContextDeficiency(stage="score", addresses=[f"col:{key(state['handoff'].outcome)}"], reason=str(exc))
+        return _stop("score", deficiency.reason, deficiency.addresses, {"context_deficiency": deficiency}, terminal_kind="context_deficiency")
     raw = L.table(state)
     x = pd.to_numeric(raw[rec.column], errors="coerce")
     side = (
@@ -339,6 +360,11 @@ def balance(state):
 
 def line(state):
     h, lad = state["handoff"], state["ladder"]
+    try:
+        tools, metadata = diagnostic_tools(state)
+    except ValueError as exc:
+        deficiency = ContextDeficiency(stage="line", addresses=[f"col:{key(h.outcome)}"], reason=str(exc))
+        return _stop("line", deficiency.reason, deficiency.addresses, {"context_deficiency": deficiency}, terminal_kind="context_deficiency")
     lines = (
         lad.score.lines()
         + lad.shape.lines()
@@ -346,6 +372,7 @@ def line(state):
         + lad.balance.lines()
         + [(c.address, f"{c.level}: {c.detail}") for c in state["checks"] if c.name not in {"first_stage", "first_stage_weak", "no_first_stage"}]
     )
+    lines.append(("ladder:diagnostic.input", metadata + "\n" + tools.input_summary()))
     view = build(h, claims=("assignment", "cutoff_only", "sampling"), columns=[state["score"].column], lines=lines)
 
     def gate(rec, log):
@@ -376,7 +403,7 @@ def line(state):
                     errors.append(f"answer the diagnostic {a} or its shown underlying evidence")
         return errors
 
-    rec, extra, errors = _episode(state, "line", Line, P.LINE, view, gate)
+    rec, extra, errors = _episode(state, "line", Line, P.LINE, view, gate, tools=tools)
     if rec is None:
         return _stop("line", "continuity reasoning could not be recorded", errors, extra, terminal_kind="exhausted_reasoning")
     episode_facts = {fact.address for visit in extra["episode_visits"] for fact in EpisodeLog.model_validate(visit["log"]).facts}

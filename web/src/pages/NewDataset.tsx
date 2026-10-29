@@ -1,66 +1,40 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, ApiError } from "../api";
-import DatasetPreview from "../components/DatasetPreview";
-import { useDatasets } from "../components/Shell";
+import { api } from "../api";
 import TopBar from "../components/TopBar";
 import UploadDrop from "../components/UploadDrop";
-import type { ProfileOut } from "../types";
-
-const NAME_RE = /^[a-z][a-z0-9_]{1,39}$/;
-
-export function slug(title: string): string {
-  const s = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/^[^a-z]+/, "");
-  return s.slice(0, 40);
-}
+import { useDatasets } from "../components/Shell";
 
 export default function NewDataset() {
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const { refresh } = useDatasets();
-  const [prof, setProf] = useState<ProfileOut | null>(null);
-  const [reading, setReading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [name, setName] = useState("");
-  const [nameTouched, setNameTouched] = useState(false);
+  const [context, setContext] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-
-  const onFile = async (f: File) => {
-    setReading(true);
-    setError(null);
-    try {
-      const p = await api.profile(f);
-      setProf(p);
-      if (!title) {
-        const t = f.name.replace(/\.csv$/i, "").replace(/[_-]+/g, " ");
-        setTitle(t);
-        if (!nameTouched) setName(slug(t));
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
-    } finally {
-      setReading(false);
-    }
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const key = useRef(crypto.randomUUID());
+  const submitting = useRef(false);
+  const changed = () => {
+    key.current = crypto.randomUUID();
   };
 
-  const nameOk = NAME_RE.test(name);
-  const canCreate = !!prof && nameOk && title.trim() && !creating;
-
-  const create = async () => {
-    if (!prof || !canCreate) return;
-    setCreating(true);
+  const submit = async () => {
+    if (!file || !title.trim() || submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
     setError(null);
+    setProgress(0);
     try {
-      const d = await api.createDataset({ name, title: title.trim(), upload_id: prof.upload_id });
-      await refresh();
-      nav(`/d/${encodeURIComponent(d.name)}`);
+      const result = await api.ingest(file, title.trim(), context, key.current, setProgress);
+      void refresh();
+      navigate(`/datasets/${result.dataset_id}`, { state: { saved: true } });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
-      setCreating(false);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      submitting.current = false;
+      setBusy(false);
     }
   };
 
@@ -69,94 +43,89 @@ export default function NewDataset() {
       <TopBar
         crumb={
           <>
-            <Link to="/">Datasets</Link> / new
+            <Link to="/">Datasets</Link> / upload
           </>
         }
       />
       <section className="hero">
         <div>
-          <h1>New dataset</h1>
-          <p className="lede">
-            Upload the table. The conversation starts by asking what you want to know; everything about the data is settled in it, one question at a time.
-          </p>
+          <h1>Upload a dataset</h1>
+          <p className="lede">Save your original CSV and study context. Profiling and conversations are not started by this step.</p>
         </div>
       </section>
-      <div className="form">
-        <section className="stage">
-          <h2>The file</h2>
-          {!prof ? (
-            <UploadDrop onFile={onFile} busy={reading} />
-          ) : (
-            <div className="filecard">
-              <span className="name">{prof.filename}</span>
-              <span className="muted mono">
-                {prof.rows.toLocaleString()} rows · {prof.columns.length} columns
-              </span>
-              <button className="btn quiet sm" style={{ marginLeft: "auto" }} onClick={() => setProf(null)}>
-                Choose another
-              </button>
-            </div>
-          )}
-        </section>
-
-        {prof && (
+      <form
+        className="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>
           <section className="stage">
-            <h2>What the profiler read</h2>
-            <p className="help">The first rows as they are, then each column's shape and anything odd in it. Check this before describing the columns.</p>
-            <DatasetPreview profile={prof} />
+            <label className="field">
+              <span>Dataset title</span>
+              <input
+                className="input"
+                required
+                maxLength={200}
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  changed();
+                }}
+              />
+            </label>
           </section>
+          <section className="stage">
+            <h2>CSV file</h2>
+            <UploadDrop
+              busy={busy}
+              onFile={(f) => {
+                setFile(f);
+                changed();
+              }}
+            />
+            {file && (
+              <p aria-live="polite">
+                Selected: {file.name} ({file.size.toLocaleString()} bytes)
+              </p>
+            )}
+            <p className="help">UTF-8 CSV with unique column headers and at least one data row. Default maximum: 25 MiB.</p>
+          </section>
+          <section className="stage">
+            <label className="field">
+              <span>Original study context (optional)</span>
+              <textarea
+                className="input"
+                rows={7}
+                maxLength={100000}
+                value={context}
+                onChange={(e) => {
+                  setContext(e.target.value);
+                  changed();
+                }}
+              />
+            </label>
+            <p className="help">
+              Describe where this data came from and what was happening when it was collected. Your original account will be saved unchanged.
+            </p>
+          </section>
+          <button className="btn primary" type="submit" disabled={!file || !title.trim() || busy}>
+            {busy ? "Saving…" : "Save dataset"}
+          </button>
+        </fieldset>
+        {busy && (
+          <div role="status">
+            <progress max={100} value={progress} aria-label="Upload progress" />
+            <p>{progress < 100 ? `Uploading: ${progress}%` : "Upload received. Validating and saving…"}</p>
+          </div>
         )}
-
-        {prof && (
-          <>
-            <section className="stage">
-              <h2>What this is</h2>
-              <p className="help">A title for the card and a short name for the files.</p>
-              <div className="two">
-                <label className="field">
-                  <span>Title</span>
-                  <input
-                    className="input"
-                    value={title}
-                    onChange={(e) => {
-                      setTitle(e.target.value);
-                      if (!nameTouched) setName(slug(e.target.value));
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  <span>Name</span>
-                  <input
-                    className="input mono"
-                    value={name}
-                    onChange={(e) => {
-                      setNameTouched(true);
-                      setName(e.target.value);
-                    }}
-                    aria-invalid={!nameOk}
-                  />
-                  <small>
-                    {nameOk
-                      ? "Lowercase letters, digits and underscores; used for the files."
-                      : "Start with a letter; lowercase letters, digits and underscores only; 2 to 40 characters."}
-                  </small>
-                </label>
-              </div>
-            </section>
-
-            <section className="stage">
-              <div className="actions">
-                <button className="btn primary" disabled={!canCreate} onClick={create}>
-                  {creating ? "Creating…" : "Create dataset and start"}
-                </button>
-                <span className="muted">The conversation opens on the next page and starts with your question.</span>
-              </div>
-              {error && <p className="err">{error}</p>}
-            </section>
-          </>
-        )}
-        {!prof && error && <p className="err">{error}</p>}
-      </div>
+      </form>
+      {error && (
+        <p className="err" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

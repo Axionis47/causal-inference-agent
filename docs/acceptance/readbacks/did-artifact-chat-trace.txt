@@ -1,6 +1,0 @@
-acceptance:did-artifact-chat [chain] 14.6s 130782tok
-  explain:after [chain] 14.5s 130782tok
-    ChatVertexAI [llm] 12.0s 130782tok
-  gate:reply [tool] 0.0s
-  artifact:did-artifact-chat.json [tool] 0.0s
-    2702 bytes

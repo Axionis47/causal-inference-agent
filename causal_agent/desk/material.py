@@ -277,7 +277,13 @@ def add_artifacts(m: Material, dataset: str, design: int | None = None) -> None:
     every number it holds at its own, the table and the picture when there are any, so the chat can cite them and the gate
     can check the numbers."""
     for a in VA.about(dataset, design):
-        m.add(a.address, f"{a.summary} ({a.kind}; {a.when()}; asked: {a.ask})")
+        m.add(a.address, f"{a.summary} ({a.origin}; {a.format}; {a.when()}; asked: {a.ask})")
+        m.add(f"{a.address}.method", a.method)
+        for i, finding in enumerate(a.findings):
+            m.add(f"{a.address}.finding.{i}", finding)
+        for i, limitation in enumerate(a.limitations):
+            m.add(f"{a.address}.limitation.{i}", limitation)
+        m.add(f"{a.address}.provenance", a.provenance())
         for name, value in a.facts.items():
             m.add(f"{a.address}.{name}", f"{name}: {value:.4g}", value)
         if a.table:

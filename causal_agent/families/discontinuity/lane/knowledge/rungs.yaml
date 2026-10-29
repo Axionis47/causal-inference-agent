@@ -48,11 +48,9 @@ rungs:
   level: line
   decider:
     judgement: always
-  budget: 4
+  budget: 3
   tools:
-  - describe
-  - by_side_near
-  - score_histogram
+  - run_code
 - name: assumptions
   level: assumptions
   decider:

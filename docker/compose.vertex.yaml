@@ -1,0 +1,12 @@
+# Optional read-only application-default credentials, supplied at runtime.
+# Run from the repository root with both -f arguments; see docs/production/containerization.md.
+services:
+  app:
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/vertex_adc
+    secrets:
+      - vertex_adc
+
+secrets:
+  vertex_adc:
+    file: ${VERTEX_ADC_FILE:?Set VERTEX_ADC_FILE to the application-default credentials file}

@@ -1,19 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { checkRows, claimRows, decisionOver, decisionWhy, declineRows, estimateRows, journalGroups, falsificationRows, statusMatrix } from "./rows";
-import type { ClaimView, RunView, StatusView, StepView } from "../types";
+import { checkRows, decisionOver, decisionWhy, declineRows, estimateRows, falsificationRows } from "./rows";
+import type { RunView } from "../types";
 
-const claim = (over: Partial<ClaimView>): ClaimView => ({
-  key: "k",
-  kind: "unit",
-  status: "drafted",
-  fields: {},
-  source: null,
-  evidence: [],
-  check_detail: null,
-  asked: 0,
-  refutations: 0,
-  ...over,
-});
 const run = (over: Partial<RunView>): RunView =>
   ({
     index: 1,
@@ -53,45 +41,6 @@ const run = (over: Partial<RunView>): RunView =>
     files: [],
     ...over,
   }) as RunView;
-
-describe("claimRows", () => {
-  it("drops empty fields and joins arrays", () => {
-    const [r] = claimRows([claim({ fields: { a: "x", b: null, c: "", d: [], e: [1, 2], f: { z: 1 } } })]);
-    expect(r.fields).toEqual([
-      { k: "a", v: "x" },
-      { k: "e", v: "1, 2" },
-      { k: "f", v: '{"z":1}' },
-    ]);
-  });
-});
-
-describe("statusMatrix", () => {
-  const status: StatusView = {
-    endpoint_admissions: {},
-    selected_family: null,
-    table: { did: { unit: "fits", time: "unknown" }, rd: { unit: "does_not_fit" } },
-    surviving: ["did"],
-    struck: { rd: "no cutoff" },
-    required: [],
-    settled: [],
-    open: [],
-    ready: false,
-    contradictions: [],
-  };
-  it("orders kinds by first appearance in claims, then the table's own", () => {
-    const m = statusMatrix(status, [claim({ kind: "time" }), claim({ kind: "unit" })])!;
-    expect(m.rows.map((r) => r.kind)).toEqual(["time", "unit"]);
-    expect(m.families).toEqual([
-      { name: "did", struck: null },
-      { name: "rd", struck: "no cutoff" },
-    ]);
-    expect(m.rows[0].cells).toEqual({ did: "unknown", rd: "not_needed" });
-  });
-  it("is null without a table", () => {
-    expect(statusMatrix(null, [])).toBeNull();
-    expect(statusMatrix({ ...status, table: {} }, [])).toBeNull();
-  });
-});
 
 describe("run rows", () => {
   it("puts the primary estimate first and keeps flags", () => {
@@ -223,51 +172,5 @@ describe("declineRows", () => {
     expect(rows[0].took).toBe("—");
     expect(rows[1]).toMatchObject({ kind: "substituted", packValue: "on_treated", took: "effect_at_cutoff", check: "target.effect_at_cutoff" });
     expect(declineRows(run({}))).toEqual([]);
-  });
-});
-
-const step = (over: Partial<StepView>): StepView => ({
-  n: 1,
-  address: "step:1",
-  kind: "claim",
-  by: "person",
-  at: "2026-09-27T00:00:00+00:00",
-  memory_version: 1,
-  design: null,
-  read: [],
-  left: [],
-  note: "",
-  run: null,
-  run_id: null,
-  ...over,
-});
-
-describe("journalGroups", () => {
-  it("groups by design run: the steps before a design belong to it, a what-if after run 1 stays with run 1, design 2 starts group 2", () => {
-    const steps = [
-      step({ n: 1, address: "step:1", kind: "question", by: "model" }),
-      step({ n: 2, address: "step:2", kind: "claim" }),
-      step({ n: 3, address: "step:3", kind: "design", by: "code", design: 1, left: ["designs/1"], run: 1 }),
-      step({ n: 4, address: "step:4", kind: "run", by: "code", design: 1, left: ["/runs/x-1", "designs/1/record.json"], run: 1, run_id: "x-1" }),
-      step({ n: 5, address: "step:5", kind: "brief", by: "code", design: 1, run: 1 }),
-      step({ n: 6, address: "step:6", kind: "what_if", design: 1 }),
-      step({ n: 7, address: "step:7", kind: "design", by: "code", design: 2, left: ["designs/2"], run: 2 }),
-      step({ n: 8, address: "step:8", kind: "run", by: "code", design: 2, run: 2 }),
-      step({ n: 9, address: "step:9", kind: "requestion", design: 2 }),
-      step({ n: 10, address: "step:10", kind: "question", by: "model" }),
-    ];
-    const groups = journalGroups(steps);
-    expect(groups.map((g) => [g.design, g.rows.map((r) => r.n)])).toEqual([
-      [1, [1, 2, 3, 4, 5, 6]],
-      [2, [7, 8, 9]],
-      [null, [10]],
-    ]);
-    const run = groups[0].rows[3];
-    expect(run.run).toBe(1);
-    expect(run.hasFiles).toBe(true);
-    expect(groups[0].rows[2].hasFiles).toBe(false);
-  });
-  it("is empty for no steps", () => {
-    expect(journalGroups([])).toEqual([]);
   });
 });

@@ -1,126 +1,67 @@
-# The exploration agent
+# Whole-dataset exploration
 
-A look at the data on request, from any turn of the conversation, before or after the run. The model that reads each message
-decides that the person asked to look at something; a separate agent, in its own process, writes scripts, runs them in a
-sandbox one step at a time, and answers one record; code gates the record; what it made lands on the artifacts shelf with an
-address the chat can cite. Before freeze it describes permitted non-outcome data. After a matching frozen design, it can discuss and visualize the run and its data.
+The chatbot calls `explore_data(question, dataset_version, context, artifact_refs=[])`. It supplies the complete selected CSV unchanged. There is no column list, row list or projection argument. The integration envelope adds conversation, request and attempt IDs and a task output location.
 
-## 1. How a request is detected
+## Supplied inputs
 
-Two judgements can raise it, neither of them the agent's.
+`DatasetInput` and `ArtifactInput` identify a version/file, path and SHA-256. The trusted caller resolves references before dispatch. The agent receives only a task manifest and copies of those files. CSV, TSV, JSON, PNG, JPEG and text artifacts are supported. Unknown references, changed checksums and unsupported files fail visibly.
 
-**Before the run**, the Reader reads every message into a `Reading` ([desk/contracts.py](../causal_agent/desk/contracts.py)) and
-says its kind first: update, explore, ask or run. An `explore` reading carries what to look at in the person's words; so may an
-`update` that asks for a picture in the same breath. The `infer` node keeps the request across retries and routes to the
-`explore` node ([desk/nodes/interview.py](../causal_agent/desk/nodes/interview.py)). Nothing is asked after it: the reply is the
-summary with the artifact beside it.
+User-facing exploration may inspect all supplied columns, including correlations. It does not modify CSV versions or column context. Transformations remain a separate authorized operation. Family diagnostic workflows still construct their own restricted inputs before calling the shared sandbox; this exploration change grants no additional causal authority to a lane.
 
-**After the run**, the Explainer's reply is an `AfterReply` whose `kind` is one of answer, revise, what_if, requestion, explore,
-done. An `explore` reply with an empty `explore` field is refused by the gate ([desk/explainer.py](../causal_agent/desk/explainer.py)).
-The `turn` node maps it to `explore_after` ([desk/nodes/after.py](../causal_agent/desk/nodes/after.py)). The Explainer can also
-raise it before the run, since `answer` and `explore` are the only two kinds legal there.
+## Agent and evidence
 
-## 2. What the agent is told, and what it is not
+The existing A2A process runs the shared `lane/episode.py` loop. `ExploreAction` chooses `inspect_inputs`, `run_code`, `inspect_output`, or completion. A successful generated plot is opened automatically and its pixels accompany the execution result, spending one inspection. Explicit inspection can reopen it. Successful step outputs can be reused through the read-only task input directory.
 
-`explore_context` ([desk/nodes/interview.py](../causal_agent/desk/nodes/interview.py)) builds the context from the memory's text
-view: the dataset, the change and the assignment, the beliefs, then one line per non-constant column. After a run, `explore_after`
-swaps the dataset part for the pack's own rendering and appends the run's material lines that start with `design:`, `estimate:`,
-`check:`, `falsification:` or `sensitivity:`, so a number the agent quotes about the run is one the run holds.
+Budgets in `explore/checks.yaml`: eight executions, sixteen inspections, three final-record validation attempts and sixty seconds per script. Failed execution attempts consume budget. The agent can repair code within the same bounds.
 
-**The pre-freeze outcome fence.** Unrestricted scripts could reconstruct treatment from a score, instrument, group or adoption date. Before a matching design freezes, the table sent to the agent always has the outcome removed by code ([explore/project.py](../causal_agent/explore/project.py)). Outcome-only requests cannot bypass this fence. Requests explicitly joining treatment and outcome are refused before a model call. Deterministic outcome summaries remain available from the profile.
+A completed `Exploration` contains a direct summary, calculation method and rationale, evidence-backed findings, limitations, tags and a numerical, tabular or visual product. Every selected fact must exist in a successful step's finite `facts.json`. Numerical answer claims must agree with the selected facts. Each finding cites fact names, `[table]` or `[figure]`. Images must decode and must have been inspected. Unsupported claims or products trigger a visible gate and bounded retry.
 
-The withheld outcome is removed from the column inventory and rejoined by row identity after an allowed table transformation. A failed run without frozen designs does not lift the fence. After freeze, the desk verifies that the design belongs to the current dataset bytes and version before exposing the full table.
+A saved causal result can be plotted using its supplied estimates and uncertainty without rerunning the causal fit. Missing draws, confidence bounds or other essential data produce `status=needs_input` with specific requests for the chatbot. The agent does not search storage to fill those gaps.
 
-## 3. The loop
+## Docker runtime
 
-One tool, `run_code` ([explore/tools.py](../causal_agent/explore/tools.py)): a complete script runs in the sandbox in a fresh
-`step_<n>/` folder under the artifact's; what it printed, cut to its tail, the files it wrote and the numbers in its `facts.json`
-come back as the tool's text, addressed `probe:explore.<n>`. The loop is the lane's bounded episode
-([lane/episode.py](../causal_agent/lane/episode.py)), with one difference: the agent is looked at one step at a time as a
-structured record (`RunCodeStep`: the next script, or done), not as a function call, because Gemini answers
-`MALFORMED_FUNCTION_CALL` when a function call carries a multiline script. The budget, the tries and the timeout are declared
-in [explore/checks.yaml](../causal_agent/explore/checks.yaml).
+Build the installed runtime with:
 
-The system prompt is in [explore/prompts.py](../causal_agent/explore/prompts.py). It names no method and no column; the ask, the
-context and the columns arrive as data.
-
-## 4. The record and the gate
-
-| step | what | where |
-|---|---|---|
-| in | `ExploreRequest`: the dataset, the ask, the context, the columns sent, the table's path, the folder, the pair, which was held back, the freeze, the design, the versions | [explore/contracts.py](../causal_agent/explore/contracts.py) |
-| each step | `RunCodeStep`: the next script, or done; gate: the script parses and does not name the held-back column | [explore/gates.py](../causal_agent/explore/gates.py) |
-| judgement | `Exploration`: the summary, the step whose files are the answer, the facts stood behind, whether its figure is the picture, the table file | [explore/contracts.py](../causal_agent/explore/contracts.py) |
-| gate | the step ran; its `facts.json` is an object of numbers holding every promised name; the picture exists when claimed; the table parses; at least one product; before the freeze no sentence and no fact name relates the outcome to the treatment; every number in the summary is within one percent of a fact or of a number in the context | [explore/gates.py](../causal_agent/explore/gates.py) |
-| out | an `Artifact` on the shelf, or after three refusals a `Decline(check="explore.failed")` and no folder | [memory/artifacts.py](../causal_agent/memory/artifacts.py), [explore/client.py](../causal_agent/explore/client.py) |
-
-## 5. The process and the wire
-
-The agent is an A2A server ([explore/server.py](../causal_agent/explore/server.py)): a card with one skill at
-`/.well-known/agent-card.json` and a JSON-RPC endpoint at the root. The desk's client ([explore/client.py](../causal_agent/explore/client.py))
-starts one process per call under the desk's run and thread (`trace.child_env`; the server opens under `trace.parent()`), waits
-for the card, sends the request as the task's data part, and stops the process after. The task's artifacts carry the record,
-the facts, the summary, the picture, the table, the script, the thoughts and the trail; the client writes them under the
-artifact's folder and saves the artifact. A test installs the server's app in process with `set_app`.
-
-From the command line, one real ask: `uv run python -m causal_agent.evals.explore students "the mean reading score by lunch, as a picture"`.
-
-## 6. The sandbox
-
-`EXPLORE_SANDBOX` picks it ([common/config.py](../causal_agent/common/config.py)). `auto`, the default, becomes the strongest fence
-the machine has, by code ([explore/sandbox.py](../causal_agent/explore/sandbox.py), `resolve`); a kind named and not at hand is
-refused, never downgraded. The artifact records the kind that ran it.
-
-- **seatbelt** (macOS, `sandbox-exec`): the network denied; writes denied outside the step's folder and the temp folders; reads
-  under the home folder denied except the folder, the table, the interpreter and its base.
-- **bwrap** (Linux): a new network namespace with nothing in it, the file system bound read-only but the folder.
-- **unshare** (Linux, `unshare -rn`): a new network namespace with nothing in it.
-- **subprocess**: the same interpreter with `-I`, the folder as the working directory, and an environment scrubbed to `PATH`,
-  `HOME`, `DATA_CSV`, `MPLBACKEND=Agg` and `MPLCONFIGDIR`. Isolation by environment only; the fallback when no fence is at hand.
-- **docker**: `docker run --rm --network none --memory 1g --cpus 1 --user uid:gid`, the table mounted read-only at `/data/table.csv`,
-  the folder at `/work`, the image from `make explore-image` ([docker/explore.Dockerfile](../docker/explore.Dockerfile)): pandas,
-  numpy, scipy, statsmodels and matplotlib, nothing else. No runtime, no run.
-
-Every kind has a timeout, hands back what the script printed, and sweeps everything but `code.py`, `figure.png`, `facts.json`
-and the small tables, number files, pictures and notes the script wrote.
-
-## 7. Where an artifact lives and how it is cited
-
-`data/memory/<name>/artifacts/<id>/`: `artifact.json`, `facts.json`, `code.py`, `thoughts.json`, `request.json`, `figure.png`
-when it drew, the table file when it wrote one, and the `step_<n>/` folders. An artifact is tagged with the design run it is
-about, or none; it is deleted with its dataset and never read back by code. The journal records an `explore` step naming the folder.
-
-The addresses are `artifact:<id>`, `artifact:<id>.<fact>` for each number, `artifact:<id>.table` and `artifact:<id>.figure`.
-Before the run and after it, the material lists every artifact about the data and the ones about the run in play
-([desk/material.py](../causal_agent/desk/material.py), `add_artifacts`), so the Explainer can cite a number and the gate checks it
-within one percent. The server serves any file an artifact lists at `GET /api/artifacts/{name}/{id}/{file}`
-([server/artifacts.py](../causal_agent/server/artifacts.py)); the page shows the picture, the facts and the table link in
-[Picture.tsx](../web/src/components/Picture.tsx).
-
-## 8. A new version of the table
-
-The same agent, asked for a table instead of a look (`ExploreRequest.product = "table"`; the desk's `transform` turn kind, read
-like the others), writes a new version of the whole file rather than a table of facts. The projection then puts a row id
-(`__row`) first; the agent must keep it on every row it keeps, may drop rows, may add, drop or recode columns, and must keep the
-outcome and the treatment. The gate (`explore/gates.py::new_table_errors`) refuses a table that loses the row id, invents a row,
-drops the pair or is empty. The client (`explore/client.py::transform`) re-joins the column held back by row id, restores the
-file's column order, and saves the version with its script and record under `data/memory/<name>/versions/<v>/`
-([memory/versions.py](../causal_agent/memory/versions.py)): `version:<v>`, its parent, what was asked, what changed. Nothing is
-written in place. The desk puts the version in play on the person's word (`Memory.switch_version`: the file's facts and columns
-re-read, a dropped column's fields kept out of play, the memory version moved, a `version` step in the journal) and shows the
-design again on it before anything runs; after a run the same ask goes back to the ready moment on the new version. The
-hand-off names the version's table and its number, so designs on different versions can be told apart.
-
-```bash
-uv run python -m causal_agent.evals.explore students "add a column that is 1 when reading score is 70 or more" --table
+```sh
+docker build -t causal-desk-explore -f docker/explore.Dockerfile .
 ```
 
-## Run figures are a different thing
+This is also `make explore-image`. The same Linux image definition supports Docker Engine or Docker Desktop on Linux, macOS and Windows with Linux containers. Python and the numerical dependencies are pinned. Supported build architectures are determined by availability of those pinned binary wheels; local verification does not establish that every OS/architecture has been tested.
 
-| | run figure | artifact |
-|---|---|---|
-| what | data, never an image: a `FigureSpec` the browser draws | a picture or a table made by model-written code |
-| who | lane code, deterministic, no model | the exploration agent plus the sandbox |
-| checked by | `check_spec`: every `draws_on` address resolves in the run | the gates above |
-| lives | `<run_dir>/figures.json`, copied to the design folder | `data/memory/<name>/artifacts/<id>/` |
-| address | `figure:<id>`, `figure:<id>.<series>.<i>` | `artifact:<id>`, `artifact:<id>.<fact>`, `.table`, `.figure` |
+Generated code runs only inside Docker. Local development launches disposable containers. Compose keeps a small worker running, with one active script at a time. Both paths use the same pinned analysis libraries and return the same bounded outcome contract. There is no host Python execution fallback.
+
+The Compose worker has no network, credentials, application mounts or Docker socket. Its root is read-only. A trusted supervisor reads a private queue, copies only the supplied inputs, then enters a library-only filesystem root and drops to UID 20000 before executing generated code. Inputs are root-owned and read-only. The child cannot see the queue, supervisor, `/proc`, other jobs or application files. Seccomp denies sockets and process-group escape; no privilege escalation is allowed. Task processes are killed as a group on completion, timeout or cancellation, and scratch is removed before the next task.
+
+The worker ceiling is one CPU, one GiB memory, 64 container processes and a 512 MiB task filesystem. Individual scripts have a 60-second deadline, 32-process and 64-file-descriptor limits, a 5 MiB per-file limit, 25 MiB output limit and bounded stdout/stderr. Large inputs can fail visibly at these limits. Startup probes enforce the actual boundary before the worker becomes healthy. No weakened mode is available.
+
+`make container-build` builds app and worker. `make container-up` starts PostgreSQL, private S3, the sandbox, the persistent A2A agent and the web/API runtime. `make container-sandbox` runs the numerical/plot, read-only-input, network, privilege, timeout, cancellation and fresh-task checks through the running app. `/api/ready` checks the sandbox and A2A service. Model credentials remain required for model calls. See [containerization](production/containerization.md).
+
+## Publication and later chat reads
+
+Starting a conversation from dataset details pins an owned dataset version and supplied context. PostgreSQL owns this hierarchy:
+
+```text
+Conversation -> ExplorationRequest -> Attempt -> ExplorationResult -> Artifacts/files
+```
+
+The integration service verifies the complete input checksum, records the request and attempt, validates the returned explanation/products, and writes immutable files to:
+
+```text
+users/<user-id>/conversations/<conversation-id>/artifacts/<artifact-id>/
+```
+
+The file store verifies the returned bytes and SHA-256 before one database transaction publishes the result, artifact and file registrations. A failed upload never creates a readable artifact. Pending manifests support cleanup without deleting published files. `python -m causal_agent.server.ingestion cleanup` reconciles abandoned uploads and exploration attempts older than 24 hours.
+
+The result retains the answer, method, findings, limitations, facts, tags, timestamp, input version/checksum and parent references. Registered files include `result.json`, `facts.json`, `request.json`, `trail.json`, code, optional plot/table and metadata. Input copies are removed after execution. The filesystem under `.artifacts/runs/explorations/` is scratch/cache only. It is never scanned as a publication catalogue, and no dataset shelf fallback or dual write remains.
+
+Chat tools use an owner-bound repository supplied by the integration service. `desk/material.py` makes prior conclusions and numerical evidence citable; explicitly chosen artifact IDs resolve their saved result, numerical file, table and image for follow-up exploration. The main chat can begin with a descriptive question or visualization, without first inventing a causal question. The chatbot supplies the question and data; the exploration agent writes Python.
+
+HTTP reads use `/api/conversations/<id>/artifacts`, `/artifacts/<artifact-id>` for the full linked explanation, and `/artifacts/<artifact-id>/files/<filename>` for registered files. Every route checks the principal and conversation. References from another conversation are rejected; cross-conversation sharing requires a future explicit ArtifactUse operation. The local deployment uses its configured development principal; public authentication is still separate work.
+
+This slice adds owned conversation identity and exploration publication. Causal working memory, transcripts, journals and checkpoints still use the existing persistent filesystem/SQLite runtime behind the owner-checked conversation boundary. It does not claim the full production memory, job-lease or transformation-lineage migration is complete.
+
+## Verification
+
+Tests cover complete CSV delivery, unchanged bytes, exact input hashes, successful and failed scripts, repairs, image inspection, grounded claims, missing-input requests, Docker boundaries and cleanup. Shared diagnostic tests execute against Docker with their existing family-specific input restrictions. A real Gemini acceptance and its trace are required in addition to these deterministic tests.
+
+The [25 October acceptance](acceptance/whole-dataset-exploration.md) records real Gemini runs and trace readback. The owned Compose integration is covered by the conversation publication tests and runtime probe.

@@ -1,0 +1,124 @@
+services:
+  app:
+    build:
+      context: .
+      target: app
+    image: causal-desk:local
+    command: ["sh", "-c", "python -m causal_agent.server.ingestion init && exec python -m causal_agent.server.runtime"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      objects:
+        condition: service_healthy
+      sandbox:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CAUSAL_HTTP_PORT:-8000}:8000"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://causal:local-development-only@postgres:5432/causal
+      S3_ENDPOINT: http://objects:8333
+      S3_BUCKET: datasets
+      S3_ACCESS_KEY: local-ingestion
+      S3_SECRET_KEY: local-development-only
+      VERTEX_PROJECT: ${VERTEX_PROJECT:-}
+      VERTEX_LOCATION: ${VERTEX_LOCATION:-us-central1}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_MODEL_LIGHT: ${GEMINI_MODEL_LIGHT:-}
+      DECIDER: ${DECIDER:-laya}
+      DECIDER_URL: ${DECIDER_URL:-}
+      DECIDER_KEY: ${DECIDER_KEY:-}
+      INCLUDE_THOUGHTS: ${INCLUDE_THOUGHTS:-true}
+      THINKING_BUDGET: ${THINKING_BUDGET:-1024}
+      FRAME_WIDTH_BUDGET: ${FRAME_WIDTH_BUDGET:-150}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-causal-agent}
+      RUN_DIR: /app/.artifacts/runs
+      PROFILE_CACHE_DIR: /app/.artifacts/profiles
+      EXPLORE_QUEUE: /queue
+      EXPLORE_AGENT_URL: http://127.0.0.1:8001
+    volumes:
+      - app-data:/app/data
+      - app-artifacts:/app/.artifacts
+      - model-cache:/home/causal/.cache
+      - explore-queue:/queue
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+  sandbox:
+    build:
+      context: .
+      dockerfile: docker/explore.Dockerfile
+    image: causal-desk-explore:latest
+    command: ["python", "-I", "/opt/worker/explore_worker.py"]
+    user: "0:0"
+    init: true
+    restart: unless-stopped
+    network_mode: none
+    read_only: true
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 64
+    cap_drop: [ALL]
+    # Supervisor-only capabilities. Scripts drop UID/GID and all capabilities.
+    cap_add: [SETUID, SETGID, CHOWN, DAC_OVERRIDE, KILL, SYS_CHROOT]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - explore-queue:/queue
+    tmpfs:
+      - /runtime/task:rw,nosuid,nodev,size=512m,mode=755
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,time; h=json.load(open('/queue/health.json')); assert h['enforced'] and time.time()-h['at']<5"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  postgres:
+    image: postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+    environment:
+      POSTGRES_USER: causal
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: causal
+    volumes:
+      - ingestion-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U causal -d causal"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  objects:
+    image: chrislusf/seaweedfs:4.17@sha256:186de7ef977a20343ee9a5544073f081976a29e2d29ecf8379891e7bf177fbe9
+    command: ["mini", "-dir=/data", "-s3.config=/etc/seaweedfs/s3.json", "-admin.ui=false", "-webdav=false", "-s3.port.iceberg=0"]
+    configs:
+      - source: ingestion-s3
+        target: /etc/seaweedfs/s3.json
+    volumes:
+      - ingestion-objects:/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8333"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+configs:
+  ingestion-s3:
+    content: |
+      {"identities":[{"name":"ingestion","credentials":[{"accessKey":"local-ingestion","secretKey":"local-development-only"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
+
+volumes:
+  app-data:
+  app-artifacts:
+  model-cache:
+  ingestion-db:
+  ingestion-objects:
+  explore-queue:

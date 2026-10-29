@@ -15,14 +15,14 @@ Both are in `.claude/launch.json` as `api` and `web`.
 
 | route | what |
 |---|---|
-| `GET /api/datasets` | every entry in `data/datasets.yaml` plus the web-made ones, with the conversation's stage |
-| `POST /api/profile` (multipart `file`) | stage a CSV under `.artifacts/web/uploads/<id>/` and profile it; returns the columns with kinds and examples |
-| `POST /api/datasets` | move the upload to `data/raw/<name>/`, write the profile, the index entry, and `data/web/<name>/meta.json`; start the conversation |
-| `DELETE /api/datasets/{name}` | remove the claims, note, profile, entry, meta, the checkpoint thread, the run directories, and the raw folder when no other entry shares the file |
-| `GET /api/sessions/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript, the analysis id and its journal |
-| `POST /api/sessions/{name}/messages` | resume the graph with the text; 409 while busy or after the end |
-| `POST /api/sessions/{name}/resume` | continue a checkpoint whose step died with the process |
-| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, with its own journal (`a<k>`), whenever the desk is not working; the runs of every thread stay listed |
+| `GET /api/datasets` | paginated ready ingestion datasets owned by the server-derived principal |
+| `POST /api/datasets` | multipart CSV/title/optional original context/idempotency key; save immutable originals to PostgreSQL and private S3 without profiling or chat |
+| `GET /api/datasets/{dataset_id}` | retrieve owned saved ingestion metadata |
+| `GET /api/datasets/{dataset_id}/file` | download the owned original CSV |
+| `GET /api/conversations/{name}` | the view: stage, phase, prompt, questions, claims, status, runs, brief, transcript, the analysis id and its journal |
+| `POST /api/conversations/{name}/messages` | resume the graph with the text; 409 while busy or after the end |
+| `POST /api/conversations/{name}/resume` | continue a checkpoint whose step died with the process |
+| `POST /api/conversations/{name}/new-question` | a separate owned conversation on the selected dataset, with independent memory and checkpoints |
 | `GET /api/runs/{id}` and `/files/{name}` | the run directory's known files; `report.md` is cut before the model thoughts unless `?raw=1` |
 
 Everything else serves `web/dist`.
@@ -42,10 +42,20 @@ Stages: `busy` (a step is running), `waiting` (the graph is interrupted), `ended
 
 ## Tests
 
-`uv run pytest causal_agent/server -q`: upload, create, list,
-delete with the caches popped and a shared CSV kept; a scripted interview through run, answer, done, and a new analysis
+`uv run pytest causal_agent/server -q`: bounded ingestion validation,
+atomic conversation metadata writes; a scripted interview through run, answer, done, and a new analysis
 with the interview and desk fakes and a canned pipeline; the view surviving a second server over the same
 checkpoint file; the run-file guards.
 
+Run `make test-ingestion` for real storage and HTTP tests. It creates isolated Docker PostgreSQL/S3 resources and migrates a fresh database for each case. `make test-ingestion-mutations` requires a passing baseline and verifies named assertion failures for deliberate defects. CI runs both the mutation controls and the fresh-image browser/persistence smoke.
+
 The manager (`sessions.py`) drives the graph; the transcript on disk is `transcript.py`; the projection into the view
 models is `views.py`. The schema the web's types are generated from: `python -m causal_agent.server --openapi`.
+
+The `/new` page stops at saved ingestion. Its source of truth is [ingestion](ingestion/); there is no staged-upload/profile API or filesystem registration fallback. The homepage and sidebar read owned ingestion metadata; `/datasets/:datasetId` shows saved originals. The desk remains a separate runtime awaiting integration. See [intake](../../docs/components/02-intake.md).
+
+## Owned profiling (Phase 3)
+
+`profiling/` owns explicit generation and relational persistence of read-only original-version reports. `GET`/`POST /api/datasets/{id}/profile` retrieve/generate dataset and column summaries; `GET /api/datasets/{id}/profiles/{profile_id}/columns/{column_id}` retrieves one column. All use the ingestion principal and ready/owner gate. Computation lives in `profile/inspection.py`, contracts in `profile/report.py`. PostgreSQL stores reports; S3 originals and context remain unchanged. See [the component chapter](../../docs/components/03-profiling.md).
+
+Owned conversations are created through `POST /api/datasets/{dataset_id}/conversations`. Every chat and artifact read checks ownership. The `conversations/` service publishes exploration requests, attempts, explanations and artifact metadata in PostgreSQL; registered files live in private S3. Compose runs the A2A service persistently and submits generated code to the isolated Docker worker through a private queue.

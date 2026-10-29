@@ -121,7 +121,7 @@ def extract_thoughts(raw: Any) -> tuple[str, int | None, int | None]:
     return "\n".join(text_parts), thinking_tokens, output_tokens
 
 
-def structured(schema: type[T], system: str, user: str, *, node: str, tier: Tier = "heavy") -> tuple[T, Thought]:
+def structured(schema: type[T], system: str, user: str | list[dict[str, Any]], *, node: str, tier: Tier = "heavy") -> tuple[T, Thought]:
     """One judgement: the prompt in, one typed record and the model's thoughts out, as a span named `node` in the trace.
     `tier` picks the model; the span records which one answered."""
     with trace.span(node, inputs={"schema": schema, "system": system, "user": user, "tier": tier, "model": model_name(tier)}) as s:
@@ -137,7 +137,7 @@ def structured(schema: type[T], system: str, user: str, *, node: str, tier: Tier
         return parsed, thought
 
 
-def _structured(schema: type[T], system: str, user: str, *, node: str, tier: Tier) -> tuple[T, Thought]:
+def _structured(schema: type[T], system: str, user: str | list[dict[str, Any]], *, node: str, tier: Tier) -> tuple[T, Thought]:
     runnable = current(tier).with_structured_output(schema, include_raw=True)
     out = runnable.invoke([("system", system), ("human", user)])
     if isinstance(out, dict) and "parsed" in out:

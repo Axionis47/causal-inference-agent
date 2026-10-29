@@ -78,9 +78,14 @@ def said_of(memory: Memory) -> list[Said]:
     """The person's words, plus the sentence each known field rests on when the transcript does not carry it."""
     out = list(memory.said)
     seen = {(s.turn, s.text) for s in out}
+    # Source identities are opaque (review and command UUIDs included). These
+    # local display ordinals never replace the fields' original provenance.
+    ordinals = {f"user:turn:{s.turn}": s.turn for s in out}
     for address, f in memory.fields.items():
         if f.said and f.source and f.source.startswith("user:turn:"):
-            turn = int(f.source.rsplit(":", 1)[1])
+            if f.source not in ordinals:
+                ordinals[f.source] = max(ordinals.values(), default=0) + 1
+            turn = ordinals[f.source]
             if (turn, f.said) not in seen:
                 out.append(Said(turn=turn, about=address, text=f.said))
                 seen.add((turn, f.said))

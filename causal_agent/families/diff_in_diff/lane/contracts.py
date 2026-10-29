@@ -132,6 +132,10 @@ class ProbeOp(LedgerOp):
 
 class ProbeReading(Reading):
     operations: list[ProbeOp] = Field(default_factory=list)
+    diagnostic_cites: list[str] = Field(
+        default_factory=list,
+        description="exact probe addresses supporting diagnostic notes, independent of causal ledger operations; operations may be empty when uncertainty remains",
+    )
 
 
 class EstimatorChoice(BaseModel):

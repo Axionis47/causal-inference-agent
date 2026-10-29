@@ -81,7 +81,9 @@ rungs:
   decider:
     code: exactly one eligible estimator for a design
     judgement: several eligible estimators for a design
-  budget: 0
+  budget: 3
+  tools:
+  - run_code
 - name: freeze_design
   level: fixed execution inputs
   decider:

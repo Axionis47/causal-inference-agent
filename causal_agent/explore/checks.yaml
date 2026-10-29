@@ -4,3 +4,5 @@ budget: 8
 tries: 3
 timeout: 60
 stdout_tail: 4000
+
+inspections: 16

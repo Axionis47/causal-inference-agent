@@ -1,5 +1,7 @@
 # Context preparation and analysis lanes
 
+For the functional breakdown, boundary contracts and source ownership, start with the [component handbook](components/README.md). This page is the architectural overview; the handbook links each responsibility to its implementation and evidence.
+
 One dataset and one causal question enter the desk. The desk prepares and admits a fixed context snapshot with the person. One chosen family reasons over that snapshot and executes its frozen designs. The conversation continues over the resulting artifacts, and corrections require another admitted snapshot and another authorized run.
 
 ```text
@@ -17,7 +19,7 @@ Project
 │   ├── Field values, status, source statements and reasons
 │   ├── Data checks and contradictions
 │   ├── Explicit human updates to causal beliefs
-│   └── Artifact shelf and dataset versions
+│   └── Owned artifact repository interface and dataset versions
 ├── Endpoint catalogue
 │   ├── endpoints.yaml: configurations and proof obligations
 │   ├── space.yaml: dimensions and numerical support limits
@@ -81,6 +83,11 @@ Import order is common → profile → memory → viz → lane → explore → f
 
 Model calls use `common/llm.py` or `lane/episode.py`; named graph nodes, gate reasons, tool calls and written files appear in the trace. A lane subprocess receives its parent's trace and thread. Analysis writers use `trace.write`.
 
-Dataset memory lives under `data/memory/<name>/`. Authorized design runs live under its `designs/<n>/`, conversation journals under `analyses/<id>/`, runtime folders and checkpoints under `.artifacts/`, and frontend transcripts under `data/web/`. Memory outlives conversations. Graph state is a mirror rather than the durable knowledge store. Superseded analyses and checkpoint shapes are deleted, never migrated. Unrestricted exploration always withholds the outcome before a matching design freezes; deterministic profile summaries remain available.
+Dataset knowledge lives in one immutable PostgreSQL revision chain, starting with extraction. Review and chat update that same context. Dataset and column browsing project its selected revision; original extraction output is audit provenance only. Reviews, selected chat revisions, messages, commands, questions and receipts are also stored in PostgreSQL. Graph checkpoints in SQLite contain execution references only. The desk derives an ephemeral Memory from the selected revision and never writes a filesystem knowledge copy. Owned analysis snapshots live under `data/conversations/<id>/analyses/<operation>/`; lane runtime files remain under `.artifacts/`. Original uploads and registered artifact files are private S3 objects. Fixture memory remains a CLI evaluation input, separate from chat authority.
+
+Question entry and context review precede chat creation. One semantic interpretation path handles discussion, explicit edits, references and tool requests. Fast-track applies endpoint obligations but never grants run authorization. A compact sealed reference resolves only the authorized snapshot. Essential deficiencies stop visibly without an automatic interview or analysis loop. Generated scripts remain Docker-only.
 
 See the generated [endpoint ladders](ladders/) for exact requirements, trajectories, estimator capabilities and stopping states.
+
+
+Owned chat entry and shared exploration/analysis publication are implemented in `server/conversations`. Origin and format are distinct; registered evidence is loaded on demand for grounded discussion. Compose retains the persistent A2A agent and restricted script worker. See the [conversation runtime](components/05-api-sessions.md) and [storage lifecycle](components/09-persistence.md).

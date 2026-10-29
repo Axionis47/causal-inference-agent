@@ -6,11 +6,52 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from causal_agent.common.contracts import Checks, Contrast
+from causal_agent.common.contracts import Checks, ColumnBrief, Contrast, Fact, Handoff, Scope
 from causal_agent.families.adjustment.lane.contracts import Design, Edge, Estimand, Graph
 from causal_agent.families.adjustment.lane.engine import estimators
 from causal_agent.families.adjustment.lane.engine.model import conditional_iv_valid, identify_candidates
 from causal_agent.families.adjustment.lane.knowledge import load_estimators
+
+
+@pytest.fixture
+def relationship_context():
+    """Declarative inputs for ledger tests, with no dataset generation or effect truth."""
+    values = {
+        "claim:story.text": "The study account names c as a common cause and x as a baseline measurement.",
+        "claim:grain.row_is": "person",
+        "claim:assignment.kind": "own_choice",
+        "claim:sampling.how": "all",
+        "claim:unobserved.exists": False,
+        "claim:spillover.possible": False,
+        "col:t.when": "at",
+        "col:y.when": "after",
+        "col:c.when": "before",
+        "col:x.when": "before",
+        "col:x.meaning": "A baseline measurement.",
+        "col:c.feeds_treatment": True,
+        "col:c.moves_outcome": True,
+        "col:x.may_modify": True,
+    }
+    return Handoff(
+        family="adjustment",
+        specialist="dowhy",
+        supported_now=True,
+        outcome="y",
+        treatment="t",
+        scope=Scope(),
+        pack_name="students",
+        relevant_columns=[],
+        chosen_assumption="ledger unit inputs",
+        reasons=[],
+        story=values["claim:story.text"],
+        columns=[
+            ColumnBrief(name="t", key="t", role="treatment", when="at"),
+            ColumnBrief(name="y", key="y", role="outcome", when="after"),
+            ColumnBrief(name="c", key="c", when="before"),
+            ColumnBrief(name="x", key="x", when="before"),
+        ],
+        facts={address: Fact(value=value, status="confirmed", source="user:turn:1") for address, value in values.items()},
+    )
 
 
 def graph(edges, hidden=False):
@@ -209,12 +250,11 @@ def test_conditional_effects_use_one_interaction_model_with_frozen_groups():
     assert "not that the fitted model omits these covariates" in text
 
 
-def test_relationship_write_classifies_provenance_and_preserves_confirmed_reads():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_relationship_write_classifies_provenance_and_preserves_confirmed_reads(relationship_context):
     from causal_agent.families.adjustment.lane.contracts import RelationshipProposal, Relationships
     from causal_agent.families.adjustment.lane.reason import _draft_entries, seed
 
-    _, h = scenario("backdoor", "/private/tmp/protocol.csv")
+    h = relationship_context
     state = {"handoff": h, "columns": {b.key: b.name for b in h.columns}}
     state.update(seed(state))
     proposal = Relationships(
@@ -232,12 +272,11 @@ def test_relationship_write_classifies_provenance_and_preserves_confirmed_reads(
     assert state["ledger"].entries["rel:edge.c.t"].status == "confirmed"
 
 
-def test_unsettled_absence_has_an_edge_present_rival():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_unsettled_absence_has_an_edge_present_rival(relationship_context):
     from causal_agent.families.adjustment.lane.reason import _graphs
     from causal_agent.lane.ledger import Entry, Ledger
 
-    _, h = scenario("backdoor", "/private/tmp/protocol.csv")
+    h = relationship_context
     ledger = Ledger(
         entries={
             "rel:effect": Entry(id="rel:effect", kind="edge", src="t", dst="y", status="supported", reason="study mechanism"),
@@ -260,16 +299,17 @@ def test_id_expression_is_observable_diagnostic_and_blocks_latent_graphs():
     assert hidden["status"] == "unsupported" and "observed_nodes" in hidden["reason"]
 
 
-def test_candidate_transitions_retain_obligations_from_real_certificate():
+def test_candidate_transitions_retain_obligations_from_real_certificate(relationship_context):
     from causal_agent.common.contracts import CheckResult
-    from causal_agent.families.adjustment.evals.scenarios import scenario
     from causal_agent.families.adjustment.lane.contracts import Candidate
+    from causal_agent.families.adjustment.lane.knowledge import load_endpoint_catalogue
     from causal_agent.families.adjustment.lane.reason import _transitions
+    from causal_agent.lane.endpoints import admit
     from causal_agent.lane.ledger import Ledger
 
-    table, h = scenario("backdoor", "/private/tmp/protocol.csv")
+    h = admit(relationship_context, load_endpoint_catalogue())
     g = graph([("t", "y"), ("c", "t"), ("c", "y")])
-    table = table.rename(columns={"t": "treated"})
+    table = pd.DataFrame({"treated": [0, 1], "c": [1, 2], "y": [2, 3]})
     certs, _ = identify_candidates(g, table, ["minimal-adjustment"])
     c = Candidate(
         id="dcertificate",
@@ -328,21 +368,28 @@ def test_frozen_support_records_original_rows_and_detects_changed_data():
         verify(changed, d, "1_vs_0")
 
 
-def test_structural_zero_needs_positive_domain_admission():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_structural_zero_needs_positive_domain_admission(relationship_context):
+    from causal_agent.families.adjustment.lane.knowledge import load_endpoint_catalogue
+    from causal_agent.lane.endpoints import admit
 
-    _, hidden = scenario("unidentified", "/private/tmp/protocol.csv")
-    _, zero = scenario("zero", "/private/tmp/protocol.csv")
+    hidden = admit(relationship_context, load_endpoint_catalogue())
+    zero = admit(
+        relationship_context.model_copy(
+            update={"facts": {**relationship_context.facts, "claim:change.no_causal_path": Fact(value=True, status="confirmed", source="user:turn:1")}}
+        ),
+        load_endpoint_catalogue(),
+    )
     assert not next(e for e in hidden.admission.endpoints if e.endpoint_id == "structural.zero").admitted
     assert next(e for e in zero.admission.endpoints if e.endpoint_id == "structural.zero").admitted
 
 
-def test_graph_cannot_violate_explicit_absence_of_every_causal_path():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_graph_cannot_violate_explicit_absence_of_every_causal_path(relationship_context):
     from causal_agent.families.adjustment.lane.reason import _graphs
     from causal_agent.lane.ledger import Entry, Ledger
 
-    _, h = scenario("zero", "/private/tmp/protocol.csv")
+    h = relationship_context.model_copy(
+        update={"facts": {**relationship_context.facts, "claim:change.no_causal_path": Fact(value=True, status="confirmed", source="user:turn:1")}}
+    )
     ledger = Ledger(
         entries={"rel:effect": Entry(id="rel:effect", kind="edge", src="t", dst="y", status="supported", reason="contradicts supplied no-path assertion")}
     )
@@ -350,13 +397,12 @@ def test_graph_cannot_violate_explicit_absence_of_every_causal_path():
     assert not graphs and any("explicit supplied absence" in error for error in errors)
 
 
-def test_drafted_model_context_cannot_support_a_causal_relationship():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_drafted_model_context_cannot_support_a_causal_relationship(relationship_context):
     from causal_agent.families.adjustment.lane.contracts import RelationshipProposal, Relationships
     from causal_agent.families.adjustment.lane.reason import _draft_entries
     from causal_agent.lane.ledger import Ledger, apply
 
-    _, h = scenario("backdoor", "/private/tmp/protocol.csv")
+    h = relationship_context
     facts = dict(h.facts)
     facts["col:x.meaning"] = facts["col:x.meaning"].model_copy(update={"status": "drafted", "source": "model:infer"})
     h = h.model_copy(update={"facts": facts})
@@ -414,12 +460,23 @@ def test_propensity_stratification_cannot_change_frozen_population_or_select_boo
     from causal_agent.families.adjustment.lane.engine.model import stratification_support
     from causal_agent.families.adjustment.lane.support import contrast_table
 
-    table = pd.read_csv("causal_agent/families/adjustment/evals/data/backdoor.csv")
+    table = pd.read_csv("data/raw/students-performance-in-exams/StudentsPerformance.csv")
+    table = pd.DataFrame(
+        {
+            "t": table["test preparation course"].eq("completed").astype(int),
+            "c": pd.Categorical(table["parental level of education"]).codes,
+            "x": table["lunch"].eq("standard").astype(int),
+            "y": table["math score"],
+        }
+    )
     contrast = Contrast(treated="1", control="0", reason="protocol", cites=[])
     table = contrast_table(table, "t", contrast)
     g = graph([("c", "t"), ("c", "y"), ("x", "y"), ("t", "y")])
     certificate = Estimand(kind="backdoor", adjustment_set=["c", "x"], identification_method="maximal-adjustment")
     d = design("total.backdoor", g, certificate, "propensity_score_stratification")
+    specification = d.model_dump(exclude={"integrity"})
+    specification["estimator"]["params"]["num_strata"] = 50
+    d = Design.model_validate(specification)
     support = stratification_support(table, g, certificate, d.estimator.params)
     assert support["retained_rows"] < support["input_rows"] == len(table)
     changed_outcomes = table.assign(y=table["y"].iloc[::-1].to_numpy() * 1000)
@@ -545,19 +602,18 @@ def test_conditional_unsupported_group_cannot_be_hidden_by_finite_overall_fit():
     assert len(model_failures) == 2 and all(record.error == "frozen interaction model failed" and not record.secondary for record in model_failures)
 
 
-def test_confirmed_modifier_is_retained_without_model_restatement_and_invalid_value_refuses():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_confirmed_modifier_is_retained_without_model_restatement_and_invalid_value_refuses(relationship_context):
     from causal_agent.families.adjustment.lane.contracts import RelationshipProposal, Relationships
     from causal_agent.families.adjustment.lane.reason import _relationship_gate, seed
     from causal_agent.families.adjustment.lane.views import build
 
-    _, h = scenario("conditional", "/private/tmp/protocol.csv")
+    h = relationship_context
     state = {"handoff": h, "columns": {column.key: column.name for column in h.columns}}
     state.update(seed(state))
     original = state["ledger"].model_copy(deep=True)
     view = build("relate", h, original)
     assert "READ-ONLY CONFIRMED LEDGER" in view.text and "rel:modifies.x.value" in view.text
-    retained = Relationships(entries=[], considered=["x"], reason="supplied modifier is already retained", cites=["rel:modifies.x.value"])
+    retained = Relationships(entries=[], considered=["c", "x"], reason="supplied modifier is already retained", cites=["rel:modifies.x.value"])
     assert _relationship_gate(state, retained, view.resolve, all_columns=True) == []
     for value in (None, ["t", "y"], False):
         proposal = RelationshipProposal(
@@ -612,12 +668,11 @@ def test_internal_and_lossy_artifact_names_never_overwrite_admitted_variables():
         _groups(pd.DataFrame({"x": list("abcde")}), ["x"])
 
 
-def test_pair_profiles_and_checked_timing_cannot_be_laundered_into_causal_support():
-    from causal_agent.families.adjustment.evals.scenarios import scenario
+def test_pair_profiles_and_checked_timing_cannot_be_laundered_into_causal_support(relationship_context):
     from causal_agent.families.adjustment.lane.contracts import RelationshipProposal, Relationships
     from causal_agent.families.adjustment.lane.reason import _draft_entries, _evidence, _relationship_gate, seed
 
-    _, h = scenario("backdoor", "/private/tmp/protocol.csv")
+    h = relationship_context
     facts = dict(h.facts)
     facts.pop("claim:story.text")
     facts["col:x.when"] = facts["col:x.when"].model_copy(update={"source": "data:timing_check"})

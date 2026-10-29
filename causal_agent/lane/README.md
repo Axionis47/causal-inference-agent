@@ -1,40 +1,24 @@
-# lane
+# Shared analysis runtime
 
-The harness every lane runs on. What is shared is shape, not method: a lane keeps its engine, its judgements and its knowledge
-yaml in its own package, and copies nothing that is here.
+The harness shared by the specialized analysis workflows. Each family retains its causal endpoint declarations, judgments, engine adapters and frozen execution policy.
 
-- `intake.py`: the table by code: the CSV the pack names, the columns the pack names, the scope's filter and window applied; what
-  cannot be applied is a `Decline`.
-- `case.py`: the pack weighed by code: facts, drafts, open, contested; the person's beliefs, unknowns and contradictions as flags by
-  the lane's `beliefs.yaml`; `decide_by_code` for the stops and asks the yaml settles before any judgement.
-- `verify.py`: a model's answer about a column against the pack's facts; every cite must resolve; a departure from the last
-  reading names the claim and cites what changed it.
-- `episode.py`: a judgement as a bounded episode: the model may look at the data through the tools, every fact it asked for gets
-  an address (`probe:<node>.<n>`), the budget and the answer's shape are fixed by the caller, and the gate re-prompts with the
-  log kept. In the trace an episode is one span, each try a span under it, each tool call and gate a span under that.
-- `tools.py`: the read-only data tools an episode may be offered: six on any table (describe, by arm, association, redundancy,
-  cells, timing), two more on a panel (a column by group and period, the composition of the panel over time) and two on a
-  recentred score (a column by side within a band of the line, the score's histogram either side), each offered only when the
-  table has the shape. No tool joins the outcome with the treatment before the design is frozen, by code; a lane whose design
-  has rows on which the outcome is evidence and not the effect names them, and a tool that would join the pair runs on those rows
-  only and says so.
-- `ladder.py`: the shape every lane's ladder shares (one record per rung, each line addressed `ladder:<rung>.<field>`), the
-  records every design shares (what a rung would not guess, a threat, heterogeneity), the threats every design carries from the
-  pack, and the flags and declines the ladder yields.
-- `asks.py`: one question back to the desk, the same shape in every lane.
-- `figures.py`: the figures a lane leaves, each checked against the addresses this run can cite.
-- `records.py`: `artifacts.json` with the common keys, the result the desk reads, the report's tail.
-- `nodes.py`: the stream writer, the honest stop, the cards, the frame text every judgement reads first (the pack, the case, the
-  ladder so far), the data tools over the run's table, the settled and drafted blocks a rung's prompt shows.
-- `prompts.py`: the pick and interpret prompts, the cite rule, the plain-words rule.
-- `knowledge.py`: a lane's yaml files, read once and rendered for the model.
-- `graph.py`: how a lane's graph is compiled, as a node inside the desk or standalone; each family's own `lane/graph.py` also
-  compiles a module-level `graph` for `langgraph dev`, and `LaneInput` in `state.py` is the form Studio shows for it.
-- `state.py`: the state keys every lane shares and the reducers that keep a fan-out honest.
-- `words.py`: what a check asks, in the question's words, from `in_words` in the lane's `checks.yaml`.
+Start with the [component chapter](../../docs/components/10-analysis-runtime.md) for responsibility boundaries, contracts, storage and verification. The current modules are:
 
-Read [docs/lanes.md](../../docs/lanes.md) for the harness in use and [docs/gates.md](../../docs/gates.md) for the gates.
+| Modules | Responsibility |
+|---|---|
+| `graph.py`, `rungs.py`, `state.py`, `ladder.py` | Build named graphs from declared rungs and supply shared state/record shapes |
+| `intake.py`, `endpoints.py` | Read the admitted table/scope and validate context, dataset and catalogue identities |
+| `episode.py`, `tools.py` | Bounded model episodes, permitted data tools, addressed evidence and recorded gate attempts |
+| `ledger.py` | Source-classified evidence and accepted revision history |
+| `knowledge.py`, `space.py` | Load capability declarations and evaluate declared support limits |
+| `nodes.py`, `terminal.py` | Shared node utilities, explicit stops and result status |
+| `figures.py`, `records.py` | Validate figure sources and assemble common result/artifact records |
+| `prompts.py`, `words.py` | Shared prompt rules and question-oriented check wording |
+
+The desk launches the selected family graph in a separate process through `desk.pipeline`. The family supplies its nodes to this graph builder. Essential missing context returns a `ContextDeficiency` to the desk; the lane does not interview the person.
+
+The [generated ladders](../../docs/ladders) are the detailed trajectory reference. [Gates](../../docs/gates.md) explains model and code authority. Family diagnostic code reuses `explore/diagnostics.py`; it is supplied by family callers rather than imported upward from the harness.
 
 ```bash
-uv run pytest causal_agent/lane -q
+LANGSMITH_TRACING=false uv run pytest causal_agent/lane -q
 ```

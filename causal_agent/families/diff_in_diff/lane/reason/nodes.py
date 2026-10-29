@@ -12,6 +12,7 @@ from langgraph.types import Command
 from causal_agent.common import trace
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import CheckResult, Checks, ContextDeficiency, Contrast, Feasibility, Handoff
+from causal_agent.explore.diagnostics import DIAGNOSTIC_RULE, tools_for
 from causal_agent.families.diff_in_diff.design import DidDesign
 from causal_agent.families.diff_in_diff.lane import shape as SH
 from causal_agent.families.diff_in_diff.lane.contracts import (
@@ -29,6 +30,7 @@ from causal_agent.families.diff_in_diff.lane.engine.diagnostics import holm, pre
 from causal_agent.families.diff_in_diff.lane.history import event, revisions
 from causal_agent.families.diff_in_diff.lane.knowledge import ENDPOINTS, SPEC, estimator, load_checks, load_falsifications, load_sensitivities
 from causal_agent.families.diff_in_diff.lane.reason import ledger as RL
+from causal_agent.families.diff_in_diff.lane.reason.diagnostics import diagnostic_table, record_errors, validate_metadata
 from causal_agent.families.diff_in_diff.lane.reason.rivals import eligible_control, enumerate_candidates, support
 from causal_agent.families.diff_in_diff.lane.reason.selection import select_lead
 from causal_agent.families.diff_in_diff.lane.reason.views import build
@@ -82,6 +84,10 @@ def load(state: SpecialistState) -> Command:
     if not isinstance(h.design, DidDesign):
         return _deficiency(state, "load", ["design"], "the admitted family block is missing")
     b = h.design
+    try:
+        validate_metadata(h, b)
+    except ValueError as exc:
+        return _deficiency(state, "load", getattr(exc, "addresses", []), str(exc))
     group = b.treated_group
     if not group.get("column") or group.get("level") is None:
         return _deficiency(
@@ -209,9 +215,13 @@ def seed(state: SpecialistState) -> Command:
 
 
 def _judge(state: SpecialistState, stage: str, next_stage: str) -> Command:
-    view = build(state, stage)
     panel = pd.read_csv(state["panel_path"])
-    if _block(state).prefix_scope_accepted and not (panel.cohort == 0).any():
+    try:
+        diagnostic = tools_for(diagnostic_table(_h(state), panel), Path(state["run_dir"]) / "diagnostics", required=False) if stage == "probe" else None
+    except ValueError as exc:
+        return _deficiency(state, stage, getattr(exc, "addresses", []), str(exc))
+    view = build(state, stage)
+    if stage != "probe" and _block(state).prefix_scope_accepted and not (panel.cohort == 0).any():
         from causal_agent.families.diff_in_diff.lane.contracts import Candidate
 
         panel = support(panel, Candidate(id="view", endpoint_id="untreated_prefix_imputation_att", estimator_options=[], support="pre_last_adoption_prefix"))
@@ -222,7 +232,7 @@ def _judge(state: SpecialistState, stage: str, next_stage: str) -> Command:
     for source, column in [(_block(state).time, "time"), (_block(state).unit, "unit"), (_block(state).cluster_level, "cluster")]:
         if source:
             aliases.setdefault(key(source), column)
-    tools = L.data_tools(
+    tools = diagnostic or L.data_tools(
         state,
         pre.treated == 1,
         table_=pre,
@@ -261,6 +271,9 @@ def _judge(state: SpecialistState, stage: str, next_stage: str) -> Command:
             if op.kind == "control" and op.value is True and op.status == "supported" and not eligible_control(h, panel, op.subject):
                 errors.append(f"{op.subject} lacks safe confirmed timing or varies only within fixed effects")
         _, more = RL.commit(state["ledger"], record, stage, resolves, handoff=h, log=log)
+        if diagnostic:
+            assert isinstance(record, ProbeReading)
+            errors += record_errors(record, log, diagnostic, resolves)
         return errors + more
 
     record, log, thoughts, errors = run_episode(
@@ -271,12 +284,32 @@ def _judge(state: SpecialistState, stage: str, next_stage: str) -> Command:
         + ", ".join(sorted(allowed_kinds))
         + ". Prior ledger entries are input evidence and must not be repeated as outputs."
         + " Data/probe/profile citations must keep source=data and category=association, diagnostic or measurement_timing; they cannot become study accounts or certify parallel trends."
-        + " Evidence.address must exactly match a bracket address from ALLOWED EVIDENCE ADDRESSES, such as claim:assignment.kind, or dataset.note for source-document statements. File paths and plain column names are not evidence addresses. For a domain statement use source=pack, category=study_account. Proposed is permitted; certainty is not required.",
-        view.text + "\n\nALLOWED EVIDENCE ADDRESSES\n" + "\n".join(sorted(view.addresses)),
+        + " Evidence.address must exactly match a bracket address from ALLOWED EVIDENCE ADDRESSES, such as claim:assignment.kind, or dataset.note for source-document statements. File paths and plain column names are not evidence addresses. For a domain statement use source=pack, category=study_account. Proposed is permitted; certainty is not required."
+        + (
+            "\n\n"
+            + DIAGNOSTIC_RULE
+            + "\nDiagnostic code is optional: reuse sufficient existing evidence without running a script."
+            + " DATA_CSV has canonical unit, time, time_index, cohort (0 means never treated), treated, treat, post, rel_time, cluster and row_id metadata when present."
+            + " Metadata retains every panel row. The y column and confirmed safe candidate covariates contain values ONLY where post=0, before the earliest adoption anywhere."
+            + " All later values are hidden, including never-treated and not-yet-treated outcomes. Missing later y values mean withheld, not observed missingness."
+            + " Use metadata for panel gaps and comparison counts, and only pre-period values for rank or trend diagnostics."
+            + " A diagnostic cannot establish parallel trends, anticipation, covariate exogeneity or a study account."
+            + " Cite numerical findings in diagnostic_cites even when they do not justify any new causal claim."
+            + " Return notes with diagnostic_cites and operations=[] when a diagnostic leaves the uncertainty unresolved; do not repeat or manufacture a causal operation just to cite code."
+            + " Evidence for any actual ledger operation is still recorded on that operation. A schema listing or an assertion is not a computed diagnostic."
+            + " Do not change target, horizons, support, clusters, estimator or inference policy."
+            if diagnostic
+            else ""
+        ),
+        view.text
+        + "\n\nALLOWED EVIDENCE ADDRESSES\n"
+        + "\n".join(sorted(view.addresses))
+        + ("\n\nPERMITTED CODE INPUT\n" + diagnostic.input_summary() if diagnostic else ""),
         tools=tools,
         budget=SPEC.budget(stage),
         gate=gate,
         node=stage,
+        before_commit=diagnostic.completion_errors if diagnostic else None,
     )
     history = event(state, stage, view=view.text, episode=log.model_dump(), record=record.model_dump() if record else None, errors=errors)
     extra = {"reasoning_history": [history], "episodes": {f"{stage}:1": log}, "debug": thoughts}

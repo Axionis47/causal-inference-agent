@@ -9,5 +9,5 @@ export default defineConfig(({ mode }) => ({
     proxy: { "/api": { target: `http://127.0.0.1:${loadEnv(mode, ".", "API_PORT").API_PORT ?? "8000"}`, changeOrigin: true } },
   },
   build: { outDir: "dist", emptyOutDir: true },
-  test: { environment: "node", include: ["src/**/*.test.ts"] },
+  test: { environment: "node", include: ["src/**/*.test.{ts,tsx}"] },
 }));

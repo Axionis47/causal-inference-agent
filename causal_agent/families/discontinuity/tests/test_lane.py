@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, ColumnBrief, ColumnFacts, Fact, Handoff, Scope
 from causal_agent.common.llm import set_llm
+from causal_agent.explore.tools import RunCodeStep
 from causal_agent.families.discontinuity.design import RdDesign
 from causal_agent.families.discontinuity.lane.contracts import AssumptionDecision, AssumptionDecisions, Line, RDInterpretation
 from causal_agent.families.discontinuity.lane.engine import fit as adapter
@@ -86,6 +87,8 @@ class FakeLLM:
         text = str(messages[-1][1] if isinstance(messages[-1], tuple) else messages[-1].content)
         if self.schema is None:
             return AIMessage(content="The provided evidence is sufficient.")
+        if self.schema is RunCodeStep:
+            return RunCodeStep(done=True)
         if self.schema is Line:
             return Line(clean=True, why="The score was set before assignment, under the declared study account.", cites=["claim:assignment.movable"])
         if self.schema is AssumptionDecisions:

@@ -8,14 +8,17 @@ import ast
 import importlib
 import inspect
 import textwrap
+from pathlib import Path
 
 import pytest
 
 from causal_agent.evals import ladder as EL
+from causal_agent.explore.tools import CodeTools
 from causal_agent.lane import rungs as RG
 from causal_agent.lane.tools import NAMES
 
 LANES = EL.built()
+TOOL_NAMES = {*NAMES, *CodeTools(csv=Path(), out_dir=Path(), timeout=0, stdout_tail=0).names()}
 
 
 def _modules(family: str):
@@ -69,7 +72,7 @@ def test_the_declaration_names_what_the_code_has(family):
         assert callable(getattr(nodes, r.name, None)), f"{family}: the rung {r.name} has no node function"
         if r.route:
             assert callable(getattr(nodes, r.route, None)), f"{family}: the route {r.route} is not a function in nodes"
-        assert set(r.tools) <= set(NAMES), f"{family}.{r.name} declares tools the harness lacks: {set(r.tools) - set(NAMES)}"
+        assert set(r.tools) <= TOOL_NAMES, f"{family}.{r.name} declares tools the harness lacks: {set(r.tools) - TOOL_NAMES}"
     space = getattr(knowledge, "SPACE", None)
     if space is not None:
         assert {d.decided_by for d in space.dimensions.values()} <= set(spec.names)

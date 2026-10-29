@@ -15,7 +15,7 @@ from causal_agent.explore import agent as AG
 from causal_agent.explore import client as XC
 from causal_agent.explore import project as PJ
 from causal_agent.explore import server as S
-from causal_agent.explore.contracts import Exploration, ExploreRequest
+from causal_agent.explore.contracts import Exploration, TransformRequest
 from causal_agent.explore.tests.fakes import FakeLLM
 from causal_agent.memory import versions as VS
 
@@ -39,7 +39,6 @@ ANSWER = Exploration(summary="Kept the standard-lunch rows and added high readin
 
 @pytest.fixture(autouse=True)
 def _env(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     monkeypatch.setattr(config, "ROOT", tmp_path)
     XC.set_app(S.app("http://explore/"))
     yield tmp_path
@@ -87,7 +86,7 @@ def test_a_new_version_lands_beside_its_parent_with_the_held_back_column_re_join
 def test_a_table_that_loses_the_row_id_invents_a_row_or_drops_the_pair_is_refused(tmp_path):
     out = tmp_path / "v"
     path = PJ.project(CSV, out, drop="math score", row_id=True)
-    req = ExploreRequest(
+    req = TransformRequest(
         dataset="students",
         ask="keep only the standard lunch rows",
         context="",
@@ -107,7 +106,7 @@ def test_a_table_that_loses_the_row_id_invents_a_row_or_drops_the_pair_is_refuse
         [ANSWER.model_copy(update={"step": 1}), ANSWER.model_copy(update={"step": 2}), ANSWER.model_copy(update={"step": 3})],
     )
     set_llm(fake)
-    trail = AG.explore(req)
+    trail = AG.transform(req)
     assert trail.record is None and trail.calls == 3
     answers = fake.humans["Exploration"]
     assert "has no __row column" in answers[1] and "outside 0 to 999" in answers[2] and "must keep 'test preparation course'" in trail.why
@@ -116,7 +115,7 @@ def test_a_table_that_loses_the_row_id_invents_a_row_or_drops_the_pair_is_refuse
 def test_a_number_the_ask_itself_states_is_grounded(tmp_path):
     out = tmp_path / "v"
     path = PJ.project(CSV, out, drop="math score", row_id=True)
-    req = ExploreRequest(
+    req = TransformRequest(
         dataset="students",
         ask="add a column saying whether reading score is 70 or more",
         context="",
@@ -132,5 +131,5 @@ def test_a_number_the_ask_itself_states_is_grounded(tmp_path):
         keep=["test preparation course"],
     )
     set_llm(FakeLLM([[NEW_TABLE], []], [ANSWER.model_copy(update={"summary": "Added high reading, 1 when reading score is 70 or more."})]))
-    trail = AG.explore(req)
+    trail = AG.transform(req)
     assert trail.record is not None and trail.why == ""

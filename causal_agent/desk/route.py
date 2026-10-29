@@ -40,7 +40,9 @@ def route(question: str, dataset: str) -> RouteResult:
     functions the desk runs, called in order; the Designer writes the brief once the gate passes. After three failed gates there is no
     hand-off; the decision record is still written."""
     with trace.span("route", inputs={"question": question, "dataset": dataset}) as s:
-        state: dict = {"question": question, "dataset": dataset}
+        from causal_agent.memory import store
+
+        state: dict = {"question": question, "dataset": dataset, "fork": store.memory_for(dataset).model_copy(deep=True)}
         _merge(state, F.load(state))
         _merge(state, F.mine(state))
         sends = F.fan_out_prefilter(state)

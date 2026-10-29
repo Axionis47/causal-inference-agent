@@ -9,8 +9,9 @@ import re
 from langchain_core.messages import AIMessage
 
 from causal_agent.common.contracts import Candidate, Cited, DecisionMade, DesignBrief, FamilyDecision, PrefilterVote, QuestionFrame, Rejection, Scope
-from causal_agent.desk.contracts import AfterReply, FieldUpdate, Readiness, Reading
+from causal_agent.desk.contracts import AfterReply, FieldUpdate, Reading
 from causal_agent.explore.contracts import Exploration
+from causal_agent.explore.inspection import ExploreAction
 from causal_agent.explore.tools import RunCodeStep
 from causal_agent.families import registry as R
 
@@ -39,7 +40,15 @@ ax.set_ylabel("mean math score")
 fig.savefig("figure.png")
 json.dump({"mean_standard": float(means["standard"]), "mean_free_reduced": float(means["free/reduced"])}, open("facts.json", "w"))
 """
-EXPLORED = Exploration(summary="Mean math score by lunch, standard against free or reduced.", step=1, facts=["mean_standard", "mean_free_reduced"], figure=True)
+EXPLORED = Exploration(
+    summary="Mean math score by lunch, standard against free or reduced.",
+    step=1,
+    facts=["mean_standard", "mean_free_reduced"],
+    figure=True,
+    method="Compare observed group means.",
+    findings=["The plot shows group means [figure]."],
+    limitations=["Descriptive, not causal."],
+)
 BASELINE_DRAW_SCRIPT = """
 import json, os
 import pandas as pd
@@ -56,7 +65,13 @@ fig.savefig("figure.png")
 json.dump({"count_standard": int(counts["standard"]), "count_free_reduced": int(counts["free/reduced"])}, open("facts.json", "w"))
 """
 BASELINE_EXPLORED = Exploration(
-    summary="Student counts by lunch, standard against free or reduced.", step=1, facts=["count_standard", "count_free_reduced"], figure=True
+    summary="Student counts by lunch, standard against free or reduced.",
+    step=1,
+    facts=["count_standard", "count_free_reduced"],
+    figure=True,
+    method="Count students in each lunch group.",
+    findings=["The plot shows group sizes [figure]."],
+    limitations=["Counts only."],
 )
 TABLE_SCRIPT = """
 import json, os
@@ -204,11 +219,9 @@ class DeskFake:
         cites: list[str] | None = None,
         explore: list[Exploration] | None = None,
         brief: list[DesignBrief] | None = None,
-        readiness: list[Readiness] | None = None,
     ):
         self.after = list(after or [])
         self.brief = list(brief or [])  # a queue of design briefs; empty means one by rule from the prompt
-        self.readiness = list(readiness or [])  # a queue of the judge's readings; empty means ready with no gaps
         self.explore = list(explore or [])  # a queue of the exploration agent's records; empty means the one that drew math score by lunch
         self.cites = list(cites or [])
         self.infer = infer  # optional callable(message, asked_addresses, human) -> Reading | None, for the Reader over a message
@@ -264,10 +277,14 @@ class DeskFake:
         return R()
 
     def answer(self, schema, human):
+        if isinstance(human, list):
+            human = "\n".join(part.get("text", "[image]") for part in human)
         self.calls.append(schema.__name__)
         self.humans.setdefault(schema.__name__, []).append(human)
         if schema is Reading and source_of(human).startswith("doc:"):
             return Reading(kind="update", updates=students_doc_updates())
+        if schema.__name__ == "OpeningIntent":
+            return schema(kind="causal")
         if schema is QuestionFrame:
             q = human.split("QUESTION\n")[1].split("\n")[0].lower()
             if "how many" in q or "what share" in q:
@@ -309,12 +326,17 @@ class DeskFake:
             )
         if schema is DesignBrief:
             return self.brief.pop(0) if self.brief else brief_by_rule(human)
-        if schema is Readiness:
-            return self.readiness.pop(0) if self.readiness else Readiness(verdict="ready", summary="Every field the design rests on is settled.", gaps=[])
+
         if schema is AfterReply and before_the_run(human):
             return self.explain.pop(0) if self.explain else AfterReply(kind="answer", text="A scripted answer.", cites=["family:adjustment"])
         if schema is AfterReply:
             return self.after.pop(0)
+        if schema is ExploreAction:
+            if "Image pixels attached" in human:
+                return ExploreAction(done=True)
+            if "step 1 ran" in human:
+                return ExploreAction(action="inspect_output", reference="step_1/figure.png")
+            return ExploreAction(action="run_code", code=BASELINE_DRAW_SCRIPT if "student counts" in human else DRAW_SCRIPT)
         if schema is RunCodeStep:  # the agent's look: one script (a picture, or a new table when one is asked for), then done
             ran = "WHAT YOU RAN SO FAR" in human
             table = "new version of the whole table" in human
@@ -325,7 +347,7 @@ class DeskFake:
                 return self.explore.pop(0)
             if "new version of the whole table" in human:
                 return TRANSFORMED
-            return BASELINE_EXPLORED if "is not in the table you were given" in human else EXPLORED
+            return BASELINE_EXPLORED if "is not in the table you were given" in human or "student counts" in human else EXPLORED
         raise AssertionError(schema)
 
 

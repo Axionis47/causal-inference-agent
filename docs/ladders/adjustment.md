@@ -22,7 +22,7 @@ Loops still in the graph:
 | probe | load-bearing uncertainty | judgement: unresolved relationships only; code: no uncertainty |  | rivals | 4 |  |
 | rivals | identification endpoints | code: always | endpoint, modifiers | relate, check_design · stop |  |  |
 | check_design | endpoint-specific checks | code: always |  | pick_estimator · stop |  |  |
-| pick_estimator | eligible estimator per design | code: exactly one eligible estimator for a design; judgement: several eligible estimators for a design |  | freeze_design · stop | 0 |  |
+| pick_estimator | eligible estimator per design | code: exactly one eligible estimator for a design; judgement: several eligible estimators for a design |  | freeze_design · stop | 3 |  |
 | freeze_design | fixed execution inputs | code: always |  | analyse |  |  |
 | analyse (worker) | estimation and diagnostics | code: always |  | after_analyse |  |  |
 | after_analyse | execution status | code: always |  | interpret · stop |  |  |

@@ -5,6 +5,7 @@ episode gives that text an address the record may cite."""
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,8 @@ class CodeTools:
     timeout: float
     stdout_tail: int
     dropped_name: str | None = None
+    inputs: Path | None = None
+    cancel: Any = None
     steps: list[Step] = field(default_factory=list)
 
     def names(self) -> tuple[str, ...]:
@@ -74,7 +77,8 @@ class CodeTools:
         n = len(self.steps) + 1
         out = self.out_dir / f"step_{n}"
         out.mkdir(parents=True, exist_ok=True)
-        ran = sandbox.run(code, self.csv, out, timeout=self.timeout)
+        options = {"inputs": self.inputs, "cancel": self.cancel}
+        ran = sandbox.run(code, self.csv, out, timeout=self.timeout, **options)
         trace.write(out / "stdout.txt", ran.stdout)
         step = Step(n=n, ok=ran.ok, stdout=ran.stdout, stderr=ran.stderr, files=sorted(p.name for p in out.iterdir()), facts=_facts(out), kind=ran.kind)
         self.steps.append(step)
@@ -89,6 +93,10 @@ class CodeTools:
         parts.append("files: " + (", ".join(f for f in step.files if f != "stdout.txt") or "(none)"))
         if step.facts is not None:
             parts.append("facts.json: " + ", ".join(f"{k}={v:.6g}" for k, v in step.facts.items()))
+        elif "facts.json" in step.files:
+            parts.append(
+                "INVALID facts.json: it must be a flat object of finite numbers, with no nested objects or arrays. Run a new script to repair it before completion."
+            )
         return "\n".join(parts)
 
     def step(self, n: int) -> Step | None:
@@ -104,6 +112,6 @@ def _facts(out: Path) -> dict[str, float] | None:
         doc = json.loads(p.read_text())
     except (OSError, ValueError):
         return None
-    if not isinstance(doc, dict) or any(isinstance(v, bool) or not isinstance(v, int | float) for v in doc.values()):
+    if not isinstance(doc, dict) or any(isinstance(v, bool) or not isinstance(v, int | float) or not math.isfinite(v) for v in doc.values()):
         return None
     return {str(k): float(v) for k, v in doc.items()}

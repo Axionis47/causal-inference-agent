@@ -1,5 +1,4 @@
-"""The desk state: the dataset name and each step's artifacts. The memory itself lives on disk and is loaded by the nodes;
-`memory` mirrors it as last saved so a watcher sees it move, and no node reads the mirror."""
+"""Ephemeral routing inputs. Conversation checkpoints contain only operation references."""
 
 from __future__ import annotations
 
@@ -10,7 +9,6 @@ from typing import Annotated
 from typing_extensions import TypedDict
 
 from causal_agent.common.contracts import DesignBrief, FamilyDecision, FamilyVerdict, Handoff, PrefilterVote, QuestionFrame, RunRecord, Thought
-from causal_agent.desk.contracts import AfterReply, Ask, Exchange, Finding, Readiness
 
 
 @dataclass
@@ -21,6 +19,7 @@ class Context:
 class RouteState(TypedDict, total=False):
     """The routing keys: from a question and a memory to a hand-off."""
 
+    runs: list[RunRecord]
     question: str
     context_family: str | None
     matrix: object | None
@@ -41,54 +40,6 @@ class RouteState(TypedDict, total=False):
     specialist_result: dict | None
     debug: Annotated[list[Thought], operator.add]
     memory: object | None  # records.Memory as last saved: a mirror for a watcher such as Studio, written by the nodes, read by none
-
-
-class DeskState(RouteState, total=False):
-    deficiency_addresses: list[str]
-    """The whole conversation: the question first, the journey to ready, the run, and the chat after."""
-
-    analysis: str  # a<k>: the journal this conversation appends to, under data/memory/<name>/analyses/
-    turn: int
-    message: str  # the person's last message
-    invalid: str | None  # why the last question did not pass, or None
-    frame_attempts: int
-    status: object | None  # memory.claims.Status: the fit
-    open: list  # ops.Open: what is still vague
-    findings: list[Finding]  # the checks' verdicts this turn
-    refutations: dict[str, int]  # address -> how many times the file refuted the person's answer
-    settled_now: list[str]  # addresses written this turn, for the acknowledgement
-    ask: Ask | None
-    reply: str  # the desk's message this turn
-    note: str  # what reading the question has to say before the first ask (a change not the one before), said once
-    oriented: bool  # the map of what the file could answer has been shown for this question
-    story_asked: bool  # the story turn has been asked for this question, or a note told it
-    readback_done: bool  # the drafts have been read back once for this question
-    desk_question: str | None  # what the person asked the desk this turn, to answer beside the next ask
-    explained: str | None  # the desk's answer, shown before the next ask
-    explore_request: str | None  # what the person asked to look at this turn, in their words
-    explored: str | None  # the exploration agent's line for the reply: the summary with its address, or why it could not look
-    artifact: dict | None  # the Artifact shown beside the reply this turn
-    transform_request: str | None  # what the person asked to change in the table this turn, in their words
-    transformed: str | None  # the data agent's line for the reply: the version now in play with its address, or why none was made
-    explain_errors: list[str]
-    explain_attempts: int
-    design_dir: str | None  # designs/<n>/ once the pack is written
-    infer_errors: list[str]
-    infer_attempts: int
-    run_intent: bool  # the person has asked to run: the interview asks what blocks, the ready moment is shown, the word launches; cleared by a new question
-    ready: bool
-    what_if: dict[str, str]  # the fields changed on the fork, address -> value
-    convinced_version: int  # the memory version the decision shown at the ready moment was made on
-    convincing: bool  # the routing nodes are running to show the ready moment, not to hand off
-    preview: Handoff | None  # the pack as the ready moment read it back; the page shows it; the hand-off writes its own
-    readiness: Readiness | None  # the judge's reading of the preview: advice beside the fields, never a block
-    phase: str  # before | after
-    runs: list[RunRecord]
-    exchanges: Annotated[list[Exchange], operator.add]
-    after_reply: AfterReply | None
-    after_errors: list[str]
-    after_attempts: int
-    opening: str  # the desk's first message after a run
 
 
 class PrefilterTask(TypedDict):

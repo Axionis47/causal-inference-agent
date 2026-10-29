@@ -1,31 +1,20 @@
 import { Link } from "react-router-dom";
-import type { DatasetSummary } from "../types";
-import StagePill from "./StagePill";
+import type { DatasetListItem } from "../types";
 
-export default function DatasetCard({ d, onDelete }: { d: DatasetSummary; onDelete: (d: DatasetSummary) => void }) {
+export default function DatasetCard({ d }: { d: DatasetListItem }) {
   return (
     <article className="card">
-      <h2 className="title">
-        <Link to={`/d/${encodeURIComponent(d.name)}`}>{d.title}</Link>
+      <h2>
+        <Link to={`/datasets/${d.dataset_id}`}>{d.title}</Link>
       </h2>
-      <div className="meta">
-        <span>{d.name}</span>
-        {d.rows != null && (
-          <span>
-            {d.rows.toLocaleString()} rows × {d.columns} columns
-          </span>
-        )}
-        <StagePill d={d} />
-      </div>
-      {d.question ? <p className="q">{d.question}</p> : <p className="q muted">No question recorded.</p>}
-      <div className="foot">
-        <Link className="btn sm" to={`/d/${encodeURIComponent(d.name)}`}>
-          Open
-        </Link>
-        <button className="btn quiet sm danger" onClick={() => onDelete(d)}>
-          Delete
-        </button>
-      </div>
+      <p>
+        {d.filename} · {d.size_bytes.toLocaleString()} bytes
+      </p>
+      <p>Uploaded {new Date(d.created_at).toLocaleString()}</p>
+      <p>Saved · {d.has_initial_context ? "Original context supplied" : "No original context"}</p>
+      <Link className="btn sm" to={`/datasets/${d.dataset_id}`}>
+        Open dataset
+      </Link>
     </article>
   );
 }

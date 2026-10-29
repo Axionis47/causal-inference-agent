@@ -108,7 +108,7 @@ class EstimatorChoice(BaseModel):
     )
     reason: str
     cites: list[str] = Field(
-        description="Only displayed address strings beginning design:, check:, estimator: or rel:. Never append plain column names such as c or x."
+        description="Displayed design:, check:, estimator: or rel: addresses, and probe: addresses returned by this episode's successful code steps. Never append plain column names."
     )
 
 

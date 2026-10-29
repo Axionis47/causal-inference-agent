@@ -33,9 +33,7 @@ export default function Figure({ spec }: { spec: FigureSpec }) {
   const height = box.top + box.height + 46;
   return (
     <figure className="fig" aria-label={spec.title}>
-      <figcaption>
-        <span className="addr">figure:{spec.id}</span> {spec.title}
-      </figcaption>
+      <figcaption>{spec.title}</figcaption>
       <svg viewBox={`0 0 ${width} ${height}`} role="img">
         {yTicks.map((t) => (
           <g key={`y${t}`}>
@@ -160,9 +158,7 @@ function GraphFigure({ spec }: { spec: FigureSpec }) {
   const short = (s: string) => (s.length > 16 ? `${s.slice(0, 15)}…` : s);
   return (
     <figure className="fig fig-graph" aria-label={spec.title}>
-      <figcaption>
-        <span className="addr">figure:{spec.id}</span> {spec.title}
-      </figcaption>
+      <figcaption>{spec.title}</figcaption>
       <svg viewBox={`0 0 ${width} ${height}`} role="img">
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">

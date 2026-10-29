@@ -18,7 +18,7 @@ from typing import Any
 
 from langsmith import get_current_run_tree, tracing_context
 from langsmith import trace as _trace
-from langsmith.run_trees import RunTree
+from langsmith.run_trees import RunTree, get_cached_client
 from langsmith.utils import tracing_is_enabled
 
 PARENT_ENV = "CAUSAL_TRACE_PARENT"  # the parent run's headers, JSON, for a child process
@@ -82,7 +82,7 @@ def artifact(path: str | Path, *, name: str | None = None, note: str = "") -> Pa
         "text/plain" if p.suffix in {".md", ".jsonl", ".yaml", ".yml", ".py", ".txt", ".csv"} else "application/octet-stream"
     )
     key = label.replace(".", "_")  # LangSmith refuses a period in an attachment's name; the run's name keeps the file's
-    attachments: dict[str, Any] = {key: (mime, p.read_bytes())} if size <= MAX_ATTACHMENT else {}
+    attachments: dict[str, Any] = {key: (mime, p.read_bytes())} if 0 < size <= MAX_ATTACHMENT else {}
     with _trace(f"artifact:{label}", run_type="tool", inputs={"path": str(p), "note": note}, attachments=attachments) as run:
         out: dict[str, Any] = {"path": str(p), "bytes": size, "mime": mime}
         if mime.startswith("text/") or mime in {"application/json"}:
@@ -125,8 +125,10 @@ def child_env(env: dict[str, str], thread_id: str | None = None) -> dict[str, st
     return env
 
 
-def parent() -> Any:
+def parent(headers: dict[str, str] | None = None) -> Any:
     """In a child process: the context that nests everything under the parent run the environment names; nothing otherwise."""
+    if headers:
+        return tracing_context(parent=headers)
     raw = os.environ.get(PARENT_ENV)
     if not raw:
         return nullcontext()
@@ -139,6 +141,12 @@ def parent() -> Any:
 
 def thread_id() -> str | None:
     return os.environ.get(THREAD_ENV) or None
+
+
+def flush(timeout: float = 10) -> None:
+    """Finish queued child-process spans before its owner tears down the process."""
+    if on():
+        get_cached_client().flush(timeout=timeout)
 
 
 # ------------------------------------------------------------------ shaping what a span shows

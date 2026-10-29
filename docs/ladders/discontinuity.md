@@ -21,7 +21,7 @@ Loops still in the graph:
 | covariates | covariates | judgement: always |  | density · stop | 4 |  |
 | density | density | code: always |  | balance |  |  |
 | balance | balance | code: always |  | line |  |  |
-| line | line | judgement: always |  | assumptions · stop | 4 |  |
+| line | line | judgement: always |  | assumptions · stop | 3 |  |
 | assumptions | assumptions | judgement: always | framework | rivals · stop | 0 |  |
 | rivals | rivals | code: always | estimand | check_candidates |  |  |
 | check_candidates | check candidates | code: always |  | freeze_designs |  |  |

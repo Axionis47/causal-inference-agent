@@ -304,7 +304,9 @@ def _collapse(fields: dict[str, Field], required: list[str]) -> tuple[Status, st
     if st == "confirmed" and any(n not in known for n in required):
         st = "drafted"
     user = [f.source for f in known.values() if f.source and f.source.startswith("user:turn:")]
-    source = max(user, key=lambda s: int(s.rsplit(":", 1)[1])) if user else next((f.source for f in known.values() if f.source), None)
+    # Each field retains its exact provenance. A collapsed card selects a
+    # representative source without treating opaque identities as timestamps.
+    source = user[-1] if user else next((f.source for f in known.values() if f.source), None)
     evidence = list(dict.fromkeys(e for f in known.values() for e in f.evidence))
     return st, source, evidence
 

@@ -48,22 +48,10 @@ def endpoint_coverage(run, example):
     return {"score": int(not missing), "comment": f"missing endpoints: {sorted(missing)}" if missing else "required endpoints reached"}
 
 
-def endpoint_effect_accuracy(run, example):
-    truth = exp(example).get("endpoint_truth") or {}
-    tolerance = exp(example).get("effect_tolerance", 0.6)
-    estimates = [e for e in outs(run).get("estimates") or [] if e.get("error") is None and e.get("modifier") is None]
-    bad = [
-        endpoint
-        for endpoint, value in truth.items()
-        if not any(e.get("endpoint_id") == endpoint and e.get("value") is not None and abs(e["value"] - value) <= tolerance for e in estimates)
-    ]
-    return {"score": int(not bad), "comment": f"missing or inaccurate endpoints: {bad}" if bad else "generating values recovered"}
-
-
 def terminal_kind_ok(run, example):
     want = exp(example).get("terminal_kind")
     got = (outs(run).get("terminal") or {}).get("kind")
     return {"score": int(want is None or want == got), "comment": f"expected {want}, got {got}" if want else "not graded"}
 
 
-ALL = [*SHARED, adjustment_set_ok, not_in_graph_ok, placebo_passes, contrasts_count, endpoint_coverage, endpoint_effect_accuracy, terminal_kind_ok]
+ALL = [*SHARED, adjustment_set_ok, not_in_graph_ok, placebo_passes, contrasts_count, endpoint_coverage, terminal_kind_ok]

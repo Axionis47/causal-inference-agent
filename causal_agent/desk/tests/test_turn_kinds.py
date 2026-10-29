@@ -3,12 +3,14 @@ a note is always update. A reading that breaks that is re-prompted with the reas
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from causal_agent.common.llm import set_llm
 from causal_agent.desk import reader as RD
 from causal_agent.desk.contracts import FieldUpdate, Reading
-from causal_agent.desk.tests.fakes import QUESTION, DeskFake
-from causal_agent.desk.tests.test_journey import HELD, REPO, Desk, _held, _no_note  # noqa: F401  (the autouse fixture that holds the memory in process)
 from causal_agent.memory import store
+
+REPO = Path(__file__).resolve().parents[3]
 
 
 def test_the_kind_gate_names_each_break():
@@ -47,72 +49,3 @@ def test_a_note_read_as_anything_but_update_is_refused_and_writes_nothing():
     assert out.kind == "ask" and rejected == ["kind is ask but a note is always read as update"]
     assert memory.version == before
     set_llm(None)
-
-
-def test_a_reading_with_the_wrong_kind_is_re_prompted_three_times_and_the_memory_is_untouched():
-    def stubborn(msg, addrs, human):
-        if msg.startswith("why"):
-            return Reading(kind="ask", question=msg, updates=[FieldUpdate(address="claim:unobserved.exists", value="false", said=msg)])
-        return None
-
-    fake = DeskFake(infer=stubborn)
-    d = Desk(fake)
-    d.say(QUESTION)
-    m = HELD["students"]
-    version = m.version
-    reads_before = len(fake.reads())
-    d.say("why do you ask about hidden factors, I wonder")  # no question mark: the decision model is unsure, the Reader decides
-    prompts = fake.reads()[reads_before:]
-    assert len(prompts) == 3, "three tries, then the invalid reading is refused"
-    assert "PREVIOUS READING WAS REJECTED" in prompts[1] and "carries writes" in prompts[1]
-    assert m.version == version
-    assert m.field("claim:unobserved.exists") is None or m.field("claim:unobserved.exists").value is None
-    assert "I could not accept that message" in d.payload["text"]
-    assert "kind is ask but the reading carries writes" in d.payload["text"]
-
-
-def test_a_confident_decision_skips_the_reader_and_an_unsure_one_reaches_it():
-    fake = DeskFake()
-    d = Desk(fake)
-    d.say(QUESTION)
-    reads = len(fake.reads())
-    p = d.say("plot student counts by lunch")  # the decision model is sure: explore, no Reader call
-    assert len(fake.reads()) == reads and p["kind"] == "chat" and "Student counts by lunch" in p["text"] and "[artifact:" in p["text"]
-    d.say("thanks, one moment")  # unsure: the Reader decides the kind
-    assert len(fake.reads()) == reads + 1 and fake.calls.count("decide") >= 2
-    p = d.say("why do you ask about hidden factors?")  # sure: ask, straight to the Explainer
-    assert len(fake.reads()) == reads + 1 and "A scripted answer" in p["text"]
-
-
-def test_a_refused_reading_writes_nothing_so_a_re_prompt_cannot_confirm_its_own_drafts(_no_note):  # noqa: F811
-    """The first reading carries one update the gate refuses beside good drafts; the second, re-prompted, says those drafts are
-    right. Nothing from the first reached the memory, so the second's confirms land on nothing and the fields stay drafted."""
-    readings = [
-        Reading(
-            kind="update",
-            updates=[
-                FieldUpdate(address="claim:assignment.kind", value="own_choice", said="they chose"),
-                FieldUpdate(address="claim:change.date_column", value="", said="no date"),
-            ],
-        ),
-        Reading(
-            kind="update", confirms=["claim:assignment.kind"], updates=[FieldUpdate(address="claim:assignment.kind", value="own_choice", said="they chose")]
-        ),
-    ]
-    fake = DeskFake(infer=lambda msg, addrs, human: readings.pop(0) if readings else None)
-    d = Desk(fake)
-    d.say(QUESTION)
-    d.say("the students chose whether to take it")
-    f = HELD["students"].field("claim:assignment.kind")
-    assert f.value == "own_choice" and f.status == "drafted" and f.source.startswith("user:turn:")
-    assert fake.calls.count("Reading") == 2 and "PREVIOUS READING WAS REJECTED" in fake.humans["Reading"][-1] and "no value given" in fake.humans["Reading"][-1]
-
-
-def test_at_the_ready_moment_the_reader_always_reads_the_word():
-    fake = DeskFake()
-    d = Desk(fake)
-    d.say(QUESTION)
-    d.to_ready()
-    reads = fake.calls.count("Reading")
-    d.say("yes, run it")  # the fake decision model is sure this is run; the Reader reads it all the same
-    assert fake.calls.count("Reading") == reads + 1 and d.values["phase"] == "after"

@@ -27,6 +27,10 @@ dependencies = [
     "rdlocrand>=2.0",
     "a2a-sdk[http-server]>=1.2,<2",
     "laya>=0.3.28",
+    "sqlalchemy>=2.0,<3",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.14,<2",
+    "boto3>=1.35,<2",
 ]
 
 [build-system]

@@ -1,21 +1,51 @@
-"""What crosses into the exploration agent and what comes back. The request is everything it may read: the table (projected
-before the freeze), what is known as text, the column names, and the pair it must not join. The record is the model's answer,
-flat so any structured-output backend accepts it. The trail is the whole of what happened, for the caller to keep."""
+"""Whole-data exploration and separate row-preserving transformation contracts."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from causal_agent.common.contracts import Thought
 
 Dropped = Literal["outcome"]
-Product = Literal["look", "table"]
+
+
+class DatasetInput(BaseModel):
+    """Resolved by the caller, never by the model. The entire version is supplied."""
+
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    path: Path
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class ArtifactInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    path: Path
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class ExploreRequest(BaseModel):
+    """Private A2A execution envelope. Paths are materialized by the trusted caller."""
+
+    model_config = ConfigDict(extra="forbid")
+    trace_headers: dict[str, str] = Field(default_factory=dict)
+    question: str = Field(min_length=1)
+    dataset_version: DatasetInput
+    context: str
+    artifact_refs: list[ArtifactInput] = Field(default_factory=list)
+    out_dir: Path
+    request_id: str
+    attempt_id: str
+    conversation_id: str
+
+
+class TransformRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    trace_headers: dict[str, str] = Field(default_factory=dict)
     dataset: str
     ask: str = Field(description="what to look at, in the person's words")
     context: str = Field(description="what is known about the data, as text with addresses; after a run, what the run found too")
@@ -30,7 +60,7 @@ class ExploreRequest(BaseModel):
     memory_version: int = 0
     data_version: int = 0
     budget: int = Field(default=0, description="scripts the agent may run; 0 takes the budget checks.yaml declares")
-    product: Product = Field(default="look", description="look: facts, a picture or a small table of facts; table: a new version of the whole table")
+    product: Literal["table"] = "table"
     rows: int = Field(default=0, description="for a table: how many rows the table sent has, so a row added can be told from one kept")
     keep: list[str] = Field(default_factory=list, description="for a table: columns the new table must carry, by the file's own names (the pair)")
 
@@ -50,6 +80,15 @@ class Exploration(BaseModel):
     facts: list[str] = Field(default_factory=list, description="the names in that step's facts.json you stand behind")
     figure: bool = Field(default=False, description="that step's figure.png is the picture asked for")
     table: str | None = Field(default=None, description="the CSV or JSON file that step wrote as the table of facts, by name, or null")
+    status: Literal["completed", "needs_input"] = "completed"
+    method: str = Field(default="", description="What was calculated and why it answers the question")
+    findings: list[str] = Field(
+        default_factory=list,
+        description="Every observation MUST contain exact bracket citations to selected facts, e.g. 'The count is 20 [count]'. Use separate brackets [first] [second], never [first, second]. [figure] and [table] are valid only when those products are selected.",
+    )
+    limitations: list[str] = Field(default_factory=list)
+    needs: list[str] = Field(default_factory=list, description="Specific missing data or clarification for the chatbot")
+    tags: list[str] = Field(default_factory=list)
 
 
 class Step(BaseModel):
@@ -73,4 +112,4 @@ class Trail(BaseModel):
     steps: list[Step] = Field(default_factory=list)
     calls: int = 0
     refusals: list[str] = Field(default_factory=list)
-    sandbox: str = "subprocess"
+    sandbox: str = "not_run"

@@ -1,103 +1,87 @@
-"""The sandbox picks its runner from the config: `auto` becomes the strongest fence at hand, a name stays a name and is refused,
-never downgraded, when it is not there. The fence holds: no network, no read of the home folder, no write outside the artifact
-folder; the CSV is readable and the figure is written."""
+"""Real Docker invariants shared by user exploration and family diagnostics."""
 
 from __future__ import annotations
 
 import shutil
 import subprocess
-import sys
+import threading
 from pathlib import Path
-
-import pytest
 
 from causal_agent.explore import sandbox
 
 ROOT = Path(__file__).resolve().parents[3]
 CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
 HELLO = "import os\nopen('facts.json', 'w').write('{}')\nopen('figure.png', 'wb').write(b'x')\nprint(os.environ['DATA_CSV'])\n"
-READS_CSV = HELLO + "assert len(open(os.environ['DATA_CSV']).read()) > 100\n"
-NETWORK = "import socket\ns = socket.socket()\ns.settimeout(2)\ns.connect(('127.0.0.1', 9))\n"
-HOME_LIST = "import os, pwd\nprint(os.listdir(pwd.getpwuid(os.getuid()).pw_dir))\n"
-HOME_WRITE = "import os, pwd\nopen(os.path.join(pwd.getpwuid(os.getuid()).pw_dir, '.causal_desk_sandbox_probe'), 'w').write('x')\n"
 
 
-def _daemon_up() -> bool:
-    d = shutil.which("docker")
-    return bool(d) and subprocess.run([d, "info"], capture_output=True).returncode == 0
-
-
-def test_auto_is_the_default_and_picks_the_strongest_fence_at_hand(tmp_path, monkeypatch):
-    monkeypatch.delenv("EXPLORE_SANDBOX", raising=False)
-    out = sandbox.run(READS_CSV, CSV, tmp_path / "a")
-    assert out.ok and out.files == ["code.py", "facts.json", "figure.png"]
-    expected = "seatbelt" if sys.platform == "darwin" else "bwrap" if shutil.which("bwrap") else "unshare" if shutil.which("unshare") else "subprocess"
-    assert out.kind == expected == sandbox.resolve("auto")
-
-
-def test_the_subprocess_runner_runs_by_name(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
-    out = sandbox.run(HELLO, CSV, tmp_path / "s")
-    assert out.ok and out.kind == "subprocess" and out.files == ["code.py", "facts.json", "figure.png"]
-
-
-def test_an_unknown_sandbox_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "vm")
-    out = sandbox.run(HELLO, CSV, tmp_path / "b")
-    assert not out.ok and "not a sandbox this tool knows" in out.stderr and out.files == ["code.py"] and out.kind == "vm"
-
-
-def test_a_fence_named_and_not_at_hand_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "bwrap")
+def test_missing_docker_fails_visibly_without_host_execution(tmp_path, monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name: None)
-    out = sandbox.run(HELLO, CSV, tmp_path / "c")
-    assert not out.ok and "bwrap is not on the PATH" in out.stderr and out.files == ["code.py"]
+    out = sandbox.run(HELLO, CSV, tmp_path / "missing")
+    assert not out.ok and "Docker is required" in out.stderr and out.files == ["code.py"]
 
 
-def test_the_container_is_refused_without_a_runtime(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "docker")
-    monkeypatch.setattr(shutil, "which", lambda name: None)
-    out = sandbox.run(HELLO, CSV, tmp_path / "d")
-    assert not out.ok and "no docker binary" in out.stderr and out.files == ["code.py"]
+def test_docker_probe_timeout_is_a_visible_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda name: "docker")
+
+    def fail(*args, **kwargs):
+        raise subprocess.TimeoutExpired("docker info", 10)
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    out = sandbox.run(HELLO, CSV, tmp_path / "unavailable")
+    assert not out.ok and "Docker sandbox unavailable" in out.stderr
 
 
-@pytest.mark.skipif(sys.platform != "darwin" or not Path(sandbox.SEATBELT).exists(), reason="the seatbelt is macOS only")
-def test_the_seatbelt_blocks_the_network_the_home_folder_and_writes_outside_the_folder(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "seatbelt")
-    ok = sandbox.run(READS_CSV, CSV, tmp_path / "e")
-    assert ok.ok and ok.kind == "seatbelt" and ok.files == ["code.py", "facts.json", "figure.png"]  # the CSV reads, the figure writes
-    net = sandbox.run(HELLO + NETWORK, CSV, tmp_path / "f")
-    assert not net.ok and ("Operation not permitted" in net.stderr or "PermissionError" in net.stderr)
-    home = sandbox.run(HELLO + HOME_LIST, CSV, tmp_path / "g")
-    assert not home.ok and ("Operation not permitted" in home.stderr or "PermissionError" in home.stderr)
-    write = sandbox.run(HELLO + HOME_WRITE, CSV, tmp_path / "h")
-    assert not write.ok and ("Operation not permitted" in write.stderr or "PermissionError" in write.stderr)
-    assert not (Path.home() / ".causal_desk_sandbox_probe").exists()
+def test_container_reads_supplied_table_but_no_adjacent_host_data(tmp_path):
+    projected = tmp_path / "projection.csv"
+    original = tmp_path / "original.csv"
+    projected.write_text("t,x\n0,1\n1,2\n")
+    original.write_text("t,x,y\n0,1,100\n1,2,200\n")
+    script = f"""import os
+from pathlib import Path
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+table = pd.read_csv(os.environ['DATA_CSV'])
+assert list(table.columns) == ['t', 'x'] and len(table) == 2
+model = LogisticRegression(solver='liblinear').fit(table[['x']], table['t'])
+assert model.predict_proba(table[['x']]).shape == (2, 2)
+try:
+    Path({str(original)!r}).read_text()
+except OSError:
+    print('original read blocked')
+else:
+    raise AssertionError('the original outcome data were readable')
+os.symlink({str(original)!r}, 'facts.json')
+try:
+    Path('facts.json').read_text()
+except OSError:
+    print('symlink read blocked')
+else:
+    raise AssertionError('a symlink exposed the original outcome data')
+try:
+    os.link({str(original)!r}, 'linked.csv')
+except OSError:
+    print('hardlink blocked')
+else:
+    raise AssertionError('a hardlink exposed the original outcome data')
+try:
+    Path(os.environ['DATA_CSV']).write_text('changed')
+except OSError:
+    print('input write blocked')
+else:
+    raise AssertionError('the input was writable')
+table.describe().to_csv('diagnostics.csv')
+print('pandas ran')
+"""
+    out = sandbox.run(script, projected, tmp_path / "step")
+    assert out.ok, out.stderr
+    assert "original read blocked" in out.stdout and "input write blocked" in out.stdout and "pandas ran" in out.stdout
+    assert "symlink read blocked" in out.stdout and "hardlink blocked" in out.stdout
+    assert "diagnostics.csv" in out.files and "facts.json" not in out.files and "linked.csv" not in out.files
+    assert projected.read_text() == "t,x\n0,1\n1,2\n"
+    assert original.read_text() == "t,x,y\n0,1,100\n1,2,200\n"
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux") or not shutil.which("bwrap"), reason="bwrap is Linux only")
-def test_bwrap_blocks_the_network_and_writes_outside_the_folder(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "bwrap")
-    ok = sandbox.run(READS_CSV, CSV, tmp_path / "i")
-    assert ok.ok and ok.kind == "bwrap"
-    net = sandbox.run(HELLO + NETWORK, CSV, tmp_path / "j")
-    assert not net.ok
-    write = sandbox.run(HELLO + HOME_WRITE, CSV, tmp_path / "k")
-    assert not write.ok and not (Path.home() / ".causal_desk_sandbox_probe").exists()
-
-
-@pytest.mark.skipif(not sys.platform.startswith("linux") or not shutil.which("unshare"), reason="unshare is Linux only")
-def test_unshare_blocks_the_network(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "unshare")
-    ok = sandbox.run(READS_CSV, CSV, tmp_path / "l")
-    assert ok.ok and ok.kind == "unshare"
-    net = sandbox.run(HELLO + NETWORK, CSV, tmp_path / "m")
-    assert not net.ok
-
-
-@pytest.mark.skipif(not _daemon_up(), reason="no container runtime running")
 def test_the_container_runs_the_script_with_the_csv_read_only(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "docker")
     out = sandbox.run(HELLO + "open(os.environ['DATA_CSV'], 'a')\n", CSV, tmp_path / "n")
     assert not out.ok and "Read-only" in out.stderr  # the table cannot be written
     out = sandbox.run(HELLO, CSV, tmp_path / "o")
@@ -105,7 +89,6 @@ def test_the_container_runs_the_script_with_the_csv_read_only(tmp_path, monkeypa
 
 
 def test_what_the_script_printed_comes_back_cut_to_its_tail_and_its_tables_are_kept(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     script = HELLO + (
         "open('table.csv', 'w').write('a,b\\n1,2\\n')\n"
         "open('notes.txt', 'w').write('kept')\n"
@@ -118,3 +101,53 @@ def test_what_the_script_printed_comes_back_cut_to_its_tail_and_its_tables_are_k
     assert out.ok and out.files == ["code.py", "facts.json", "figure.png", "notes.txt", "table.csv"]
     assert len(out.stdout) == sandbox.CAP and out.stdout.rstrip().endswith("z") and "tail" not in out.stdout  # the tail, not the head
     assert (tmp_path / "p" / "table.csv").read_text() == "a,b\n1,2\n"
+
+
+def test_inputs_and_root_are_readonly_and_credentials_network_are_absent(tmp_path, monkeypatch):
+    monkeypatch.setenv("SECRET_APPLICATION_KEY", "must-not-enter-container")
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    (inputs / "saved.json").write_text('{"estimate": 2.5}')
+    script = """import os, socket
+from pathlib import Path
+assert 'SECRET_APPLICATION_KEY' not in os.environ
+assert os.getuid() != 0
+assert Path('/inputs/saved.json').read_text() == '{"estimate": 2.5}'
+for path in ['/inputs/saved.json', '/etc/probe']:
+    try:
+        Path(path).write_text('changed')
+    except OSError:
+        pass
+    else:
+        raise AssertionError('unexpected writable input/root')
+s = socket.socket()
+s.settimeout(1)
+try:
+    s.connect(('1.1.1.1', 443))
+except OSError:
+    pass
+else:
+    raise AssertionError('network escaped')
+print('boundary verified')
+"""
+    out = sandbox.run(script, CSV, tmp_path / "step", inputs=inputs)
+    assert out.ok, out.stderr
+    assert "boundary verified" in out.stdout
+    assert (inputs / "saved.json").read_text() == '{"estimate": 2.5}'
+
+
+def test_timeout_and_cancellation_remove_containers(tmp_path, monkeypatch):
+    attempt = "test-cleanup-" + tmp_path.name
+    monkeypatch.setenv("EXPLORE_ATTEMPT_ID", attempt)
+    timeout = sandbox.run("import time\ntime.sleep(30)", CSV, tmp_path / "timeout", timeout=2)
+    assert not timeout.ok and "timed out" in timeout.stderr
+    cancel = threading.Event()
+    timer = threading.Timer(2, cancel.set)
+    timer.start()
+    try:
+        stopped = sandbox.run("import time\ntime.sleep(30)", CSV, tmp_path / "cancel", cancel=cancel)
+    finally:
+        timer.cancel()
+    assert not stopped.ok and "cancelled" in stopped.stderr
+    remaining = subprocess.run(["docker", "ps", "-aq", "--filter", f"label=causal.explore.attempt={attempt}"], capture_output=True, text=True, check=True)
+    assert not remaining.stdout.strip()

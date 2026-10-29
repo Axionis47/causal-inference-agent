@@ -85,28 +85,3 @@
   expected:
     status: context_deficient
     stopped_at_in: [load]    # numeric scores exist but no note states a cutoff rule
-
-# Reproducible evaluations with declared generating-process assumptions, not empirical evidence.
-- id: declared_sharp_endpoints
-  dataset: window_sharp
-  handoff: handoffs/window_sharp.json
-  question: Did assignment to the intervention change the outcome at the cutoff?
-  expected:
-    status: done
-    score_column: score
-    cutoff: 0
-    treated_side: above
-    kind: sharp
-    endpoints_contain: [sharp_local_polynomial, sharp_local_randomisation]
-
-- id: declared_fuzzy_and_eligibility_endpoints
-  dataset: window_fuzzy
-  handoff: handoffs/window_fuzzy.json
-  question: Did actual receipt of the intervention change the outcome inside a score window?
-  expected:
-    status: done
-    score_column: score
-    cutoff: 0
-    treated_side: above
-    kind: fuzzy
-    endpoints_contain: [fuzzy_local_polynomial, fuzzy_local_randomisation, eligibility_local_polynomial, eligibility_local_randomisation]

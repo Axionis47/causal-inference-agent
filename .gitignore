@@ -6,7 +6,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/generated/
-# uploads land under data/raw/<name>/; only the shipped example datasets ride with the repo
+# Only shipped fixture datasets are tracked under data/raw; new ingestion uses private S3.
 data/raw/*
 !data/raw/academic-probation-gpa/
 !data/raw/card-krueger-minimum-wage/
@@ -22,3 +22,8 @@ web/node_modules/
 web/dist/
 .mypy_cache/
 .ruff_cache/
+
+# Browser test evidence
+/test-results/
+/web/test-results/
+/web/playwright-report/

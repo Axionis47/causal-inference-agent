@@ -42,7 +42,8 @@ def test_unknowns_and_contradictions_reach_the_lane():
     assert h.fact("col:lunch.when").value == "after" and h.fact("col:lunch.when").said == "no, it really was after"
     words = h.render_words()
     assert "CONTRADICTION" in words and "[col:lunch.when]" in words and "UNKNOWN" in words
-    assert "[said:6]" in words and f.said in words
+    assert "[said:1]" in words and f.said in words
+    assert h.fact("col:lunch.when").source == "user:turn:6"
     assert "CONTRADICTION" in h.render_context()
     ctx = h.render_context()
     order = [

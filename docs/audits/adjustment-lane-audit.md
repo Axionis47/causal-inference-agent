@@ -1,5 +1,7 @@
 # Adjustment (DoWhy) lane: an audit
 
+> Historical audit of an earlier implementation. Its module names and recommendations are not the current component specification. See the [adjustment component](../components/11-adjustment.md) and [generated ladder](../ladders/adjustment.md) for the current structure.
+
 Date: 2026-10-05. Branch `desk-tools-2026-09-28`. Read from the code, not the docs. Paths are under `causal_agent/`;
 `N` is `families/adjustment/lane/nodes.py`.
 

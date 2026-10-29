@@ -19,17 +19,19 @@ The complete [ownership tree and context policy](docs/architecture.md) keeps int
 - Difference in differences: six structural endpoints using FEOLS, did2s, saturated event-study and LP-DiD, with explicit pooled, horizon and cohort targets.
 - Discontinuity: sharp, fuzzy and eligibility effects under polynomial continuity or fixed-window local randomisation.
 
-See the generated [endpoint catalogues](docs/lanes.md) and [acceptance report](docs/acceptance/context-lane-policy.md) for exact trajectories, real Gemini evidence, stopping behavior and unsupported configurations. Graph motifs illustrate reusable structures rather than enumerating every DAG.
+See the generated [endpoint catalogues](docs/lanes.md) for exact trajectories, stopping behavior and unsupported configurations. The [validation record](docs/acceptance/context-lane-policy.md) distinguishes retained real-data evidence from configurations awaiting evaluation on live datasets. Graph motifs illustrate reusable structures rather than enumerating every DAG.
 
 ## Information and execution boundaries
 
 Memory retains values, statuses, source sentences, reasons and versions. Models draft; human statements or applicable checks confirm. A lane keeps a separate revision ledger. Every model judgement and number cites evidence, with bounded code gates. The lead is selected before inspecting target-effect estimates and remains visible if it fails.
 
-Unrestricted exploration always withholds the outcome before a matching design freezes. Profiles own deterministic outcome summaries. DiD diagnostics use pre-treatment outcomes; adjustment graph diagnostics annotate designs after freeze; RD locks its selector before deterministic bandwidth computation. Essential omissions return typed deficiencies to the desk. Invalid population restrictions stop instead of changing the target.
+User-facing exploration receives the whole selected CSV and supplied artifacts, with read-only Docker execution. Family diagnostics retain their restricted data scopes. Profiles own deterministic summaries. DiD diagnostics use pre-treatment outcomes; adjustment graph diagnostics annotate designs after freeze; RD locks its selector before deterministic bandwidth computation. Essential omissions return typed deficiencies to the desk. Invalid population restrictions stop instead of changing the target.
 
 Corrections and suppositions prepare a new snapshot and require another authorization. A hypothetical copy never overwrites durable memory. Superseded layouts, analyses and checkpoints are deleted rather than migrated.
 
 ## Run and verify
+
+For the current app in one local container, see [container setup](docs/production/containerization.md). The [consolidated production plan](docs/production/README.md) connects packaging, frontend/backend ownership, the proposed user data model, CSV lineage and tests. Container packaging does not implement the planned authentication or private workspaces.
 
 Copy `.env.example` to `.env`. Gemini runs on Vertex AI using gcloud application-default credentials. LangSmith traces show the workflow, including lane subprocesses under the desk.
 
@@ -38,12 +40,12 @@ make dev-api
 make dev-web
 ```
 
-The API listens on port 8000; Vite serves the frontend on 5173. Upload a CSV, give the question and study account, confirm the relevant context, then authorize the ready snapshot.
+The API listens on port 8000; Vite serves the frontend on 5173. The `/new` page currently ends at ingestion: save a CSV, title and optional immutable study context, then retrieve the saved confirmation and original file. It requires configured PostgreSQL and private object storage (provided by Compose). Profiling and conversation integration for these new datasets are deferred; fixture-based causal workflows remain available separately.
 
-A stored study fixture exercises a lane directly:
+A stored real-source study handoff exercises a lane directly:
 
 ```bash
-uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/backdoor_protocol.json
+uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/gov_transfers_forced.json
 make trace
 ```
 

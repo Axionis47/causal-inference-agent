@@ -1,15 +1,14 @@
 import { Link, NavLink } from "react-router-dom";
-import type { DatasetSummary } from "../types";
-import StagePill from "./StagePill";
+import type { useDatasetLibrary } from "../hooks/useDatasetLibrary";
 
 export default function Sidebar({
-  items,
+  library,
   current,
   open,
   onToggle,
   onNav,
 }: {
-  items: DatasetSummary[] | null;
+  library: ReturnType<typeof useDatasetLibrary>;
   current: string | null;
   open: boolean;
   onToggle: () => void;
@@ -34,20 +33,34 @@ export default function Sidebar({
       </div>
       {open && (
         <ul className="side-list">
-          {items?.map((d) => (
-            <li key={d.name}>
+          {library.items?.map((d) => (
+            <li key={d.dataset_id}>
               <NavLink
-                to={`/d/${encodeURIComponent(d.name)}`}
-                className={d.name === current ? "on" : undefined}
-                aria-current={d.name === current ? "page" : undefined}
+                to={`/datasets/${encodeURIComponent(d.dataset_id)}`}
+                className={d.dataset_id === current ? "on" : undefined}
+                aria-current={d.dataset_id === current ? "page" : undefined}
                 onClick={onNav}
               >
                 <span className="t">{d.title}</span>
-                <StagePill d={d} />
+                <span>Saved</span>
               </NavLink>
             </li>
           ))}
-          {items && items.length === 0 && <li className="none">No datasets yet.</li>}
+          {library.items && library.items.length === 0 && <li className="none">No datasets yet.</li>}
+          {library.loading && <li role="status">Loading datasets…</li>}
+          {library.error && (
+            <li role="alert">
+              {library.error}
+              <button onClick={() => void (library.items ? library.loadMore() : library.refresh())}>Retry</button>
+            </li>
+          )}
+          {library.nextCursor && (
+            <li>
+              <button disabled={library.loading} onClick={() => void library.loadMore()}>
+                Load more
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </nav>

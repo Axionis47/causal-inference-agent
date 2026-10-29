@@ -1,75 +1,11 @@
-# The server and the page
+# Conversation page
 
-The server is one FastAPI process that drives the desk graph on a persistent checkpointer and projects it into view models. It adds
-no model calls and no analysis logic. The page shows and never decides.
+The current page uses question-first review and consolidated chat. See the [conversation interface](components/04-conversation-ui.md), [API runtime](components/05-api-sessions.md), [desk](components/06-desk.md) and [snapshot boundary](components/08-readiness-handoff.md) for the owning code and contracts.
 
-## The routes
+Select a saved dataset, enter a question, review mapped statements and explicitly mark all columns reviewed or unresolved. Confirming the review creates a chat pinned to that revision. Missing profiling or extraction has an explicit preparation action. Read operations never launch model work.
 
-| route | what |
-|---|---|
-| `GET /api/datasets` | every dataset with its conversation's stage |
-| `POST /api/profile` | stage an uploaded CSV and profile it |
-| `POST /api/datasets` | keep the upload, write the profile and the index entry, start the conversation |
-| `DELETE /api/datasets/{name}` | remove the memory, the note, the profile, the checkpoint thread, the run folders |
-| `GET /api/sessions/{name}` | the `SessionView` |
-| `POST /api/sessions/{name}/messages` | resume the graph with the text; 409 while busy |
-| `POST /api/sessions/{name}/resume` | continue a checkpoint whose step died with the process |
-| `POST /api/sessions/{name}/analyses` | a new question on the same file: a new thread over the memory as it stands, its own journal |
-| `GET /api/runs/{id}`, `/files/{name}` | a run folder's known files |
-| `GET /api/artifacts/{name}/{id}/{file}` | a file an artifact lists: its picture, its table |
+Chat supports free discussion, explicit context correction, visualization and fast-track preparation. Context, Artifacts and Analyses load readable details separately from bounded polling. Discuss selects a removable reference focus. Fast-track offers structured choices, unknown and free text without confirming a default. It prepares an analysis review; only the separate Run analysis action authorizes execution.
 
-Everything else serves `web/dist`. The routes are in [server/app.py](../causal_agent/server/app.py); the session manager that runs
-each step in a worker thread and keeps the interrupt payload as the prompt is [server/sessions.py](../causal_agent/server/sessions.py).
+Corrections use the same PostgreSQL revision gate as direct editing. Other chats stay pinned until refreshed. A stale write returns changes for review. Repeated client submissions return their existing operation. Restarted work is shown as interrupted and resumes only explicitly, using recorded receipts and completed outputs.
 
-## One view
-
-`SessionView` ([server/models.py:303](../causal_agent/server/models.py)) is what the page polls every 1.5 seconds while a step runs:
-
-| field | what |
-|---|---|
-| `stage` | busy, waiting, ended, stale, error, new |
-| `phase`, `ready`, `prompt` | before or after the run; whether the matrix says ready; the current prompt and its kind: `question`, `chat` (nothing asked), `ask` (a question with its chips, the recommended one named, and for a readback one item per draft), `ready` (the design, waiting for the word), `after` |
-| `claims`, `status` | every claim with its status and source; the matrix as the page draws it |
-| `runs` | one `RunView` per design: the decision, the checks, the estimates, the falsifications and sensitivities, the interpretations, the declines, the figures, the pictures drawn after it |
-| `transcript` | one `Turn` per line of the conversation, each with an optional figure or picture |
-| `journal`, `analysis` | the conversation's steps and its id |
-| `artifacts` | the artifacts about the data before any run |
-| `data_version`, `versions` | the table version in play (0 is the uploaded file) and every version the data agent wrote, with what changed |
-| `handoff` | at the ready moment only: the context the run would rest on, every field with its value, status, source and sentence; a correction is sent as a message of `address = value` lines, the person's word, which no model reads |
-
-## The wire is one definition
-
-`server/models.py` declares every response. `make schema` dumps the OpenAPI schema to `web/openapi.json`; `npm run types` generates
-`web/src/generated/schema.ts` from it; `web/src/types.ts` is a page of aliases over that. CI regenerates both and fails on a diff,
-so a field the server renames breaks the build, not the page. The page never types a response by hand.
-
-## The page
-
-Vite, React, TypeScript, no UI kit; the shapes are in [design.md](design.md). Three routes in [App.tsx](../web/src/App.tsx): `/` the datasets, `/new` upload and describe,
-`/d/:name` the conversation. One shell, the datasets in a sidebar, the conversation in the middle, and a slim strip on the right
-that opens the inspector.
-
-| part | file | shows |
-|---|---|---|
-| the transcript | [Transcript.tsx](../web/src/components/Transcript.tsx), [Message.tsx](../web/src/components/Message.tsx) | each turn; a run figure as inline SVG, a drawn picture as an image with its facts |
-| the composer | [Composer.tsx](../web/src/components/Composer.tsx), [QuestionList.tsx](../web/src/components/QuestionList.tsx) | the ask with chips, the recommended one first; a readback as a questionnaire, one line per draft with the desk's reading recommended, the other legal answers and "other"; `compose.ts` quotes each answered question beside its answer so the graph still reads prose, and sends a changed line as `address = value` |
-| the handoff view | [HandoffPanel.tsx](../web/src/components/HandoffPanel.tsx) | at the ready moment, every field the run rests on, editable in place; a change sends `address = value` |
-| the status strip | [StatusStrip.tsx](../web/src/components/StatusStrip.tsx) | one mark per claim kind, settled or open |
-| the claims tab | [inspector/StatusMatrix.tsx](../web/src/components/inspector/StatusMatrix.tsx), [ClaimsTable.tsx](../web/src/components/inspector/ClaimsTable.tsx) | the matrix, claim kinds down and families across, a struck family marked; every claim with its source and sentence |
-| the results tab | [inspector/RunDetail.tsx](../web/src/components/inspector/RunDetail.tsx), [RunTables.tsx](../web/src/components/inspector/RunTables.tsx) | a run's effect and interval, its figures, the estimates, checks, falsifications and sensitivities and declines as tables |
-| the files tab | [inspector/FilesView.tsx](../web/src/components/inspector/FilesView.tsx) | the run folder: the report, the design, the artifacts |
-| the journal tab | [inspector/JournalView.tsx](../web/src/components/inspector/JournalView.tsx) | the conversation's steps, each with the addresses it read |
-| a run figure | [Figure.tsx](../web/src/components/Figure.tsx) | a `FigureSpec` drawn as SVG: bars, lines, points, density, interval, graph |
-| an artifact | [Picture.tsx](../web/src/components/Picture.tsx) | the caption with its `artifact:` address, the image, the facts with their addresses, a table's first rows |
-
-What is open lives in the URL hash, so a reload keeps it. Below 960px the sidebar and the inspector open as overlays.
-
-```bash
-make dev-api
-```
-
-```bash
-make dev-web
-```
-
-The API on 8000, the page on 5173 proxying `/api`. `npm run build --prefix web` makes the bundle the API serves.
+Frontend contracts are generated from `server/models.py`. `make verify-chat` runs the relevant browser and container-replacement checks, with `WITH_MODEL=1` adding real conversations and trace readback.

@@ -13,11 +13,10 @@ from a2a.helpers import proto_helpers as H
 from a2a.types import Role, SendMessageRequest, TaskState
 
 from causal_agent.common.llm import set_llm
-from causal_agent.explore import project as PJ
 from causal_agent.explore import server as S
 from causal_agent.explore.contracts import Exploration, ExploreRequest
 from causal_agent.explore.tests.fakes import FakeLLM
-from causal_agent.explore.tests.test_agent import TABLE
+from causal_agent.explore.tests.test_agent import ANSWER, TABLE, request
 
 ROOT = Path(__file__).resolve().parents[3]
 CSV = ROOT / "data/raw/students-performance-in-exams/StudentsPerformance.csv"
@@ -26,25 +25,12 @@ URL = "http://explore"
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     yield
     set_llm(None)
 
 
-def _request(tmp_path) -> ExploreRequest:
-    out = tmp_path / "art"
-    path = PJ.project(CSV, out, drop="math score")
-    return ExploreRequest(
-        dataset="students",
-        ask="mean reading score by lunch, as a table",
-        context="[col:lunch.note] standard or free/reduced",
-        columns={"lunch": "lunch", "reading_score": "reading score"},
-        csv=path,
-        out_dir=out,
-        outcome="math score",
-        treatment="test preparation course",
-        dropped="outcome",
-    )
+def _request(tmp_path):
+    return request(tmp_path)
 
 
 async def _round_trip(req: ExploreRequest):
@@ -76,7 +62,7 @@ def test_one_task_round_trip_carries_the_record_and_its_products(tmp_path):
     set_llm(
         FakeLLM(
             [[TABLE], []],
-            [Exploration(summary="Standard lunch reads 71.65 on average, against 64.65.", step=1, facts=["reading_standard"], table="by_lunch.csv")],
+            [ANSWER],
         )
     )
     _card, task = asyncio.run(_round_trip(_request(tmp_path)))

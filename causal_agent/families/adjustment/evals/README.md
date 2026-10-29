@@ -33,16 +33,14 @@ A run applies one common complete-case policy across the admitted loaded columns
 
 Falsifications and sensitivities are separate records. Graph independence diagnostics run only after freeze, on a deterministic sample of at most 300 rows and at most sixteen graph-implied constraints with at most one conditioning variable, with Holm correction. Their results do not select another graph or implicate a particular causal edge. Sensitivity preserves the simulated strength grid and has no pass verdict.
 
-## Protocol fixtures and real runs
+## Real-source evaluation
 
-`scenarios.py` generates reproducible study-protocol fixtures. Their structural assumptions are explicitly supplied simulated context, recorded as the simulated person's account. This does not establish those assumptions in a real study. The model sees causal structure and assumptions with effect magnitudes withheld. Generating coefficients are reserved for evaluation. All judgements are real Gemini calls, not scripted models.
+Evaluation uses real-source datasets and their documented study accounts. The retained cases cover the existing students and marketing datasets plus a forced adjustment handoff for the government-transfer dataset. Generated protocol datasets, their generator, synthetic cases and their stored acceptance evidence have been removed. Future evaluation datasets come from Kaggle and must carry source provenance and an admitted study account.
 
 ```bash
-LANGSMITH_TRACING=false uv run python -m causal_agent.families.adjustment.evals.scenarios frontdoor
-GRPC_DNS_RESOLVER=native uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/frontdoor_protocol.json
+GRPC_DNS_RESOLVER=native uv run python -m causal_agent.evals.lane adjustment students "Did completing the prep course raise math scores?"
+GRPC_DNS_RESOLVER=native uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/gov_transfers_forced.json
 uv run python -m causal_agent.evals.trace --trace <trace-id> --thoughts
 ```
 
-The fixture writer admits the pack after writing its CSV so dataset-byte identity matches the actual file. `cases.yaml` includes endpoint/target recovery checks and generating-value tolerances. Pure tests check graph identification, actual numerical adapters, raw-data isolation, frozen-support integrity, source provenance and comparison grouping. Model reasoning may still make a bounded refusal; acceptance requires reading the real episode records and the trace, not merely the CLI exit code.
-
-The completed real-run evidence is in [acceptance.md](acceptance.md), with target records in `acceptance.json` and graph trees under `readbacks/`.
+Pure tests still check graph identification, numerical adapters, raw-data isolation, frozen-support integrity, source provenance and comparison grouping. Small in-memory numerical inputs are unit tests, not evaluation dataset generators. These checks do not establish real-data trajectory coverage for every endpoint. New endpoint acceptance requires a documented real-source run and trace inspection; the removed synthetic evidence is no longer counted as acceptance coverage.

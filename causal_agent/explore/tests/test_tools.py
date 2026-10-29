@@ -27,10 +27,9 @@ def _tools(tmp_path, dropped=None) -> CodeTools:
 
 
 def test_each_script_runs_in_its_own_step_folder_and_the_text_carries_what_came_back(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     t = _tools(tmp_path)
     r = t.call("run_code", {"code": COUNTS})
-    assert "step 1 ran (subprocess)." in r.text and "standard" in r.text and "files: by_lunch.csv, code.py, facts.json" in r.text
+    assert "step 1 ran (docker)." in r.text and "standard" in r.text and "files: by_lunch.csv, code.py, facts.json" in r.text
     assert "facts.json: n_standard=645, n_free_reduced=355" in r.text
     assert (tmp_path / "art" / "step_1" / "stdout.txt").read_text().startswith("lunch")
     r2 = t.call("run_code", {"code": "print('again')"})
@@ -40,10 +39,19 @@ def test_each_script_runs_in_its_own_step_folder_and_the_text_carries_what_came_
 
 
 def test_a_failing_script_is_a_failed_step_with_its_error(tmp_path, monkeypatch):
-    monkeypatch.setenv("EXPLORE_SANDBOX", "subprocess")
     t = _tools(tmp_path)
     r = t.call("run_code", {"code": "import pandas as pd\nraise ValueError('boom: no such column')\n"})
     assert "step 1 failed" in r.text and "boom: no such column" in r.text and not t.step(1).ok
+
+
+def test_code_outputs_cannot_make_the_host_read_linked_files(tmp_path, monkeypatch):
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"withheld_outcome": 123}')
+    t = _tools(tmp_path)
+    t.call("run_code", {"code": f"import os\nos.symlink({str(outside)!r}, 'facts.json')\nos.link({str(outside)!r}, 'linked.json')\n"})
+    assert not t.step(1).ok and t.step(1).facts is None
+    assert t.step(1).files == ["code.py", "stdout.txt"]
+    assert outside.read_text() == '{"withheld_outcome": 123}' and outside.stat().st_nlink == 1
 
 
 def test_prose_and_the_held_back_column_are_refused_without_a_run(tmp_path):

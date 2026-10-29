@@ -5,6 +5,1468 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/datasets": {
+      "post": {
+        "summary": "Ingest Dataset",
+        "operationId": "ingest_dataset_api_datasets_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_dataset_api_datasets_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestedDataset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Datasets",
+        "operationId": "list_datasets_api_datasets_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}": {
+      "get": {
+        "summary": "Get Dataset",
+        "operationId": "get_dataset_api_datasets__dataset_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestedDataset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/file": {
+      "get": {
+        "summary": "Download",
+        "operationId": "download_api_datasets__dataset_id__file_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/profile": {
+      "get": {
+        "summary": "Get Profile",
+        "operationId": "get_profile_api_datasets__dataset_id__profile_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Generate Profile",
+        "operationId": "generate_profile_api_datasets__dataset_id__profile_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/profiles/{profile_id}/columns/{column_id}": {
+      "get": {
+        "summary": "Get Column",
+        "operationId": "get_column_api_datasets__dataset_id__profiles__profile_id__columns__column_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          },
+          {
+            "name": "column_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Column Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedColumn"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/context": {
+      "get": {
+        "summary": "Get Context",
+        "operationId": "get_context_api_datasets__dataset_id__context_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Prepare Context",
+        "operationId": "prepare_context_api_datasets__dataset_id__context_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/contexts/{revision_id}": {
+      "get": {
+        "summary": "Get Dataset Context",
+        "operationId": "get_dataset_context_api_datasets__dataset_id__contexts__revision_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextDatasetView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/contexts/{revision_id}/columns/{column_id}": {
+      "get": {
+        "summary": "Get Column Context",
+        "operationId": "get_column_context_api_datasets__dataset_id__contexts__revision_id__columns__column_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "column_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Column Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextColumnView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/reviews": {
+      "post": {
+        "summary": "Start",
+        "operationId": "start_api_datasets__dataset_id__reviews_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/reviews/{review_id}": {
+      "get": {
+        "summary": "Read",
+        "operationId": "read_api_datasets__dataset_id__reviews__review_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Save",
+        "operationId": "save_api_datasets__dataset_id__reviews__review_id__put",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/reviews/{review_id}/statements": {
+      "get": {
+        "summary": "Statements",
+        "operationId": "statements_api_datasets__dataset_id__reviews__review_id__statements_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "column_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Column Id"
+            }
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(dataset|relationship|concept)$",
+              "default": "dataset",
+              "title": "Section"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewStatements"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/messages": {
+      "get": {
+        "summary": "Messages",
+        "operationId": "messages_api_conversations__name__messages_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/context": {
+      "get": {
+        "summary": "Context Summary",
+        "operationId": "context_summary_api_conversations__name__context_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatContextSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/context/changes": {
+      "get": {
+        "summary": "Context Changes",
+        "operationId": "context_changes_api_conversations__name__context_changes_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextChanges"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/context/statements": {
+      "get": {
+        "summary": "Context Statements",
+        "operationId": "context_statements_api_conversations__name__context_statements_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "column_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Column Id"
+            }
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(dataset|relationship|requirement)$",
+              "default": "dataset",
+              "title": "Section"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatStatements"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/analyses": {
+      "get": {
+        "summary": "Analyses",
+        "operationId": "analyses_api_conversations__name__analyses_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnalysisSummary"
+                  },
+                  "title": "Response Analyses Api Conversations  Name  Analyses Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/analyses/{analysis_id}": {
+      "get": {
+        "summary": "Analysis",
+        "operationId": "analysis_api_conversations__name__analyses__analysis_id__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "analysis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{dataset_id}/conversations": {
+      "post": {
+        "summary": "Create",
+        "operationId": "create_api_datasets__dataset_id__conversations_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Listing",
+        "operationId": "listing_api_datasets__dataset_id__conversations_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationView"
+                  },
+                  "title": "Response Listing Api Datasets  Dataset Id  Conversations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/artifacts": {
+      "get": {
+        "summary": "Artifacts",
+        "operationId": "artifacts_api_conversations__name__artifacts_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "earlier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Earlier"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactSummary"
+                  },
+                  "title": "Response Artifacts Api Conversations  Name  Artifacts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/artifacts/{artifact_id}": {
+      "get": {
+        "summary": "Artifact",
+        "operationId": "artifact_api_conversations__name__artifacts__artifact_id__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Artifact"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/artifacts/{artifact_id}/files/{file}": {
+      "get": {
+        "summary": "Artifact File",
+        "operationId": "artifact_file_api_conversations__name__artifacts__artifact_id__files__file__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{name}/evidence": {
+      "get": {
+        "summary": "Evidence",
+        "operationId": "evidence_api_conversations__name__evidence_get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 300,
+              "title": "Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -25,53 +1487,19 @@
         }
       }
     },
-    "/api/datasets": {
+    "/api/ready": {
       "get": {
-        "summary": "List Datasets",
-        "operationId": "list_datasets_api_datasets_get",
+        "summary": "Ready",
+        "operationId": "ready_api_ready_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DatasetList"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create Dataset",
-        "operationId": "create_dataset_api_datasets_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DatasetCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetSummary"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Ready Api Ready Get"
                 }
               }
             }
@@ -79,80 +1507,10 @@
         }
       }
     },
-    "/api/profile": {
-      "post": {
-        "summary": "Profile Upload",
-        "operationId": "profile_upload_api_profile_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_profile_upload_api_profile_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProfileOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/datasets/{name}": {
-      "delete": {
-        "summary": "Delete Dataset",
-        "operationId": "delete_dataset_api_datasets__name__delete",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/sessions/{name}": {
+    "/api/conversations/{name}": {
       "get": {
         "summary": "Get Session",
-        "operationId": "get_session_api_sessions__name__get",
+        "operationId": "get_session_api_conversations__name__get",
         "parameters": [
           {
             "name": "name",
@@ -160,6 +1518,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Name"
             }
           }
@@ -170,7 +1529,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionView"
+                  "$ref": "#/components/schemas/ChatOverview"
                 }
               }
             }
@@ -188,10 +1547,10 @@
         }
       }
     },
-    "/api/sessions/{name}/messages": {
+    "/api/conversations/{name}/commands": {
       "post": {
-        "summary": "Post Message",
-        "operationId": "post_message_api_sessions__name__messages_post",
+        "summary": "Post Command",
+        "operationId": "post_command_api_conversations__name__commands_post",
         "parameters": [
           {
             "name": "name",
@@ -199,6 +1558,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Name"
             }
           }
@@ -208,7 +1568,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MessageIn"
+                "$ref": "#/components/schemas/ChatCommand"
               }
             }
           }
@@ -219,7 +1579,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionView"
+                  "$ref": "#/components/schemas/ChatOverview"
                 }
               }
             }
@@ -237,10 +1597,10 @@
         }
       }
     },
-    "/api/sessions/{name}/resume": {
+    "/api/conversations/{name}/resume": {
       "post": {
         "summary": "Resume Session",
-        "operationId": "resume_session_api_sessions__name__resume_post",
+        "operationId": "resume_session_api_conversations__name__resume_post",
         "parameters": [
           {
             "name": "name",
@@ -248,6 +1608,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Name"
             }
           }
@@ -258,47 +1619,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionView"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/sessions/{name}/analyses": {
-      "post": {
-        "summary": "New Analysis",
-        "description": "A new question on the same file: a new thread over the memory as it stands; every run so far stays listed.",
-        "operationId": "new_analysis_api_sessions__name__analyses_post",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionView"
+                  "$ref": "#/components/schemas/ChatOverview"
                 }
               }
             }
@@ -410,101 +1731,131 @@
           }
         }
       }
-    },
-    "/api/artifacts/{name}/{artifact_id}/{file}": {
-      "get": {
-        "summary": "Artifact File",
-        "operationId": "artifact_file_api_artifacts__name___artifact_id___file__get",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "artifact_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Artifact Id"
-            }
-          },
-          {
-            "name": "file",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "File"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
     "schemas": {
-      "Activity": {
-        "properties": {
-          "node": {
-            "type": "string",
-            "title": "Node"
-          },
-          "since": {
-            "type": "string",
-            "title": "Since"
-          }
-        },
-        "type": "object",
-        "required": [
-          "node",
-          "since"
-        ],
-        "title": "Activity"
-      },
-      "ArtifactView": {
+      "AnalysisReview": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "address": {
+          "revision_id": {
             "type": "string",
-            "title": "Address",
-            "description": "artifact:<id>, as the chat cites it"
+            "title": "Revision Id"
           },
-          "kind": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "assumptions": {
+            "type": "string",
+            "title": "Assumptions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "revision_id",
+          "question",
+          "family",
+          "assumptions"
+        ],
+        "title": "AnalysisReview"
+      },
+      "AnalysisSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "lead_design_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Design Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "index",
+          "question",
+          "family",
+          "status",
+          "lead_design_id"
+        ],
+        "title": "AnalysisSummary"
+      },
+      "Artifact": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "URL-safe UUID, stored as 32 hexadecimal characters"
+          },
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "owner_id": {
+            "type": "string",
+            "title": "Owner Id"
+          },
+          "dataset_version_id": {
+            "type": "string",
+            "title": "Dataset Version Id"
+          },
+          "origin": {
             "type": "string",
             "enum": [
               "exploration",
-              "picture"
+              "analysis"
             ],
-            "title": "Kind"
+            "title": "Origin"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "figure",
+              "table",
+              "report",
+              "result"
+            ],
+            "title": "Format"
           },
           "design": {
             "anyOf": [
@@ -516,7 +1867,16 @@
               }
             ],
             "title": "Design",
-            "description": "the design run it is about; null before any run"
+            "description": "the design run the artifact is about; null when it is about the data before any run"
+          },
+          "memory_version": {
+            "type": "integer",
+            "title": "Memory Version"
+          },
+          "data_version": {
+            "type": "integer",
+            "title": "Data Version",
+            "description": "the version of the table it was made from; 0 is the uploaded file"
           },
           "ask": {
             "type": "string",
@@ -528,18 +1888,69 @@
             "title": "Summary",
             "description": "what it shows, in words; a picture's caption"
           },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "findings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "source_sha256": {
+            "type": "string",
+            "title": "Source Sha256"
+          },
+          "parent_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Parent Refs"
+          },
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "attempt_id": {
+            "type": "string",
+            "title": "Attempt Id"
+          },
           "facts": {
             "additionalProperties": {
               "type": "number"
             },
             "type": "object",
             "title": "Facts",
-            "description": "every number it holds, by name; each is citable as artifact:<id>.<name>"
+            "description": "every number it stands behind, by name"
           },
-          "figure": {
-            "type": "boolean",
-            "title": "Figure",
-            "default": false
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "the file names in its folder"
           },
           "table": {
             "anyOf": [
@@ -551,7 +1962,167 @@
               }
             ],
             "title": "Table",
-            "description": "the table file's name, when it wrote one"
+            "description": "the table file's name in the folder, when it wrote one"
+          },
+          "figure": {
+            "type": "boolean",
+            "title": "Figure",
+            "description": "figure.png is in the folder",
+            "default": false
+          },
+          "sandbox": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "docker"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox"
+          },
+          "made_at": {
+            "type": "string",
+            "title": "Made At",
+            "description": "ISO time"
+          },
+          "elements": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactElement"
+            },
+            "type": "array",
+            "title": "Elements"
+          },
+          "comparison_basis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Basis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset",
+          "owner_id",
+          "dataset_version_id",
+          "origin",
+          "format",
+          "design",
+          "memory_version",
+          "data_version",
+          "ask",
+          "summary",
+          "method",
+          "findings",
+          "limitations",
+          "tags",
+          "source_sha256",
+          "parent_refs",
+          "conversation_id",
+          "request_id",
+          "attempt_id",
+          "facts",
+          "files",
+          "made_at"
+        ],
+        "title": "Artifact"
+      },
+      "ArtifactElement": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "fact",
+              "table_column",
+              "chart_series"
+            ],
+            "title": "Kind"
+          },
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "selector": {
+            "type": "string",
+            "title": "Selector"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "file",
+          "selector"
+        ],
+        "title": "ArtifactElement"
+      },
+      "ArtifactSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ask": {
+            "type": "string",
+            "title": "Ask"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "exploration",
+              "analysis"
+            ],
+            "title": "Origin"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "figure",
+              "table",
+              "report",
+              "result"
+            ],
+            "title": "Format"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "dataset_version_id": {
+            "type": "string",
+            "title": "Dataset Version Id"
+          },
+          "design": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design"
           },
           "made_at": {
             "type": "string",
@@ -566,56 +2137,109 @@
                 "type": "null"
               }
             ],
-            "title": "Url",
-            "description": "where the page fetches figure.png, when there is one"
-          },
-          "table_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Table Url",
-            "description": "where the page fetches the table, when there is one"
+            "title": "Url"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "address",
-          "kind",
           "ask",
+          "origin",
+          "format",
           "summary",
-          "made_at"
+          "conversation_id",
+          "dataset_version_id",
+          "design",
+          "made_at",
+          "url"
         ],
-        "title": "ArtifactView",
-        "description": "An artifact a tool made from the file on request: what it is, what it shows, the numbers it holds, and where its files\nare served from."
+        "title": "ArtifactSummary"
       },
-      "AskItemView": {
+      "Body_ingest_dataset_api_datasets_post": {
         "properties": {
-          "address": {
+          "title": {
             "type": "string",
-            "title": "Address"
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
           },
-          "label": {
+          "idempotency_key": {
             "type": "string",
-            "title": "Label"
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Idempotency Key"
           },
-          "value": {
+          "file": {
             "type": "string",
-            "title": "Value"
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
           },
-          "options": {
+          "context": {
+            "type": "string",
+            "maxLength": 600002,
+            "title": "Context",
+            "description": "JSON-encoded original text, preserving line endings through browser multipart serialization",
+            "default": "\"\""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "idempotency_key",
+          "file"
+        ],
+        "title": "Body_ingest_dataset_api_datasets_post"
+      },
+      "ChatCommand": {
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Submission Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "message",
+              "correct",
+              "answer",
+              "fast_track",
+              "pause",
+              "focus",
+              "reuse",
+              "refresh",
+              "authorize"
+            ],
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 20000,
+            "title": "Text",
+            "default": ""
+          },
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "references": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Reference"
             },
             "type": "array",
-            "title": "Options"
+            "maxItems": 10,
+            "title": "References"
           },
-          "recommended": {
+          "edits": {
+            "items": {
+              "$ref": "#/components/schemas/ContextEdit"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Edits"
+          },
+          "question_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -624,31 +2248,302 @@
                 "type": "null"
               }
             ],
-            "title": "Recommended"
+            "title": "Question Id"
+          },
+          "option_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "address",
-          "label",
-          "value"
+          "submission_id",
+          "kind",
+          "revision_id"
         ],
-        "title": "AskItemView",
-        "description": "One line of a readback the page can answer on its own: picking another option or typing a value sends `address = value`."
+        "title": "ChatCommand"
       },
-      "Body_profile_upload_api_profile_post": {
+      "ChatContextSummary": {
         "properties": {
-          "file": {
+          "revision_id": {
             "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File"
+            "title": "Revision Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnIdentity"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "dispositions": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnDisposition"
+            },
+            "type": "array",
+            "title": "Dispositions"
+          },
+          "latest_revision_id": {
+            "type": "string",
+            "title": "Latest Revision Id"
           }
         },
         "type": "object",
         "required": [
-          "file"
+          "revision_id",
+          "revision",
+          "columns",
+          "dispositions",
+          "latest_revision_id"
         ],
-        "title": "Body_profile_upload_api_profile_post"
+        "title": "ChatContextSummary"
+      },
+      "ChatMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "type": "array",
+            "title": "References"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "text",
+          "references",
+          "created_at"
+        ],
+        "title": "ChatMessage"
+      },
+      "ChatOverview": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "running",
+              "interrupted"
+            ],
+            "title": "Status"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "focus_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus Label"
+          },
+          "fast_track": {
+            "type": "boolean",
+            "title": "Fast Track"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/GapQuestion"
+            },
+            "type": "array",
+            "title": "Questions"
+          },
+          "analysis_review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message_count": {
+            "type": "integer",
+            "title": "Message Count"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/ReadinessSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "dataset_id",
+          "title",
+          "question",
+          "version_id",
+          "revision_id",
+          "status",
+          "prompt",
+          "focus",
+          "fast_track",
+          "questions",
+          "analysis_review",
+          "message_count",
+          "error",
+          "readiness"
+        ],
+        "title": "ChatOverview"
+      },
+      "ChatStatements": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "statements": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Statements"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision_id",
+          "statements",
+          "next_offset"
+        ],
+        "title": "ChatStatements"
+      },
+      "Check": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "computed",
+              "unavailable",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "Check"
       },
       "CheckView": {
         "properties": {
@@ -707,75 +2602,105 @@
         ],
         "title": "CheckView"
       },
-      "ClaimView": {
+      "Citation": {
         "properties": {
-          "key": {
-            "type": "string",
-            "title": "Key"
+          "source_line": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Source Line"
           },
-          "kind": {
+          "start": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start",
+            "default": 0
+          },
+          "end": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "End",
+            "default": 1
+          },
+          "quote": {
             "type": "string",
-            "title": "Kind"
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Quote"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_line",
+          "quote"
+        ],
+        "title": "Citation"
+      },
+      "ColumnDisposition": {
+        "properties": {
+          "column_id": {
+            "type": "string",
+            "title": "Column Id"
           },
           "status": {
             "type": "string",
+            "enum": [
+              "reviewed",
+              "unresolved"
+            ],
             "title": "Status"
           },
-          "fields": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Fields"
-          },
-          "source": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source"
-          },
-          "evidence": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Evidence"
-          },
-          "check_detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Detail"
-          },
-          "asked": {
-            "type": "integer",
-            "title": "Asked",
-            "default": 0
-          },
-          "refutations": {
-            "type": "integer",
-            "title": "Refutations",
-            "default": 0
+          "reason": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Reason",
+            "default": ""
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "key",
-          "kind",
+          "column_id",
           "status"
         ],
-        "title": "ClaimView"
+        "title": "ColumnDisposition"
       },
-      "ColumnSummary": {
+      "ColumnIdentity": {
         "properties": {
+          "column_id": {
+            "type": "string",
+            "title": "Column Id"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Position"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "column_id",
+          "position",
+          "name",
+          "key"
+        ],
+        "title": "ColumnIdentity"
+      },
+      "ColumnResult": {
+        "properties": {
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -784,72 +2709,124 @@
             "type": "string",
             "title": "Key"
           },
-          "kind": {
+          "status": {
             "type": "string",
-            "title": "Kind"
+            "enum": [
+              "complete",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
           },
-          "nulls": {
-            "type": "integer",
-            "title": "Nulls"
-          },
-          "null_rate": {
-            "type": "number",
-            "title": "Null Rate",
-            "default": 0.0
-          },
-          "distinct": {
-            "type": "integer",
-            "title": "Distinct"
-          },
-          "constant": {
-            "type": "boolean",
-            "title": "Constant",
-            "default": false
-          },
-          "examples": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Examples"
-          },
-          "numeric": {
+          "empty_count": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/NumericShape"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Empty Count"
+          },
+          "whitespace_only_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whitespace Only Count"
+          },
+          "distinct_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distinct Count"
           },
           "top_values": {
             "items": {
-              "$ref": "#/components/schemas/TopValue"
+              "$ref": "#/components/schemas/Frequency"
             },
             "type": "array",
             "title": "Top Values"
           },
-          "datetime": {
+          "suspected_sentinels": {
+            "items": {
+              "$ref": "#/components/schemas/Frequency"
+            },
+            "type": "array",
+            "title": "Suspected Sentinels"
+          },
+          "sentinel_values_truncated": {
+            "type": "boolean",
+            "title": "Sentinel Values Truncated",
+            "default": false
+          },
+          "suggested_dtype": {
+            "type": "string",
+            "enum": [
+              "integer",
+              "decimal",
+              "boolean",
+              "date",
+              "datetime",
+              "text",
+              "mixed",
+              "unknown"
+            ],
+            "title": "Suggested Dtype",
+            "default": "unknown"
+          },
+          "numeric_parse_count": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/DatetimeShape"
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numeric Parse Count"
+          },
+          "numeric_exception_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numeric Exception Count"
+          },
+          "numeric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NumericSummary"
               },
               {
                 "type": "null"
               }
             ]
           },
-          "sentinels": {
+          "checks": {
             "items": {
-              "$ref": "#/components/schemas/Sentinel"
+              "$ref": "#/components/schemas/Check"
             },
             "type": "array",
-            "title": "Sentinels"
+            "title": "Checks"
           },
           "issues": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Issue"
             },
             "type": "array",
             "title": "Issues"
@@ -857,15 +2834,70 @@
         },
         "type": "object",
         "required": [
+          "position",
           "name",
           "key",
-          "kind",
-          "nulls",
-          "distinct",
-          "examples"
+          "status"
         ],
-        "title": "ColumnSummary",
-        "description": "One column as the profiler read it. Facts only: shape, missingness, and anything odd."
+        "title": "ColumnResult"
+      },
+      "ColumnSummary": {
+        "properties": {
+          "column_id": {
+            "type": "string",
+            "title": "Column Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "suggested_dtype": {
+            "type": "string",
+            "enum": [
+              "integer",
+              "decimal",
+              "boolean",
+              "date",
+              "datetime",
+              "text",
+              "mixed",
+              "unknown"
+            ],
+            "title": "Suggested Dtype"
+          },
+          "issue_count": {
+            "type": "integer",
+            "title": "Issue Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "column_id",
+          "position",
+          "name",
+          "key",
+          "status",
+          "suggested_dtype",
+          "issue_count"
+        ],
+        "title": "ColumnSummary"
       },
       "ConfidenceSet": {
         "properties": {
@@ -956,6 +2988,211 @@
         ],
         "title": "ContextAdmission"
       },
+      "ContextChange": {
+        "properties": {
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeStatement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeStatement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "before",
+          "after"
+        ],
+        "title": "ContextChange"
+      },
+      "ContextChanges": {
+        "properties": {
+          "from_revision_id": {
+            "type": "string",
+            "title": "From Revision Id"
+          },
+          "to_revision_id": {
+            "type": "string",
+            "title": "To Revision Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextChange"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_revision_id",
+          "to_revision_id",
+          "items",
+          "next_offset"
+        ],
+        "title": "ContextChanges"
+      },
+      "ContextColumnSummary": {
+        "properties": {
+          "column_id": {
+            "type": "string",
+            "title": "Column Id"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Position"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "statement_count": {
+            "type": "integer",
+            "title": "Statement Count"
+          },
+          "relationship_count": {
+            "type": "integer",
+            "title": "Relationship Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "column_id",
+          "position",
+          "name",
+          "key",
+          "statement_count",
+          "relationship_count"
+        ],
+        "title": "ContextColumnSummary"
+      },
+      "ContextColumnView": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "column": {
+            "$ref": "#/components/schemas/ColumnIdentity"
+          },
+          "statements": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Statements"
+          },
+          "dataset": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Dataset"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Relationships"
+          },
+          "concepts": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Concepts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision_id",
+          "version_id",
+          "column",
+          "statements",
+          "dataset",
+          "relationships",
+          "concepts"
+        ],
+        "title": "ContextColumnView"
+      },
+      "ContextDatasetView": {
+        "properties": {
+          "pack": {
+            "$ref": "#/components/schemas/ContextSummary"
+          },
+          "source_text": {
+            "type": "string",
+            "title": "Source Text"
+          },
+          "dataset": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Dataset"
+          },
+          "concepts": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Concepts"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Relationships"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pack",
+          "source_text",
+          "dataset",
+          "concepts",
+          "relationships"
+        ],
+        "title": "ContextDatasetView"
+      },
       "ContextDeficiency": {
         "properties": {
           "stage": {
@@ -996,64 +3233,305 @@
         ],
         "title": "ContextDeficiency"
       },
-      "DatasetCreate": {
+      "ContextEdit": {
         "properties": {
-          "name": {
+          "action": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9_]{1,39}$",
-            "title": "Name"
+            "enum": [
+              "add",
+              "replace",
+              "retire",
+              "review",
+              "unresolved"
+            ],
+            "title": "Action"
           },
-          "title": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Title"
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
           },
-          "upload_id": {
+          "statement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeStatement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
             "type": "string",
-            "pattern": "^[0-9a-f]{8}$",
-            "title": "Upload Id"
+            "maxLength": 10000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ContextEdit"
+      },
+      "ContextSummary": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "source_checksum": {
+            "type": "string",
+            "title": "Source Checksum"
+          },
+          "csv_checksum": {
+            "type": "string",
+            "title": "Csv Checksum"
+          },
+          "column_index_fingerprint": {
+            "type": "string",
+            "title": "Column Index Fingerprint"
+          },
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "extractor_version": {
+            "type": "string",
+            "title": "Extractor Version"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "source_present": {
+            "type": "boolean",
+            "title": "Source Present"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ContextColumnSummary"
+            },
+            "type": "array",
+            "title": "Columns"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision_id",
+          "dataset_id",
+          "version_id",
+          "revision",
+          "created_at",
+          "source_id",
+          "source_checksum",
+          "csv_checksum",
+          "column_index_fingerprint",
+          "schema_version",
+          "extractor_version",
+          "model",
+          "source_present",
+          "columns"
+        ],
+        "title": "ContextSummary"
+      },
+      "ContextView": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_prepared",
+              "prepared"
+            ],
+            "title": "Status"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ContextView"
+      },
+      "ConversationStart": {
+        "properties": {
+          "review_id": {
+            "type": "string",
+            "title": "Review Id"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Generation"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "title",
-          "upload_id"
+          "review_id",
+          "generation"
         ],
-        "title": "DatasetCreate",
-        "description": "CSV only. The conversation starts with the causal question; nothing about the data is typed into a form."
+        "title": "ConversationStart"
+      },
+      "ConversationView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "version_id",
+          "title",
+          "created_at"
+        ],
+        "title": "ConversationView"
       },
       "DatasetList": {
         "properties": {
-          "datasets": {
+          "items": {
             "items": {
-              "$ref": "#/components/schemas/DatasetSummary"
+              "$ref": "#/components/schemas/DatasetListItem"
             },
             "type": "array",
-            "title": "Datasets"
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "type": "object",
         "required": [
-          "datasets"
+          "items",
+          "next_cursor"
         ],
         "title": "DatasetList"
       },
-      "DatasetSummary": {
+      "DatasetListItem": {
         "properties": {
-          "name": {
+          "dataset_id": {
             "type": "string",
-            "title": "Name"
+            "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
           },
           "title": {
             "type": "string",
             "title": "Title"
           },
-          "csv": {
+          "filename": {
             "type": "string",
-            "title": "Csv"
+            "title": "Filename"
           },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "const": "saved",
+            "title": "Status",
+            "default": "saved"
+          },
+          "has_initial_context": {
+            "type": "boolean",
+            "title": "Has Initial Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "version_id",
+          "title",
+          "filename",
+          "size_bytes",
+          "created_at",
+          "has_initial_context"
+        ],
+        "title": "DatasetListItem"
+      },
+      "DatasetResult": {
+        "properties": {
           "rows": {
             "anyOf": [
               {
@@ -1076,85 +3554,49 @@
             ],
             "title": "Columns"
           },
-          "created_at": {
+          "duplicate_rows": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Created At"
+            "title": "Duplicate Rows"
           },
-          "shipped": {
-            "type": "boolean",
-            "title": "Shipped"
-          },
-          "has_claims": {
-            "type": "boolean",
-            "title": "Has Claims"
-          },
-          "question": {
-            "anyOf": [
-              {
-                "type": "string"
+          "candidate_keys": {
+            "items": {
+              "items": {
+                "type": "integer"
               },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Question"
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Candidate Keys"
           },
-          "session": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SessionBrief"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "key_search_limit": {
+            "type": "string",
+            "title": "Key Search Limit",
+            "default": "All single columns; pairs among at most 12 non-single keys by descending cardinality, then source position. No larger combinations."
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/Check"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "type": "array",
+            "title": "Issues"
           }
         },
         "type": "object",
-        "required": [
-          "name",
-          "title",
-          "csv",
-          "shipped",
-          "has_claims"
-        ],
-        "title": "DatasetSummary"
-      },
-      "DatetimeShape": {
-        "properties": {
-          "first": {
-            "type": "string",
-            "title": "First"
-          },
-          "last": {
-            "type": "string",
-            "title": "Last"
-          },
-          "frequency": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Frequency"
-          }
-        },
-        "type": "object",
-        "required": [
-          "first",
-          "last"
-        ],
-        "title": "DatetimeShape"
+        "title": "DatasetResult"
       },
       "DecisionView": {
         "properties": {
@@ -1512,6 +3954,31 @@
         "type": "object",
         "title": "EstimateView"
       },
+      "EvidenceView": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "quotes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quotes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "text"
+        ],
+        "title": "EvidenceView"
+      },
       "Falsification": {
         "properties": {
           "design_id": {
@@ -1720,30 +4187,64 @@
         ],
         "title": "FileEntry"
       },
-      "GapView": {
+      "Frequency": {
         "properties": {
-          "address": {
+          "value": {
             "type": "string",
-            "title": "Address"
+            "title": "Value"
           },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
+          "count": {
+            "type": "integer",
+            "title": "Count"
           },
-          "cites": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Cites"
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
           }
         },
         "type": "object",
         "required": [
-          "address",
-          "reason"
+          "value",
+          "count"
         ],
-        "title": "GapView"
+        "title": "Frequency"
+      },
+      "GapQuestion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "revision_id",
+          "target",
+          "text"
+        ],
+        "title": "GapQuestion"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1758,148 +4259,67 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "HandoffField": {
+      "IngestedDataset": {
         "properties": {
-          "address": {
+          "dataset_id": {
             "type": "string",
-            "title": "Address"
+            "title": "Dataset Id"
           },
-          "value": {
-            "title": "Value"
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "initial_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Context"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
           },
           "status": {
             "type": "string",
-            "title": "Status"
-          },
-          "source": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source"
-          },
-          "said": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Said"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
+            "const": "saved",
+            "title": "Status",
+            "default": "saved"
           }
         },
         "type": "object",
         "required": [
-          "address",
-          "status"
+          "dataset_id",
+          "version_id",
+          "title",
+          "filename",
+          "size_bytes",
+          "sha256",
+          "initial_context",
+          "created_at"
         ],
-        "title": "HandoffField",
-        "description": "One field the design rests on, as the memory holds it: the value beside how it was settled."
-      },
-      "HandoffView": {
-        "properties": {
-          "context_id": {
-            "type": "string",
-            "title": "Context Id",
-            "default": ""
-          },
-          "dataset_identity": {
-            "type": "string",
-            "title": "Dataset Identity",
-            "default": ""
-          },
-          "data_version": {
-            "type": "integer",
-            "title": "Data Version",
-            "default": 0
-          },
-          "admission": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ContextAdmission"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "family": {
-            "type": "string",
-            "title": "Family"
-          },
-          "specialist": {
-            "type": "string",
-            "title": "Specialist"
-          },
-          "outcome": {
-            "type": "string",
-            "title": "Outcome"
-          },
-          "treatment": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Treatment"
-          },
-          "bets_on": {
-            "type": "string",
-            "title": "Bets On",
-            "default": ""
-          },
-          "memory_version": {
-            "type": "integer",
-            "title": "Memory Version",
-            "default": 0
-          },
-          "fields": {
-            "items": {
-              "$ref": "#/components/schemas/HandoffField"
-            },
-            "type": "array",
-            "title": "Fields",
-            "description": "the claim fields first, then every carried column's fields"
-          },
-          "judge": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/JudgeView"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "the judge's reading of these fields, when it gave one"
-          }
-        },
-        "type": "object",
-        "required": [
-          "family",
-          "specialist",
-          "outcome"
-        ],
-        "title": "HandoffView"
+        "title": "IngestedDataset"
       },
       "InterpretationView": {
         "properties": {
@@ -1944,36 +4364,228 @@
         ],
         "title": "InterpretationView"
       },
-      "JudgeView": {
+      "Issue": {
         "properties": {
-          "verdict": {
+          "id": {
             "type": "string",
-            "enum": [
-              "ready",
-              "risky",
-              "not_ready"
-            ],
-            "title": "Verdict"
+            "title": "Id"
           },
-          "summary": {
+          "check": {
             "type": "string",
-            "title": "Summary"
+            "title": "Check"
           },
-          "gaps": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "column_positions": {
             "items": {
-              "$ref": "#/components/schemas/GapView"
+              "type": "integer"
             },
             "type": "array",
-            "title": "Gaps"
+            "title": "Column Positions"
+          },
+          "affected_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Count"
+          },
+          "examples": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "examples_truncated": {
+            "type": "boolean",
+            "title": "Examples Truncated",
+            "default": false
           }
         },
         "type": "object",
         "required": [
-          "verdict",
-          "summary"
+          "id",
+          "check",
+          "code",
+          "reason"
         ],
-        "title": "JudgeView",
-        "description": "A second reading of the context before the run: advice beside the fields, never a block."
+        "title": "Issue"
+      },
+      "KnowledgeStatement": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "dataset",
+              "column",
+              "concept",
+              "relationship",
+              "requirement"
+            ],
+            "title": "Scope"
+          },
+          "field": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Field"
+          },
+          "column_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Column Ids"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Value"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "source_statement",
+              "interpretation"
+            ],
+            "title": "Basis",
+            "default": "source_statement"
+          },
+          "qualifications": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Qualifications",
+            "default": ""
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Citations"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/Participant"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Participants"
+          },
+          "timing": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Timing",
+            "default": ""
+          },
+          "conditions": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Conditions",
+            "default": ""
+          },
+          "directness": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "indirect",
+              "unspecified"
+            ],
+            "title": "Directness",
+            "default": "unspecified"
+          },
+          "absence_scope": {
+            "type": "string",
+            "enum": [
+              "direct_effect",
+              "any_pathway",
+              "unspecified"
+            ],
+            "title": "Absence Scope",
+            "default": "unspecified"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "reviewed",
+              "unresolved",
+              "withdrawn"
+            ],
+            "title": "Status",
+            "default": "proposed"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceReference"
+          },
+          "review_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Reason",
+            "default": ""
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementBinding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "field",
+          "value",
+          "source"
+        ],
+        "title": "KnowledgeStatement"
       },
       "Mark": {
         "properties": {
@@ -2010,19 +4622,33 @@
         "title": "Mark",
         "description": "A reference line: the cutoff, the change period, a floor."
       },
-      "MessageIn": {
+      "MessagePage": {
         "properties": {
-          "text": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Text"
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
           }
         },
         "type": "object",
         "required": [
-          "text"
+          "items",
+          "before"
         ],
-        "title": "MessageIn"
+        "title": "MessagePage"
       },
       "Node": {
         "properties": {
@@ -2059,11 +4685,23 @@
         "title": "Node",
         "description": "One node of a graph figure: a column, or the hidden factor."
       },
-      "NumericShape": {
+      "NumericSummary": {
         "properties": {
           "min": {
             "type": "number",
             "title": "Min"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          },
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          },
+          "p01": {
+            "type": "number",
+            "title": "P01"
           },
           "p25": {
             "type": "number",
@@ -2077,25 +4715,23 @@
             "type": "number",
             "title": "P75"
           },
-          "max": {
+          "p99": {
             "type": "number",
-            "title": "Max"
-          },
-          "mean": {
-            "type": "number",
-            "title": "Mean"
+            "title": "P99"
           }
         },
         "type": "object",
         "required": [
           "min",
+          "max",
+          "mean",
+          "p01",
           "p25",
           "p50",
           "p75",
-          "max",
-          "mean"
+          "p99"
         ],
-        "title": "NumericShape"
+        "title": "NumericSummary"
       },
       "Obligation": {
         "properties": {
@@ -2139,209 +4775,323 @@
         ],
         "title": "Obligation"
       },
-      "ProfileOut": {
+      "Option": {
         "properties": {
-          "upload_id": {
+          "id": {
             "type": "string",
-            "title": "Upload Id"
+            "title": "Id"
           },
-          "filename": {
+          "label": {
             "type": "string",
-            "title": "Filename"
+            "title": "Label"
           },
-          "rows": {
+          "value": {
+            "title": "Value"
+          },
+          "unknown": {
+            "type": "boolean",
+            "title": "Unknown",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "Option"
+      },
+      "Participant": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "column",
+              "concept",
+              "event"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "participant",
+              "from",
+              "to",
+              "intermediate",
+              "condition"
+            ],
+            "title": "Role",
+            "default": "participant"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "Participant"
+      },
+      "ProfileView": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_profiled",
+              "complete",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SavedProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ProfileView"
+      },
+      "ReadinessSummary": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "unprepared",
+              "needs_context",
+              "ready",
+              "blocked"
+            ],
+            "title": "Status"
+          },
+          "missing": {
             "type": "integer",
-            "title": "Rows"
+            "title": "Missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "missing"
+        ],
+        "title": "ReadinessSummary"
+      },
+      "Reference": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "column",
+              "artifact"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "element": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Element"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "Reference"
+      },
+      "RequirementBinding": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "address"
+        ],
+        "title": "RequirementBinding",
+        "description": "A catalogue field bound to this statement, never a separately writable claim."
+      },
+      "ReviewSave": {
+        "properties": {
+          "generation": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Generation"
+          },
+          "edits": {
+            "items": {
+              "$ref": "#/components/schemas/ContextEdit"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Edits"
+          },
+          "dispositions": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnDisposition"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Dispositions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generation"
+        ],
+        "title": "ReviewSave"
+      },
+      "ReviewStart": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "ReviewStart"
+      },
+      "ReviewStatements": {
+        "properties": {
+          "statements": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeStatement"
+            },
+            "type": "array",
+            "title": "Statements"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "statements",
+          "next_offset"
+        ],
+        "title": "ReviewStatements"
+      },
+      "ReviewView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "starting_revision_id": {
+            "type": "string",
+            "title": "Starting Revision Id"
+          },
+          "completed_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed Revision Id"
+          },
+          "generation": {
+            "type": "integer",
+            "title": "Generation"
           },
           "columns": {
             "items": {
-              "$ref": "#/components/schemas/ColumnSummary"
+              "$ref": "#/components/schemas/ColumnIdentity"
             },
             "type": "array",
             "title": "Columns"
           },
-          "head": {
+          "edits": {
             "items": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
+              "$ref": "#/components/schemas/ContextEdit"
             },
             "type": "array",
-            "title": "Head"
+            "title": "Edits"
           },
-          "duplicate_rows": {
-            "type": "integer",
-            "title": "Duplicate Rows",
-            "default": 0
-          },
-          "candidate_keys": {
+          "dispositions": {
             "items": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
+              "$ref": "#/components/schemas/ColumnDisposition"
             },
             "type": "array",
-            "title": "Candidate Keys"
-          },
-          "grain": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Grain"
-          },
-          "co_missing": {
-            "items": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "type": "array",
-            "title": "Co Missing"
-          },
-          "issues": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Issues"
+            "title": "Dispositions"
           }
         },
         "type": "object",
         "required": [
-          "upload_id",
-          "filename",
-          "rows",
-          "columns"
+          "id",
+          "dataset_id",
+          "version_id",
+          "question",
+          "starting_revision_id",
+          "completed_revision_id",
+          "generation",
+          "columns",
+          "edits",
+          "dispositions"
         ],
-        "title": "ProfileOut"
-      },
-      "Prompt": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "title": "Text",
-            "default": ""
-          },
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": ""
-          },
-          "ready": {
-            "type": "boolean",
-            "title": "Ready",
-            "default": false
-          },
-          "open": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Open"
-          },
-          "runs": {
-            "type": "integer",
-            "title": "Runs",
-            "default": 0
-          },
-          "phase": {
-            "type": "string",
-            "title": "Phase",
-            "default": "before"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind",
-            "description": "question: the causal question is being asked; chat: a turn with nothing asked; ask: a question rides with the reply; ready: the design the desk would run, waiting for the word; after: the chat after a run"
-          }
-        },
-        "type": "object",
-        "title": "Prompt"
-      },
-      "QuestionView": {
-        "properties": {
-          "keys": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Keys"
-          },
-          "kind": {
-            "type": "string",
-            "title": "Kind"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "options": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Options"
-          },
-          "recommended": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Recommended"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/AskItemView"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "evidence_cites": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Evidence Cites"
-          },
-          "because": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Because",
-            "description": "the families that need these fields"
-          }
-        },
-        "type": "object",
-        "required": [
-          "keys",
-          "kind",
-          "text"
-        ],
-        "title": "QuestionView",
-        "description": "The one question the desk asks this turn, as the page shows it: the field addresses it settles, its form, its chips, the\noption the desk recommends first, and for a readback each draft as an item."
+        "title": "ReviewView"
       },
       "RunFiles": {
         "properties": {
@@ -2658,14 +5408,6 @@
             "title": "Figures",
             "description": "what the run left, in the order the chat shows them"
           },
-          "artifacts": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactView"
-            },
-            "type": "array",
-            "title": "Artifacts",
-            "description": "the artifacts about this run, oldest first"
-          },
           "declines": {
             "items": {
               "$ref": "#/components/schemas/DeclineView"
@@ -2681,6 +5423,110 @@
           "status"
         ],
         "title": "RunView"
+      },
+      "SavedColumn": {
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "title": "Profile Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "column_id": {
+            "type": "string",
+            "title": "Column Id"
+          },
+          "source_checksum": {
+            "type": "string",
+            "title": "Source Checksum"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ColumnResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile_id",
+          "version_id",
+          "column_id",
+          "source_checksum",
+          "result"
+        ],
+        "title": "SavedColumn"
+      },
+      "SavedProfile": {
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "title": "Profile Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "source_checksum": {
+            "type": "string",
+            "title": "Source Checksum"
+          },
+          "profiler_version": {
+            "type": "string",
+            "title": "Profiler Version"
+          },
+          "settings_fingerprint": {
+            "type": "string",
+            "title": "Settings Fingerprint"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/DatasetResult"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnSummary"
+            },
+            "type": "array",
+            "title": "Columns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile_id",
+          "dataset_id",
+          "version_id",
+          "source_checksum",
+          "profiler_version",
+          "settings_fingerprint",
+          "created_at",
+          "updated_at",
+          "status",
+          "dataset",
+          "columns"
+        ],
+        "title": "SavedProfile"
       },
       "Sensitivity": {
         "properties": {
@@ -2755,29 +5601,6 @@
           "method"
         ],
         "title": "Sensitivity"
-      },
-      "Sentinel": {
-        "properties": {
-          "value": {
-            "type": "string",
-            "title": "Value"
-          },
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "value",
-          "count",
-          "reason"
-        ],
-        "title": "Sentinel"
       },
       "Series": {
         "properties": {
@@ -2884,480 +5707,37 @@
         "title": "Series",
         "description": "One drawn set of values. `x` is a level, a period, or a bin; `y` the number; `lo`/`hi` an interval; `n` the rows behind each point."
       },
-      "SessionBrief": {
+      "SourceReference": {
         "properties": {
-          "stage": {
-            "type": "string",
-            "title": "Stage"
-          },
-          "phase": {
-            "type": "string",
-            "title": "Phase"
-          },
-          "runs": {
-            "type": "integer",
-            "title": "Runs"
-          }
-        },
-        "type": "object",
-        "required": [
-          "stage",
-          "phase",
-          "runs"
-        ],
-        "title": "SessionBrief"
-      },
-      "SessionView": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "question": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Question"
-          },
-          "stage": {
-            "type": "string",
-            "enum": [
-              "busy",
-              "waiting",
-              "ended",
-              "stale",
-              "error",
-              "new"
-            ],
-            "title": "Stage"
-          },
-          "phase": {
-            "type": "string",
-            "title": "Phase",
-            "default": "before"
-          },
-          "activity": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Activity"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ready": {
-            "type": "boolean",
-            "title": "Ready",
-            "default": false
-          },
-          "prompt": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Prompt"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "questions": {
-            "items": {
-              "$ref": "#/components/schemas/QuestionView"
-            },
-            "type": "array",
-            "title": "Questions"
-          },
-          "claims": {
-            "items": {
-              "$ref": "#/components/schemas/ClaimView"
-            },
-            "type": "array",
-            "title": "Claims"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/StatusView"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "runs": {
-            "items": {
-              "$ref": "#/components/schemas/RunView"
-            },
-            "type": "array",
-            "title": "Runs"
-          },
-          "brief": {
-            "type": "string",
-            "title": "Brief",
-            "default": ""
-          },
-          "transcript": {
-            "items": {
-              "$ref": "#/components/schemas/Turn"
-            },
-            "type": "array",
-            "title": "Transcript"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "analysis": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Analysis",
-            "description": "a<k>: this conversation's journal"
-          },
-          "journal": {
-            "items": {
-              "$ref": "#/components/schemas/StepView"
-            },
-            "type": "array",
-            "title": "Journal",
-            "description": "the conversation's steps, in order"
-          },
-          "artifacts": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactView"
-            },
-            "type": "array",
-            "title": "Artifacts",
-            "description": "the artifacts about the data before any run, oldest first"
-          },
-          "handoff": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/HandoffView"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "at the ready moment: the context the run would rest on, field by field"
-          },
-          "data_version": {
-            "type": "integer",
-            "title": "Data Version",
-            "description": "the table version in play; 0 is the uploaded file",
-            "default": 0
-          },
-          "versions": {
-            "items": {
-              "$ref": "#/components/schemas/VersionView"
-            },
-            "type": "array",
-            "title": "Versions",
-            "description": "every table version the data agent wrote, oldest first"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "title",
-          "stage"
-        ],
-        "title": "SessionView"
-      },
-      "StatusView": {
-        "properties": {
-          "endpoint_admissions": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ContextAdmission"
-            },
-            "type": "object",
-            "title": "Endpoint Admissions"
-          },
-          "selected_family": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Selected Family"
-          },
-          "table": {
-            "additionalProperties": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "type": "object",
-            "title": "Table"
-          },
-          "surviving": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Surviving"
-          },
-          "struck": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Struck"
-          },
-          "required": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Required"
-          },
-          "settled": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Settled"
-          },
-          "open": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Open"
-          },
-          "ready": {
-            "type": "boolean",
-            "title": "Ready"
-          },
-          "contradictions": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Contradictions"
-          }
-        },
-        "type": "object",
-        "required": [
-          "table",
-          "surviving",
-          "struck",
-          "required",
-          "settled",
-          "open",
-          "ready",
-          "contradictions"
-        ],
-        "title": "StatusView"
-      },
-      "StepView": {
-        "properties": {
-          "n": {
-            "type": "integer",
-            "title": "N"
-          },
-          "address": {
-            "type": "string",
-            "title": "Address"
-          },
           "kind": {
             "type": "string",
+            "enum": [
+              "extraction",
+              "review",
+              "message"
+            ],
             "title": "Kind"
           },
-          "by": {
+          "id": {
             "type": "string",
-            "title": "By"
-          },
-          "at": {
-            "type": "string",
-            "title": "At"
-          },
-          "memory_version": {
-            "type": "integer",
-            "title": "Memory Version"
-          },
-          "design": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Design",
-            "description": "the design run the step belongs to; null for the steps leading to the first design"
-          },
-          "read": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Read"
-          },
-          "left": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Left"
-          },
-          "note": {
-            "type": "string",
-            "title": "Note",
-            "default": ""
-          },
-          "run": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run",
-            "description": "the design index a left entry names, when one does"
-          },
-          "run_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id",
-            "description": "the lane run dir's name, when a left entry is one"
-          }
-        },
-        "type": "object",
-        "required": [
-          "n",
-          "address",
-          "kind",
-          "by",
-          "at",
-          "memory_version"
-        ],
-        "title": "StepView",
-        "description": "One step of the conversation's journal, with the run it names resolved for the page."
-      },
-      "TopValue": {
-        "properties": {
-          "value": {
-            "type": "string",
-            "title": "Value"
-          },
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          },
-          "share": {
-            "type": "number",
-            "title": "Share"
-          }
-        },
-        "type": "object",
-        "required": [
-          "value",
-          "count",
-          "share"
-        ],
-        "title": "TopValue"
-      },
-      "Turn": {
-        "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "user",
-              "assistant",
-              "system"
-            ],
-            "title": "Role"
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id"
           },
           "text": {
             "type": "string",
-            "title": "Text"
-          },
-          "phase": {
-            "type": "string",
-            "title": "Phase",
-            "default": "before"
-          },
-          "at": {
-            "type": "string",
-            "title": "At"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
-          "figure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FigureSpec"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "shown under the text"
-          },
-          "artifact": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ArtifactView"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "a picture drawn on request, shown under the text"
+            "maxLength": 20000,
+            "title": "Text",
+            "default": ""
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "role",
-          "text",
-          "at"
+          "kind",
+          "id"
         ],
-        "title": "Turn"
+        "title": "SourceReference"
       },
       "ValidationError": {
         "properties": {
@@ -3398,64 +5778,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "VersionView": {
-        "properties": {
-          "v": {
-            "type": "integer",
-            "title": "V"
-          },
-          "parent": {
-            "type": "integer",
-            "title": "Parent"
-          },
-          "address": {
-            "type": "string",
-            "title": "Address"
-          },
-          "ask": {
-            "type": "string",
-            "title": "Ask"
-          },
-          "summary": {
-            "type": "string",
-            "title": "Summary"
-          },
-          "rows": {
-            "type": "integer",
-            "title": "Rows"
-          },
-          "added": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Added"
-          },
-          "dropped": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Dropped"
-          },
-          "made_at": {
-            "type": "string",
-            "title": "Made At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "v",
-          "parent",
-          "address",
-          "ask",
-          "summary",
-          "rows",
-          "made_at"
-        ],
-        "title": "VersionView",
-        "description": "One table version the data agent wrote: what was asked, what changed, and where it came from."
       }
     }
   }

@@ -6,12 +6,13 @@ from __future__ import annotations
 import ast
 import json
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from causal_agent.common.numbers import grounded, numbers_in
-from causal_agent.explore.contracts import Exploration, ExploreRequest
+from causal_agent.explore.contracts import Exploration, ExploreRequest, TransformRequest
 from causal_agent.explore.project import mentions
 
 if TYPE_CHECKING:
@@ -72,7 +73,7 @@ def _sentences(text: str) -> list[str]:
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
 
 
-def gate_record(record: Exploration, req: ExploreRequest, tools: CodeTools) -> list[str]:
+def _product_errors(record: Exploration, req: ExploreRequest | TransformRequest, tools: CodeTools) -> list[str]:
     """Why the record is refused, or nothing."""
     errors: list[str] = []
     step = tools.step(record.step)
@@ -95,24 +96,39 @@ def gate_record(record: Exploration, req: ExploreRequest, tools: CodeTools) -> l
             missing = [n for n in record.facts if n not in step.facts]
             if missing:
                 errors.append(f"step {record.step}'s facts.json lacks: {', '.join(missing)}")
-    if record.figure and not ((folder / "figure.png").is_file() and (folder / "figure.png").stat().st_size > 0):
-        errors.append(f"figure is true but step {record.step} wrote no figure.png")
+    if record.figure:
+        try:
+            from PIL import Image
+
+            with Image.open(folder / "figure.png") as image:
+                image.verify()
+        except (OSError, ValueError):
+            errors.append(f"figure is true but step {record.step} wrote no valid figure.png")
     if record.table:
         t = folder / record.table
-        if record.table not in step.files or not t.is_file():
+        if Path(record.table).name != record.table or record.table in {
+            "facts.json",
+            "artifact.json",
+            "result.json",
+            "request.json",
+            "trail.json",
+            "thoughts.json",
+        }:
+            errors.append("table must name an unreserved output filename")
+        elif record.table not in step.files or not t.is_file():
             errors.append(f"table names {record.table!r}, which step {record.step} did not write")
         elif not _parses(t):
             errors.append(f"table {record.table!r} is not a readable, non-empty CSV or JSON file")
     if not (record.facts or record.figure or record.table):
         errors.append("the record names no product: at least one fact, a figure, or a table")
-    if req.product == "table":
+    if isinstance(req, TransformRequest):
         errors += new_table_errors(record, req, folder)
-    if req.outcome and req.treatment and not req.frozen:
+    if isinstance(req, TransformRequest) and req.outcome and req.treatment and not req.frozen:
         joined = [s for s in _sentences(record.summary) if mentions(s, req.outcome) and mentions(s, req.treatment)]
         joined += [n for n in record.facts if mentions(n, req.outcome) and mentions(n, req.treatment)]
         if joined:
             errors.append("before the design has run nothing may relate the outcome to the treatment; this does: " + "; ".join(repr(j) for j in joined))
-    known = list((step.facts or {}).values()) + numbers_in(req.context) + numbers_in(req.ask)  # the ask's own numbers were told too
+    known = list((step.facts or {}).values()) + numbers_in(req.context) + (numbers_in(req.ask) if isinstance(req, TransformRequest) else [])
     loose = [v for v in numbers_in(record.summary) if not grounded(v, known)]
     if loose:
         errors.append("the summary states numbers that are in neither facts.json nor what you were told: " + ", ".join(f"{v:g}" for v in loose))
@@ -131,7 +147,7 @@ def _parses(path) -> bool:
     return False
 
 
-def new_table_errors(record: Exploration, req: ExploreRequest, folder) -> list[str]:
+def new_table_errors(record: Exploration, req: TransformRequest, folder) -> list[str]:
     """What a new version of the table is held to: the step wrote table.csv; every row carries the row id it was given, once, and
     no row is new; the columns the pair needs are still there."""
     from causal_agent.explore.project import ROW
@@ -161,4 +177,48 @@ def new_table_errors(record: Exploration, req: ExploreRequest, folder) -> list[s
         errors.append("the new table must keep " + ", ".join(repr(c) for c in req.keep) + "; missing: " + ", ".join(repr(c) for c in gone))
     if len(df) == 0:
         errors.append("the new table has no rows")
+    return errors
+
+
+def gate_record(record: Exploration, req: ExploreRequest | TransformRequest, tools: CodeTools) -> list[str]:
+    if isinstance(req, TransformRequest):
+        return _product_errors(record, req, tools)
+    if record.status == "needs_input":
+        errors = []
+        if not getattr(tools, "inspections", 0):
+            errors.append("inspect the supplied inputs before requesting missing data; writing Python is your job, not missing input")
+        if not record.needs or not record.summary.strip():
+            errors.append("needs_input requires a specific question or missing resource and an explanation")
+        if record.facts or record.figure or record.table:
+            errors.append("needs_input cannot publish unverified products")
+        if any(not grounded(n, numbers_in(req.context)) for n in numbers_in(record.summary)):
+            errors.append("needs_input must explain what is missing, without claiming uncomputed numerical findings")
+        return errors
+    errors = _product_errors(record, req, tools)
+    if not record.method.strip() or not record.findings or not record.limitations:
+        errors.append("a completed answer requires its method/rationale, evidence-backed findings and limitations")
+    allowed = set(record.facts) | ({"figure"} if record.figure else set()) | ({"table"} if record.table else set())
+    for finding in record.findings:
+        cites = re.findall(r"\[([^\]]+)\]", finding)
+        if not cites or any(c not in allowed for c in cites):
+            errors.append(
+                "Each finding needs an exact bracketed evidence name. Use separate brackets, never comma-separated names inside one bracket. "
+                + "Allowed citations: "
+                + " ".join(f"[{name}]" for name in sorted(allowed))
+                + ". Invalid finding: "
+                + finding
+            )
+    step = tools.step(record.step)
+    known = [v for k, v in (step.facts or {}).items() if k in record.facts] if step else []
+    missing = sorted({n for text in [record.summary, *record.findings] for n in numbers_in(re.sub(r"\[[^\]]+\]", "", text)) if not grounded(n, known)})
+    if missing:
+        errors.append(
+            "Answer numbers missing from the selected facts VALUES: "
+            + ", ".join(f"{n:g}" for n in missing)
+            + ". Numbers in fact NAMES do not count. Include category codes as separate numeric facts, select those names in record.facts, or omit those numbers from prose. If absent, repair facts.json with done=false/action=run_code; preserve the successful figure from INPUTS_DIR."
+        )
+    if record.figure and f"step_{record.step}/figure.png" not in getattr(tools, "inspected", set()):
+        errors.append(
+            f'inspect the generated figure pixels before delivering it: action="inspect_output", reference="step_{record.step}/figure.png", done=false, code=""'
+        )
     return errors

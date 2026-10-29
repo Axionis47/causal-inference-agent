@@ -7,6 +7,7 @@ from __future__ import annotations
 from langchain_core.messages import AIMessage
 
 from causal_agent.explore.contracts import Exploration
+from causal_agent.explore.inspection import ExploreAction
 from causal_agent.explore.tools import RunCodeStep
 
 
@@ -24,19 +25,27 @@ class FakeLLM:
         class R:
             def invoke(self_, messages):
                 fake.systems.setdefault(schema.__name__, []).append(messages[0][1])
-                fake.humans.setdefault(schema.__name__, []).append(messages[-1][1])
-                if schema is RunCodeStep:
+                human = messages[-1][1]
+                if isinstance(human, list):
+                    human = "\n".join(p.get("text", "[image]") for p in human)
+                fake.humans.setdefault(schema.__name__, []).append(human)
+                if schema in (RunCodeStep, ExploreAction):
                     if fake.current is None:
                         fake.current = fake.rounds.pop(0) if fake.rounds else []
                     if fake.current:
-                        parsed = RunCodeStep(code=fake.current.pop(0))
+                        item = fake.current.pop(0)
+                        parsed = (
+                            item
+                            if isinstance(item, ExploreAction)
+                            else (ExploreAction(action="run_code", code=item) if schema is ExploreAction else RunCodeStep(code=item))
+                        )
                     else:
                         fake.current = None
-                        parsed = RunCodeStep(done=True)
+                        parsed = schema(done=True)
                 else:
                     parsed = fake.answers.pop(0)
                 return {
-                    "raw": AIMessage(content=[{"type": "thinking", "thinking": "looking" if schema is RunCodeStep else "answering"}]),
+                    "raw": AIMessage(content=[{"type": "thinking", "thinking": "looking" if schema in (RunCodeStep, ExploreAction) else "answering"}]),
                     "parsed": parsed,
                     "parsing_error": None,
                 }

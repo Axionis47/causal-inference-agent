@@ -8,10 +8,9 @@ from pathlib import Path
 import pandas as pd
 from langgraph.config import get_config, get_stream_writer
 
-from causal_agent.common.contracts import QuestionFrame, Said
+from causal_agent.common.contracts import QuestionFrame
 from causal_agent.families import registry as R
 from causal_agent.memory import facts as FX
-from causal_agent.memory import journal as J
 from causal_agent.memory import ops
 from causal_agent.memory import views as V
 from causal_agent.memory.catalogue import Catalogue, ClaimKind, load_catalogue, load_thresholds
@@ -121,33 +120,3 @@ def focused_needs(state) -> dict:
     if selected in needs and (not focus or selected in focus):
         return {selected: needs[selected]}
     return {k: v for k, v in needs.items() if k in focus} if focus else needs
-
-
-def journal_of(state) -> J.Journal:
-    """This conversation's journal."""
-    return J.open_journal(state["dataset"], state["analysis"])
-
-
-def record(state, kind: J.StepKind, *, by: J.By, memory: Memory, design: int | None = None, read=(), left=(), note: str = "") -> J.Step:
-    """One step into this conversation's journal: what was done, by whom, at which memory version, reading and leaving what."""
-    return journal_of(state).append(kind, by=by, memory_version=memory.version, design=design, read=read, left=left, note=note)
-
-
-def design_now(state) -> int | None:
-    """The design run a step belongs to: the last design written when the conversation is after a run; none before one, since
-    the design it leads to is not written yet."""
-    runs = state.get("runs") or []
-    return int(runs[-1].index) if state.get("phase") == "after" and runs else None
-
-
-def _remember(memory: Memory, turn: int, about: str, text: str) -> None:
-    if text and not any(s.turn == turn for s in memory.said):
-        memory.said.append(Said(turn=turn, about=about, text=text))
-
-
-def _design_line(status, memory: Memory, frame: QuestionFrame | None) -> str:
-    fams = status.surviving
-    if not fams:
-        return ""
-    ch = memory.values_of("claim:change")
-    return f"The question, {frame.outcome if frame else 'the outcome'} against {ch.get('what') or 'the change'}, can be answered by {', '.join(f.replace('_', ' ') for f in fams)}."

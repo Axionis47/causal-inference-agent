@@ -20,7 +20,6 @@ class Paths:
     web: Path  # data/web/<name>/meta.json, transcript.jsonl
     runs: Path  # where a lane writes a run's table, design, estimates, report
     profiles: Path  # the profile cache, keyed by file digest
-    uploads: Path  # staged uploads before a dataset is made
     checkpoint_db: Path  # the desk's sqlite checkpoints
     dist: Path  # the built web page the API serves
 
@@ -41,8 +40,9 @@ class Model:
 
 @dataclass(frozen=True)
 class Sandbox:
-    kind: str  # auto | seatbelt | bwrap | unshare | subprocess | docker: where a script runs; auto picks the strongest at hand
-    image: str  # the container image, when docker
+    image: str  # the mandatory Docker script runtime
+    queue: str = ""  # Compose-only private spool, serviced by the network-disabled Docker worker
+    agent_url: str = ""  # persistent A2A service; empty starts a local trusted agent process
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,6 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
         web=root / "data" / "web",
         runs=root / env.get("RUN_DIR", ".artifacts/runs"),
         profiles=root / env.get("PROFILE_CACHE_DIR", ".artifacts/profiles"),
-        uploads=artifacts / "web" / "uploads",
         checkpoint_db=artifacts / "web" / "checkpoints.sqlite",
         dist=root / "web" / "dist",
     )
@@ -92,7 +91,7 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
         include_thoughts=_flag(env, "INCLUDE_THOUGHTS", True),
         thinking_budget=int(env.get("THINKING_BUDGET", "1024")),
     )
-    sandbox = Sandbox(kind=env.get("EXPLORE_SANDBOX", "auto"), image=env.get("EXPLORE_IMAGE", "causal-desk-explore"))
+    sandbox = Sandbox(image=env.get("EXPLORE_IMAGE", "causal-desk-explore"), queue=env.get("EXPLORE_QUEUE", ""), agent_url=env.get("EXPLORE_AGENT_URL", ""))
     decider = Decider(kind=env.get("DECIDER", "laya"), url=env.get("DECIDER_URL") or None, key=env.get("DECIDER_KEY") or None)
     return Config(
         paths=paths, model=model, width_budget=int(env.get("FRAME_WIDTH_BUDGET", "150")), port=int(env.get("PORT", "8000")), sandbox=sandbox, decider=decider
@@ -101,3 +100,35 @@ def load(env: Mapping[str, str] | None = None, root: Path | None = None) -> Conf
 
 def get() -> Config:
     return load()
+
+
+@dataclass(frozen=True)
+class Ingestion:
+    database_url: str
+    endpoint: str
+    bucket: str
+    access_key: str
+    secret_key: str
+    user_id: str
+    mode: str
+    max_bytes: int
+    max_rows: int
+    max_columns: int
+    max_cells: int
+
+
+def ingestion(env: Mapping[str, str] | None = None) -> Ingestion:
+    env = os.environ if env is None else env
+    return Ingestion(
+        database_url=env.get("DATABASE_URL", ""),
+        endpoint=env.get("S3_ENDPOINT", "http://localhost:8333"),
+        bucket=env.get("S3_BUCKET", "datasets"),
+        access_key=env.get("S3_ACCESS_KEY", ""),
+        secret_key=env.get("S3_SECRET_KEY", ""),
+        user_id=env.get("DEV_USER_ID", "00000000-0000-0000-0000-000000000001"),
+        mode=env.get("APP_ENV", "development"),
+        max_bytes=int(env.get("UPLOAD_MAX_BYTES", str(25 * 1024 * 1024))),
+        max_rows=int(env.get("UPLOAD_MAX_ROWS", "100000")),
+        max_columns=int(env.get("UPLOAD_MAX_COLUMNS", "200")),
+        max_cells=int(env.get("UPLOAD_MAX_CELLS", "5000000")),
+    )

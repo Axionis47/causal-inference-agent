@@ -14,6 +14,7 @@ MODEL_CALLERS = {"common/llm.py", "lane/episode.py"}
 
 # the only places that start a process; the first must carry the trace across
 PROCESS_STARTERS = {
+    "server/runtime.py": "persistent trusted services; each A2A request carries its own trace parent",
     "desk/pipeline.py": "the lane's process; carries the parent run and the thread",
     "explore/sandbox.py": "a script, fenced; its span is opened around the call",
     "explore/client.py": "the exploration agent's process; carries the parent run and the thread",
@@ -25,12 +26,10 @@ RAW_WRITERS = {
     "common/trace.py": "the chokepoint itself",
     "memory/store.py": "the memory's own yaml files; the save is one tool span",
     "memory/journal.py": "the journal; each step is one tool span",
-    "server/transcript.py": "the page transcript, not an analysis artifact",
     "server/datasets.py": "the dataset index, meta and the uploaded CSV, not an analysis artifact",
     "profile/data.py": "the profile cache",
     "profile/profiler.py": "a command-line profile",
     "desk/handoff.py": "a command-line hand-off, outside a graph run",
-    "explore/sandbox.py": "the seatbelt profile the fence runs under; code.py goes through trace.write",
     "explore/project.py": "the projected table the exploration agent reads; derivable from the dataset, so not attached; its span names the column dropped",
     "evals/docfigs.py": "the docs' diagrams, outside the layers",
     "evals/ladder.py": "the docs' ladder tables, written from the lanes' declarations outside any graph run",

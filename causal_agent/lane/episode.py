@@ -119,7 +119,10 @@ def _args(a: dict[str, Any]) -> str:
 
 def _material(user: str, log: EpisodeLog, errors: list[str]) -> str:
     facts = log.render()
-    return user + (f"\n\n{facts}\n" if facts else "") + rejected(errors)
+    previous = ""
+    if errors and log.tries:
+        previous = "\n\nREJECTED RECORD (a proposal, not evidence)\n" + log.tries[-1].model_dump_json(include={"answer"})
+    return user + (f"\n\n{facts}\n" if facts else "") + previous + rejected(errors)
 
 
 def _run(tools: ToolSet, name: str, args: dict[str, Any], budget: int, log: EpisodeLog) -> str:
@@ -192,7 +195,9 @@ def _look_by_record(system: str, user: str, tools: ToolSet, schema: type[BaseMod
     seen: list[str] = []
     while log.calls < budget:
         shown = _material(user, log, errors) + ("\n\nWHAT YOU RAN SO FAR\n" + "\n\n".join(seen) if seen else "")
-        record, th = LLM.structured(schema, system + "\n\n" + STEP_RULE.format(budget=budget, node=log.node), shown, node=f"{log.node}:look")
+        media: list[dict[str, Any]] = getattr(tools, "media", lambda: [])()
+        prompt = [{"type": "text", "text": shown}, *media] if media else shown
+        record, th = LLM.structured(schema, system + "\n\n" + STEP_RULE.format(budget=budget, node=log.node), prompt, node=f"{log.node}:look")
         thoughts.append(th)
         if getattr(record, "done", False):
             break
@@ -213,6 +218,7 @@ def run_episode(
     tries: int = MAX_TRIES,
     notes: bool = False,
     commit_system: str | None = None,
+    before_commit: Callable[[EpisodeLog], list[str]] | None = None,
 ) -> tuple[T | None, EpisodeLog, list[Thought], list[str]]:
     """Run one episode. Returns the record the gate accepted (or None after `tries` refusals), the log, the thoughts, and the
     errors of the last refusal. The episode is one span, each try a span under it, each tool call and gate a span under that."""
@@ -242,11 +248,21 @@ def run_episode(
                         log.tries.append(Try(n=n, user=shown, answer={"parsing_error": str(exc)}, errors=list(errors)))
                         t.end(outputs={"errors": list(errors), "parsing_error": str(exc)})
                         continue
+                if before_commit and (missing := before_commit(log)):
+                    errors = trace.gate(missing, name="gate", attempt=n)
+                    shown = _material(user, log, errors)
+                    log.tries.append(Try(n=n, user=shown, answer={"missing_evidence": True}, errors=list(errors)))
+                    t.end(outputs={"errors": list(errors), "missing_evidence": True})
+                    if log.calls >= budget:
+                        break
+                    continue
                 shown = _material(user, log, errors)
                 if notes and log.notes:
                     shown += "\n\nWORKING NOTES (proposals, not evidence)\n" + log.notes
+                media: list[dict[str, Any]] = getattr(tools, "media", lambda: [])() if tools is not None else []
+                final_prompt = [{"type": "text", "text": shown}, *media] if media else shown
                 try:
-                    record, th = LLM.structured(schema, log.commit_system, shown, node=node)
+                    record, th = LLM.structured(schema, log.commit_system, final_prompt, node=node)
                 except ValueError as exc:
                     errors = trace.gate([f"structured record could not be parsed: {exc}"], name="gate", attempt=n)
                     log.tries.append(Try(n=n, user=shown, answer={"parsing_error": str(exc)}, errors=list(errors)))
@@ -271,12 +287,12 @@ def run_episode(
         ep.end(
             outputs={
                 "record": None,
-                "tries": tries,
+                "tries": len(log.tries),
                 "calls": log.calls,
                 "facts": [f.render() for f in log.facts],
                 "refusals": [r.reason for r in log.refusals],
                 "errors": list(errors),
             },
-            error="no record passed the gate in " + str(tries) + " tries: " + "; ".join(errors[:3]),
+            error="no record passed the gate in " + str(len(log.tries)) + " tries: " + "; ".join(errors[:3]),
         )
     return None, log, thoughts, errors

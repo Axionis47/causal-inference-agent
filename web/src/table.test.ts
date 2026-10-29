@@ -18,3 +18,14 @@ describe("parseCsv", () => {
     expect(parseCsv("")).toEqual({ header: [], rows: [], total: 0 });
   });
 });
+
+it("keeps quoted newlines inside the original table row", () => {
+  expect(parseCsv('name,note\r\nA,"first\nsecond"\r\nB,"a,b"\r\n')).toEqual({
+    header: ["name", "note"],
+    rows: [
+      ["A", "first\nsecond"],
+      ["B", "a,b"],
+    ],
+    total: 2,
+  });
+});

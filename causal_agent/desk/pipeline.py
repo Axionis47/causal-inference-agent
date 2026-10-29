@@ -46,14 +46,19 @@ def run(
     decision: dict | None = None,
     decision_record: str = "",
     thread_id: str | None = None,
+    snapshot: bool = False,
 ) -> RunRecord:
     """The lane in a subprocess on a hand-off file; a RunRecord either way. The child continues the caller's trace and thread."""
     from causal_agent.profile.datasets import ROOT
 
     handoff_path = Path(handoff_path)
-    h = Handoff.model_validate_json(handoff_path.read_text())
+    from causal_agent.memory.context.snapshot import resolve
+
+    h = resolve(handoff_path) if snapshot else Handoff.model_validate_json(handoff_path.read_text())
     out_path = handoff_path.parent / "result.json"
     cmd = [sys.executable, "-m", "causal_agent.desk.pipeline", str(handoff_path), "--json-file", str(out_path)]
+    if snapshot:
+        cmd.append("--snapshot")
     env = trace.child_env(dict(os.environ), thread_id)
     proc = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True)
     if not out_path.exists():
@@ -154,9 +159,11 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("handoff")
     ap.add_argument("--json-file", required=True)
+    ap.add_argument("--snapshot", action="store_true")
     args = ap.parse_args(argv)
-    raw = json.loads(Path(args.handoff).read_text())
-    h = Handoff.model_validate(raw)
+    from causal_agent.memory.context.snapshot import resolve
+
+    h = resolve(Path(args.handoff)) if args.snapshot else Handoff.model_validate_json(Path(args.handoff).read_text())
     with trace.parent():
         sr = run_lane(h, h.question, thread_id=trace.thread_id())
         trace.write(args.json_file, json.dumps(sr, default=str))

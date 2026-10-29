@@ -58,7 +58,7 @@ lane/execute.py         fits, declared fallback, attempt records and diagnostics
 lane/artifacts.py       interpretation, canonical result and reviewable report
 lane/knowledge/         endpoints, motifs, rungs, space, estimators, checks, rivals,
                         falsifications and sensitivity declarations
-evals/                  protocol fixtures, endpoint evaluators and real-run evidence
+evals/                  real-source cases, retained handoff and endpoint evaluators
 tests/                  pure policy invariants and actual numerical engines
 ```
 
@@ -68,9 +68,10 @@ A run leaves `table.csv`, `result.json`, `artifacts.json`, `figures.json` and `r
 
 ```bash
 LANGSMITH_TRACING=false uv run pytest causal_agent/families/adjustment/tests -q
-LANGSMITH_TRACING=false uv run python -m causal_agent.families.adjustment.evals.scenarios backdoor
-GRPC_DNS_RESOLVER=native uv run python -m causal_agent.evals.lane adjustment --handoff causal_agent/families/adjustment/evals/handoffs/backdoor_protocol.json
+GRPC_DNS_RESOLVER=native uv run python -m causal_agent.evals.lane adjustment students "Did completing the prep course raise math scores?"
 uv run python -m causal_agent.evals.trace --trace <trace-id> --thoughts
 ```
 
-The protocol fixtures disclose structure and assumptions while withholding generating effect magnitudes from Gemini. The evaluation knows those values. Real runs and their readbacks, including typed refusals and a full API conversation, are the acceptance bar.
+The generated evaluation datasets and their generators have been removed. Existing real-source fixtures remain; future evaluation uses Kaggle data with documented study context. Unit tests establish code invariants and numerical behavior. Real-source runs and inspected traces are required to establish endpoint acceptance coverage.
+
+The first code-assisted selection increment gives `pick_estimator` three sandboxed Python calls when more than one method is eligible. Scripts can inspect treatment and identified adjustment variables on the admitted analysis rows. The outcome and unrelated columns are absent, and isolated execution blocks access to the full source table. Each selected method must cite a successful diagnostic result with nonempty, finite numerical facts. The existing frozen inference, fallback, falsification and sensitivity policies remain unchanged by this increment.

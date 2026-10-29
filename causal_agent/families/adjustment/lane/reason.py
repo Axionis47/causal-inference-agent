@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from langgraph.types import Command
-from pydantic import create_model
+from pydantic import Field, create_model
 
 from causal_agent.common.addresses import key
 from causal_agent.common.contracts import CheckResult, Checks, Contrast, Feasibility, Handoff
@@ -35,6 +35,7 @@ from causal_agent.families.adjustment.lane.contracts import (
 )
 from causal_agent.families.adjustment.lane.engine import model as engine
 from causal_agent.families.adjustment.lane.knowledge import SPEC, load_checks, load_endpoint_catalogue, load_estimators, load_falsifications, load_sensitivities
+from causal_agent.families.adjustment.lane.selection import diagnostic_tools
 from causal_agent.families.adjustment.lane.state import SpecialistState, ladder_of
 from causal_agent.families.adjustment.lane.views import build as view_for
 from causal_agent.lane import intake
@@ -182,11 +183,10 @@ def load(state: SpecialistState) -> Command[Literal["case", "feasibility"]]:
     )
 
 
-def _episode(state, node, schema, system, view, gate):
+def _episode(state, node, schema, system, view, gate, *, tools=None, evidence_gate=None, before_commit=None):
     visit = 1 + sum(k.startswith(node + "_") for k in state.get("episodes", {}))
     name = f"{node}_{visit}"
-    tools = None
-    if SPEC.budget(node):
+    if tools is None and SPEC.budget(node):
         t, _, _ = L.keys(state)
         table = L.table(state)
         cs = state.get("contrasts") or []
@@ -198,9 +198,10 @@ def _episode(state, node, schema, system, view, gate):
         view.text,
         tools=tools,
         budget=SPEC.budget(node),
-        gate=lambda r, log: gate(r, lambda a: view.resolve(a) or log.resolve(a)),
+        gate=lambda r, log: gate(r, lambda a: view.resolve(a) or log.resolve(a)) + (evidence_gate(r, log) if evidence_gate else []),
         node=name,
         notes=True,
+        before_commit=before_commit,
     )
     return (
         result,
@@ -869,26 +870,23 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
         picked = [c.model_copy(update={"chosen_estimator": automatic.get(c.id)}) for c in state["candidates"]]
         return Command(goto="freeze_design", update={"candidates": picked, "candidate_history": _transitions(state, picked, "pick_estimator")})
     catalogue = {x.name: x for x in load_estimators()}
-    parts = []
+    parts = ["ADMITTED TREATMENT CONTRASTS\n" + "\n".join(str(contrast.model_dump()) for contrast in state["contrasts"])]
     for c in candidates:
         parts.append(
             f"DESIGN {c.id}: endpoint {c.endpoint_id}; target {c.target}\n"
             + f"[{'design:' + c.id + '.identification'}] {c.estimand.model_dump()}\n"
             + "\n".join(f"[{r.address}] {r.level}: {r.detail}" for r in c.checks.results)
             + "\n"
-            + "\n".join(catalogue[n].render() for n in c.allowed_estimators)
+            + "\n".join(catalogue[n].render() + f"; frozen parameters: {catalogue[n].params}" for n in c.allowed_estimators)
             + f"\nALLOWED {c.id}: {c.allowed_estimators}"
         )
     view = view_for("pick_estimator", state["handoff"], state["ledger"], material="\n\n".join(parts))
     from causal_agent.families.adjustment.lane.contracts import EstimatorChoice
 
-    AllowedCitation = Literal[tuple(sorted(view.addresses))]
     AllowedName = Literal[tuple(sorted({n for c in candidates for n in c.allowed_estimators}))]
     AllowedDesign = Literal[tuple(c.id for c in candidates)]
-    Choice = create_model(
-        "AllowedEstimatorChoice", __base__=EstimatorChoice, cites=(list[AllowedCitation], ...), name=(AllowedName, ...), design_id=(AllowedDesign, ...)
-    )
-    Picks = create_model("AllowedEstimatorPicks", items=(list[Choice], ...))
+    Choice = create_model("AllowedEstimatorChoice", __base__=EstimatorChoice, name=(AllowedName, ...), design_id=(AllowedDesign, ...))
+    Picks = create_model("AllowedEstimatorPicks", items=(list[Choice], Field(min_length=len(candidates), max_length=len(candidates))))
 
     def gate(r, resolve):
         errors = []
@@ -903,7 +901,14 @@ def pick_estimator(state: SpecialistState) -> Command[Literal["freeze_design", "
             errors += [f"unresolved citation {a}" for a in p.cites if not resolve(a)]
         return errors
 
-    rec, updates, errors = _episode(state, "pick_estimator", Picks, P.PICK, view, gate)
+    tools = diagnostic_tools(state, candidates)
+
+    def evidence_gate(record, log):
+        return [f"{pick.design_id}: {error}" for pick in record.items for error in tools.evidence_errors(pick.cites, log)]
+
+    rec, updates, errors = _episode(
+        state, "pick_estimator", Picks, P.PICK, view, gate, tools=tools, evidence_gate=evidence_gate, before_commit=tools.completion_errors
+    )
     if rec is None:
         return _stop("pick_estimator", "estimator selection exhausted", errors, updates)
     chosen = {**automatic, **{p.design_id: p.name for p in rec.items}}

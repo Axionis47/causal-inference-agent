@@ -3,240 +3,23 @@ fails here and not on the page."""
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from causal_agent.common.contracts import Decline, Falsification, RunRecord, Sensitivity
-from causal_agent.desk import pipeline
-from causal_agent.memory import journal as J
-from causal_agent.memory import store as MS
-from causal_agent.memory import versions as VS
-from causal_agent.server import artifacts as AV
-from causal_agent.server import datasets as DS
 from causal_agent.server.models import (
-    Activity,
-    AskItemView,
     CheckView,
-    ClaimView,
     DecisionView,
     DeclineView,
     EstimateView,
     FeasibilityView,
-    GapView,
-    HandoffField,
-    HandoffView,
     InterpretationView,
-    JudgeView,
-    Prompt,
-    QuestionView,
     RunView,
-    SessionView,
-    StatusView,
-    StepView,
-    VersionView,
 )
 from causal_agent.viz.spec import FigureSpec
 
 if TYPE_CHECKING:
-    from causal_agent.server.sessions import SessionManager
     from causal_agent.server.settings import Settings
-
-
-def disk_records(s: Settings, name: str) -> list[RunRecord]:
-    """Every design the dataset ran, from the records beside them, in design order."""
-    d = MS.home(name, s.root) / "designs"
-    if not d.is_dir():
-        return []
-    out = []
-    for p in sorted((p for p in d.iterdir() if p.is_dir() and p.name.isdigit()), key=lambda p: int(p.name)):
-        try:
-            rec = pipeline.load_record(p)
-        except Exception:
-            rec = None
-        if rec is not None:
-            out.append(rec)
-    return out
-
-
-def all_runs(s: Settings, name: str, live: list[RunRecord]) -> list[RunRecord]:
-    """The dataset's runs across every analysis: the records on disk, the live thread's winning for the same design."""
-    by_index = {r.index: r for r in disk_records(s, name)}
-    by_index.update({r.index: r for r in live})
-    return [by_index[i] for i in sorted(by_index)]
-
-
-_DESIGN_DIR = re.compile(r"^designs/(\d+)(?:/|$)")
-
-
-def step_view(s: J.Step) -> StepView:
-    run = next((int(m.group(1)) for p in s.left if (m := _DESIGN_DIR.match(p))), None)
-    run_id = next((Path(p).name for p in s.left if Path(p).is_absolute()), None)
-    return StepView(
-        n=s.n,
-        address=s.address,
-        kind=s.kind,
-        by=s.by,
-        at=s.at,
-        memory_version=s.memory_version,
-        design=s.design,
-        read=list(s.read),
-        left=list(s.left),
-        note=s.note,
-        run=run,
-        run_id=run_id,
-    )
-
-
-def journal_view(s: Settings, name: str, analysis: str | None) -> list[StepView]:
-    return [step_view(x) for x in J.open_journal(name, analysis, s.root).steps()] if analysis else []
-
-
-def session_view(mgr: SessionManager, name: str) -> SessionView:
-    """The conversation as the page shows it: the stage, the prompt, the questions, the claims, the runs, the transcript."""
-    sess = mgr.get(name)
-    meta = DS.read_meta(mgr.s, name) or {}
-    title, question = meta.get("title") or name, meta.get("question")
-    if not sess.thread_id:
-        runs0 = [run_view(r, mgr.s) for r in all_runs(mgr.s, name, [])]
-        return SessionView(
-            name=name, title=title, question=question, stage="new", runs=runs0, transcript=mgr.transcript(name), artifacts=AV.of_memory(mgr.s, name)
-        )
-    snap = mgr._snapshot(sess)
-    values = dict(snap.values or {})
-    interrupted = False
-    for t in snap.tasks or ():
-        if getattr(t, "interrupts", None):
-            interrupted = True
-        sub = getattr(t, "state", None)
-        if sub is not None and hasattr(sub, "values"):
-            values.update(sub.values or {})
-    prompt_raw = sess.last_payload
-    if prompt_raw is None:
-        for t in snap.tasks or ():
-            if getattr(t, "interrupts", None):
-                prompt_raw = dict(t.interrupts[0].value or {})
-                break
-    if prompt_raw is None:
-        prompt_raw = meta.get("last_prompt")
-    stage: Literal["busy", "waiting", "ended", "stale", "error", "new"]
-    if sess.busy:
-        stage = "busy"
-    elif sess.error:
-        stage = "error"
-    elif sess.ended or (not snap.next and values):
-        stage = "ended"
-    elif interrupted:
-        stage = "waiting"
-    elif snap.next:
-        stage = "stale"  # a node was pending when the process died; Resume continues it
-    else:
-        stage = "new"
-    phase = values.get("phase") or (prompt_raw or {}).get("phase") or "before"
-    prompt = (
-        Prompt(
-            text=(prompt_raw or {}).get("text") or "",
-            status=(prompt_raw or {}).get("status") or "",
-            ready=bool((prompt_raw or {}).get("ready")),
-            open=list((prompt_raw or {}).get("open") or []),
-            runs=int((prompt_raw or {}).get("runs") or 0),
-            phase=(prompt_raw or {}).get("phase") or "before",
-            kind=(prompt_raw or {}).get("kind"),
-        )
-        if prompt_raw
-        else None
-    )
-    questions: list[QuestionView] = []
-    ask = values.get("ask")
-    if phase == "before" and ask is not None and stage == "waiting" and (prompt_raw or {}).get("kind") == "ask":
-        questions = [
-            QuestionView(
-                keys=list(ask.addresses),
-                kind=ask.kind,
-                text=ask.text,
-                options=list(ask.options or []),
-                recommended=ask.recommended,
-                items=[AskItemView(**i.model_dump()) for i in ask.items],
-                evidence_cites=list(ask.evidence or []),
-                because=list(ask.because or []),
-            )
-        ]
-    claims: list[ClaimView] = []
-    data_version = 0
-    if MS.exists(name, mgr.s.root):
-        try:
-            mem = MS.load(name, mgr.s.root)
-            data_version = mem.data_version
-            claims = [ClaimView(**c.model_dump()) for c in mem.to_claims().claims.values() if c.status != "empty"]
-        except Exception:
-            claims = []
-    st = values.get("status")
-    status = StatusView(**st.model_dump()) if st is not None else None
-    runs = [run_view(r, mgr.s) for r in all_runs(mgr.s, name, list(values.get("runs") or []))]
-    activity = Activity(node=sess.activity[0], since=sess.activity[1]) if sess.activity else None
-    analysis = values.get("analysis") or sess.analysis or None
-    preview = values.get("preview")
-    handoff = (
-        handoff_view(preview, values.get("readiness")) if phase == "before" and prompt is not None and prompt.kind == "ready" and preview is not None else None
-    )
-    return SessionView(
-        name=name,
-        title=title,
-        question=values.get("question") or question,
-        stage=stage,
-        phase=phase,
-        activity=activity,
-        ready=bool(prompt and prompt.ready) if phase == "before" else True,
-        prompt=prompt,
-        questions=questions,
-        claims=claims,
-        status=status,
-        runs=runs,
-        brief=values.get("opening") or "",
-        transcript=mgr.transcript(name),
-        error=sess.error,
-        analysis=analysis,
-        journal=journal_view(mgr.s, name, analysis),
-        artifacts=AV.of_memory(mgr.s, name),
-        handoff=handoff,
-        data_version=data_version,
-        versions=[
-            VersionView(
-                v=x.v, parent=x.parent, address=x.address, ask=x.ask, summary=x.summary, rows=x.rows, added=x.added, dropped=x.dropped, made_at=x.made_at
-            )
-            for x in VS.list_versions(name, mgr.s.root)
-        ],
-    )
-
-
-def handoff_view(h, readiness=None) -> HandoffView:
-    """The pack's facts as fields the page can show and correct: the claim fields first, then the columns' fields; the judge's
-    reading beside them when it gave one."""
-    facts = h.facts
-    order = [a for a in facts if a.startswith("claim:")] + [a for a in facts if a.startswith("col:")]
-    fields = [
-        HandoffField(address=a, value=facts[a].value, status=facts[a].status, source=facts[a].source, said=facts[a].said, reason=facts[a].reason) for a in order
-    ]
-    return HandoffView(
-        family=h.family,
-        specialist=h.specialist,
-        outcome=h.outcome,
-        treatment=h.treatment,
-        bets_on=h.brief.bets_on if h.brief is not None else h.chosen_assumption,
-        memory_version=h.memory_version,
-        context_id=h.context_id,
-        dataset_identity=h.dataset_identity,
-        data_version=h.data_version,
-        admission=h.admission,
-        fields=fields,
-        judge=JudgeView(
-            verdict=readiness.verdict,
-            summary=readiness.summary,
-            gaps=[GapView(address=g.address, reason=g.reason, cites=list(g.cites)) for g in readiness.gaps],
-        )
-        if readiness is not None
-        else None,
-    )
 
 
 def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
@@ -309,6 +92,5 @@ def run_view(r: RunRecord, s: Settings | None = None) -> RunView:
         what_if=dict(r.what_if or {}),
         differs=list(r.differs or []),
         figures=[FigureSpec.model_validate(f) for f in r.figures or []],
-        artifacts=AV.of_design(s, r.dataset, int(r.index)) if s is not None else [],
         declines=declines,
     )
